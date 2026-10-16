@@ -8,9 +8,20 @@ import { questions } from '../public/questions.js';
 
 // Browser tests are development tooling only. The published site has no dependencies.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const urlArgument = process.argv.indexOf('--url');
+const requestedBaseURL = process.env.BASE_URL || (urlArgument >= 0 ? process.argv[urlArgument + 1] : null);
+let externalBaseURL;
+if (requestedBaseURL) {
+  const parsed = new URL(requestedBaseURL);
+  if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('--url / BASE_URL must be a public HTTP(S) directory URL without credentials, query, or fragment');
+  }
+  externalBaseURL = parsed.href.replace(/\/+$/, '');
+}
 const directoryArgument = process.argv.indexOf('--dir');
 const publicRoot = resolve(root, process.env.QA_SITE_DIR || (directoryArgument >= 0 ? process.argv[directoryArgument + 1] : 'public'));
-const output = resolve(root, 'artifacts', 'qa');
+const publicTarget = externalBaseURL && !['localhost', '127.0.0.1'].includes(new URL(externalBaseURL).hostname);
+const output = resolve(root, 'artifacts', publicTarget ? 'live-games' : 'qa');
 await mkdir(output, { recursive: true });
 let playwright;
 try {
@@ -28,7 +39,7 @@ for (const line of (await readFile(resolve(publicRoot, '_headers'), 'utf8')).spl
   const match = line.match(/^\s+([^:]+):\s*(.+)$/);
   if (match) productionHeaders[match[1]] = match[2];
 }
-const server = process.env.BASE_URL ? null : createServer(async (request, response) => {
+const server = externalBaseURL ? null : createServer(async (request, response) => {
   for (const [name, value] of Object.entries(productionHeaders)) response.setHeader(name, value);
   try {
     const url = new URL(request.url, 'http://localhost');
@@ -51,7 +62,7 @@ const server = process.env.BASE_URL ? null : createServer(async (request, respon
   }
 });
 if (server) await new Promise(resolveListen => server.listen(0, '127.0.0.1', resolveListen));
-const baseURL = process.env.BASE_URL || `http://127.0.0.1:${server.address().port}`;
+const baseURL = externalBaseURL || `http://127.0.0.1:${server.address().port}`;
 const installedChrome = process.platform === 'win32' && existsSync('C:/Program Files/Google/Chrome/Application/chrome.exe')
   ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : undefined;
 const executablePath = process.env.CHROME_PATH || installedChrome;
@@ -63,6 +74,7 @@ const matchArguments = process.argv.flatMap((argument, index, all) => argument =
 const testFilter = process.env.QA_MATCH || matchArguments.join('|') || null;
 
 async function check(name, action) {
+  if (process.argv.includes('--skip404') && name.startsWith('404 ')) return;
   if (testFilter && !new RegExp(testFilter).test(name) && name !== 'no browser exceptions or failed resources during QA') return;
   try {
     await action();
@@ -119,7 +131,7 @@ try {
     const mobile = viewport.width < 600 || viewport.height < 500;
     const { context, page } = await newPage({ viewport, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1 });
     await check(`${viewport.width}px gallery and all three game routes fit`, async () => {
-      await page.goto(baseURL);
+      await page.goto(`${baseURL}/`);
       await assertNoOverflow(page);
       for (const mode of ['invaders', 'runner', 'trivia']) {
         assert.equal(await page.locator(`a[href*="game=${mode}"]`).count(), 1, `${mode} gallery route`);
@@ -128,6 +140,14 @@ try {
       for (const mode of ['invaders', 'runner', 'trivia']) {
         await openGame(page, mode);
         await assertNoOverflow(page);
+        if (viewport.width === 844 && viewport.height === 390 && mode !== 'trivia') {
+          const fits = await page.locator('#canvas').evaluate(canvas => {
+            const arena = canvas.getBoundingClientRect();
+            const targets = [...document.querySelectorAll('#controls button')].filter(button => !button.hidden).map(button => button.getBoundingClientRect());
+            return arena.top >= -1 && arena.bottom <= innerHeight + 1 && targets.every(button => button.top >= -1 && button.bottom <= innerHeight + 1 && button.left >= -1 && button.right <= innerWidth + 1);
+          });
+          assert.ok(fits, `${mode}: the complete arena and all touch controls must be visible together in phone landscape`);
+        }
         await page.screenshot({ path: resolve(output, `${mode}-${viewport.width}.png`), fullPage: true });
         if (viewport.width === 320 && mode !== 'trivia') {
           await page.locator('#start').tap();
@@ -263,19 +283,23 @@ try {
     await assertNoOverflow(page);
     await page.screenshot({ path: resolve(output, '404-nested-390.png'), fullPage: true });
     await page.getByRole('link', { name: /Back to the games/ }).click();
-    assert.equal(new URL(page.url()).pathname, '/index.html');
+    assert.equal(new URL(page.url()).pathname, new URL('index.html', `${baseURL}/`).pathname);
     assert.equal(await page.locator('a[href*="game="]').count(), 3);
   });
   await context.close();
 
-  const { context: touchContext, page: touchPage } = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+  const touchViewports = process.argv.includes('--touch-all')
+    ? [{ width: 390, height: 844 }, { width: 320, height: 740 }, { width: 844, height: 390 }]
+    : [{ width: 390, height: 844 }];
+  for (const touchViewport of touchViewports) {
+  const { context: touchContext, page: touchPage } = await newPage({ viewport: touchViewport, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
   const touch = await touchContext.newCDPSession(touchPage);
   async function pointFor(selector, id) {
     const box = await touchPage.locator(selector).boundingBox();
     assert.ok(box, `${selector} is visible`);
     return { id, x: box.x + box.width / 2, y: box.y + box.height / 2 };
   }
-  await check('mobile: hold direction and Fire together, cancel touch, release outside', async () => {
+  await check(`mobile ${touchViewport.width}px: hold direction and Fire together, cancel touch, release outside`, async () => {
     await openGame(touchPage, 'invaders');
     await touchPage.locator('#start').tap();
     await touchPage.locator('#left').scrollIntoViewIfNeeded();
@@ -292,10 +316,10 @@ try {
     await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...right, x: 10, y: 10 }] });
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     assert.equal(await touchPage.locator('#right').getAttribute('aria-pressed'), 'false');
-    await touchPage.screenshot({ path: resolve(output, 'invaders-touch-390.png'), fullPage: true });
+    await touchPage.screenshot({ path: resolve(output, `invaders-touch-${touchViewport.width}.png`), fullPage: true });
   });
 
-  await check('mobile: Jump button and arena tap work, then pause clears inputs', async () => {
+  await check(`mobile ${touchViewport.width}px: Jump button and arena tap work, then pause clears inputs`, async () => {
     await openGame(touchPage, 'runner');
     await touchPage.locator('#start').tap();
     const ground = await canvasPixels(touchPage);
@@ -313,7 +337,7 @@ try {
     assert.equal(await touchPage.locator('#action').getAttribute('aria-pressed'), 'false');
   });
 
-  await check('mobile: trivia answer and continuation tap targets work', async () => {
+  await check(`mobile ${touchViewport.width}px: trivia answer and continuation tap targets work`, async () => {
     await openGame(touchPage, 'trivia');
     const answer = touchPage.locator('#quiz .answers button').nth(questions[0].correct);
     await answer.tap();
@@ -322,6 +346,7 @@ try {
     assert.match(await touchPage.locator('#quiz').textContent(), /question\s+2\s+of\s+5/i);
   });
   await touchContext.close();
+  }
   await check('no browser exceptions or failed resources during QA', async () => {
     assert.deepEqual(browserErrors, []);
   });

@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -24,4 +24,12 @@ jobs:
         with:
           name: htsg-interactive-lab-static
           path: dist/
+          retention-days: 7
+      - run: npm run package:wordpress
+      - run: php -l wordpress/htsg-interactive-lab/htsg-interactive-lab.php
+      - run: php tests/wordpress.test.php
+      - uses: actions/upload-artifact@v4
+        with:
+          name: htsg-interactive-lab-wordpress
+          path: release/htsg-interactive-lab-wordpress-*.zip
           retention-days: 7

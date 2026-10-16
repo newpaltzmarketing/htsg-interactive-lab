@@ -69,6 +69,10 @@ for (const path of files.sort()) {
         const url = new URL(image.replace(/^\/+/, ''), `${siteURL}/`).href;
         return `${before}${url.replaceAll('&', '&amp;')}${after}`;
       });
+    if (siteURL && name === '404.html') {
+      const basePath = new URL(`${siteURL}/`).pathname;
+      html = html.replace(/href="\/([^\"]*)"/g, (_, path) => `href="${basePath}${path}"`);
+    }
     bytes = Buffer.from(html);
   }
   await mkdir(dirname(target), { recursive: true });

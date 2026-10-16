@@ -4,11 +4,11 @@ Three browser games for Holistic Tech Solutions Group demonstrations:
 
 | Game | Play |
 | --- | --- |
-| Agency Invaders | Move, fire, and defend against incoming requests. |
-| Launch Runner | Jump over obstacles and keep the launch moving. |
-| Trivia Challenge | Choose answers and review the explanations. |
+| [Agency Invaders](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=invaders) | Move, fire, and defend against incoming requests. |
+| [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Jump over obstacles and keep the launch moving. |
+| [Trivia Challenge](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=trivia) | Choose answers and review the explanations. |
 
-The site uses static HTML, CSS, SVG, and JavaScript. There is no backend, account system, advertising, analytics, payment service, or paid dependency. Games run locally in the browser. Playwright is a free development dependency used only for browser checks.
+The games use static HTML, CSS, SVG, and JavaScript. There is no game backend, account system, advertising, analytics, payment service, or paid dependency. Games run locally in the browser. The WordPress companion serves the reviewed static files through the existing HTSG site and adds a direct administration link. It creates no game records or API. Playwright is a free development dependency used only for browser checks.
 
 ## Run locally
 
@@ -49,6 +49,7 @@ Use the on-screen buttons on phones and tablets. Desktop arcade controls support
 | `public/` | All files served to players. |
 | `scripts/` | Dependency-free static build, checks, and local server. |
 | `tests/` | Game logic and browser validation. |
+| `wordpress/` | Scoped static-file host for the existing HTSG WordPress site. |
 | `docs/BRANDING.md` | Reusable visual and content system. |
 | `docs/QA.md` | Validation results and device coverage. |
 | `docs/DEPLOYMENT.md` | GitHub and Cloudflare Pages setup and release procedure. |
@@ -58,6 +59,8 @@ The attachment's handoff notes are reference material. The requested scope is th
 
 ## Publishing
 
-Deployment is deferred at the owner's request. The intended future destination is the separate Cloudflare Pages project `htsg-interactive-lab`, using branch `demo-preview`. The Cloudflare workflow can run only by manual dispatch after deployment is requested again. Pushes validate and package the source without publishing a website. No workflow configures a custom domain, DNS, WordPress, or the live HTSG site. Follow [the deployment guide](docs/DEPLOYMENT.md) for the future release procedure.
+The lab is live at [the HTSG Interactive Lab](https://holistictechsolutionsgroup.com/demos/interactive-lab/). Run `npm run package:wordpress` to build the reviewed plugin ZIP for upload through the existing WordPress plugin installer. The games remain browser-only; the companion serves its manifest-listed files on that path. See [the deployment guide](docs/DEPLOYMENT.md) for installation, verification, and rollback.
+
+The separate Cloudflare Pages project `htsg-interactive-lab` remains an optional static hosting route. Its workflow runs only by manual dispatch. Source pushes validate and package code without deploying a website. No workflow configures custom domains or DNS.
 
 Hosting plans and usage limits are external to this code. The project does not enable a paid product or require a paid dependency.
