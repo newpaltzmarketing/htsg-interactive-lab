@@ -1,0 +1,19 @@
+/* Shared page and canvas tokens. See docs/BRANDING.md. */
+:root {
+  --brand-fire: #f43618;
+  --brand-amber: #f78c1a;
+  --ink: #000000;
+  --paper: #ffffff;
+  --muted: #595959;
+  --soft: #fff8f0;
+  --line: #dedbd7;
+  --radius: 20px;
+  --font: "Segoe UI", Arial, sans-serif;
+  --arena-background: #111111;
+  --arena-grid: #303030;
+  --arena-player: #f78c1a;
+  --arena-projectile: #ffffff;
+  --arena-obstacle: #f43618;
+  --arena-text: #ffffff;
+  --arena-overlay: #111111ed;
+}

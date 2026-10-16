@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFFFFF">
+  <meta name="description" content="Play a short HTSG browser game with keyboard and touch controls. Choose Agency Invaders, Launch Runner, or Trivia Challenge.">
+  <title>Play | HTSG Interactive Lab</title>
+  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to game</a>
+  <header class="site-header"><div class="header-inner"><a class="brand-link" href="index.html" aria-label="HTSG Interactive Lab home"><img src="assets/htsg-logo.png" width="3765" height="305" alt="Holistic Tech Solutions"></a><nav aria-label="Main navigation"><a class="nav-lab" href="index.html">All games</a><a class="project-link" href="https://holistictechsolutionsgroup.com/contact/" target="_blank" rel="noopener noreferrer">Discuss a project <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a></nav></div></header>
+  <main id="main" class="page-shell game-page">
+    <a class="back" href="index.html"><span aria-hidden="true">←</span> All games</a>
+    <div class="game-heading"><div><h1 id="title">HTSG game</h1><p id="instructions">Choose a game from the gallery to begin.</p></div><strong id="status" class="game-status">Ready to play</strong></div>
+    <div class="game-stage"><canvas id="canvas" width="960" height="540" tabindex="0" role="img" aria-label="Arcade game area. Instructions and controls follow." aria-describedby="instructions game-help">This game uses a canvas. Use the on-screen controls or try the keyboard-accessible Trivia Challenge from the game gallery.</canvas><div id="quiz" hidden></div></div>
+    <div id="controls" class="game-controls"><div class="direction-controls"><button id="left" class="control-button secondary" type="button" aria-label="Move left"><span aria-hidden="true">←</span> Left</button><button id="action" class="control-button" type="button">Fire</button><button id="right" class="control-button secondary" type="button" aria-label="Move right">Right <span aria-hidden="true">→</span></button></div><div class="session-controls"><button id="start" class="secondary" type="button">Start game</button><button id="pause" class="secondary" type="button" disabled>Pause</button></div></div>
+    <p id="game-help" class="game-help">Use the on-screen buttons or your keyboard. You can pause at any time.</p>
+    <p id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+    <noscript><div class="noscript-message"><h2>JavaScript is needed to play.</h2><p>Enable JavaScript in your browser, then reload this page.</p><a href="index.html">Return to all games</a></div></noscript>
+    <aside class="game-footer-note"><p>Want to explore a game for your brand?</p><a href="https://holistictechsolutionsgroup.com/contact/" target="_blank" rel="noopener noreferrer">Discuss a project <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a></aside>
+  </main>
+  <footer class="site-footer"><div class="footer-inner"><p>Built by Holistic Tech Solutions Group.</p><p>Demo games. Scores last for this visit only.</p></div></footer>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
