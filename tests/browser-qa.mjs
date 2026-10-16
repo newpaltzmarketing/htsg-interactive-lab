@@ -33,7 +33,7 @@ try {
   playwright = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE_PATH).href);
 }
 
-const contentTypes = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' };
+const contentTypes = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.ico': 'image/x-icon', '.json': 'application/json' };
 const productionHeaders = {};
 for (const line of (await readFile(resolve(publicRoot, '_headers'), 'utf8')).split(/\r?\n/)) {
   const match = line.match(/^\s+([^:]+):\s*(.+)$/);
@@ -114,6 +114,7 @@ async function openGame(page, mode) {
   await page.goto(`${baseURL}/play.html?game=${mode}`);
   await page.locator('#title').waitFor();
   await page.waitForFunction(() => ['Agency Invaders', 'Launch Runner', 'Trivia Challenge'].includes(document.querySelector('#title')?.textContent));
+  await page.waitForFunction(() => !document.querySelector('#game-shell') || document.documentElement.dataset.artwork === 'ready');
 }
 
 async function assertNoOverflow(page) {

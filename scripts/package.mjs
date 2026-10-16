@@ -11,7 +11,7 @@ for (const required of ['index.html', 'play.html', '404.html', '_headers', 'buil
   if (!deployed.some(file => file.name === required)) throw new Error(`Build dist/ before packaging: missing ${required}`);
 }
 const sources = [];
-for (const directory of ['public', 'scripts', 'tests', 'docs', '.github', 'wordpress']) {
+for (const directory of ['public', 'scripts', 'tests', 'docs', '.github', 'wordpress', 'artwork']) {
   for (const file of await collectFiles(resolve(root, directory))) sources.push({ ...file, name: `${directory}/${file.name}` });
 }
 for (const name of ['package.json', 'package-lock.json', 'README.md', '.gitignore', '.gitattributes', 'wrangler.toml']) {

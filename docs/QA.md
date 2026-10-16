@@ -12,6 +12,7 @@ npm run check
 npm test
 npx playwright install chromium
 npm run test:browser
+npm run test:upgrade
 npm run build
 ```
 
@@ -39,12 +40,13 @@ Browser screenshots and the machine-readable report are saved in `artifacts/qa/`
 
 ## Automated coverage
 
-The twelve rules tests cover:
+The 24 rules tests cover:
 
 - Keyboard and touch sources held at the same time, individual release, repeated keydown, and clearing held controls.
-- Agency Invaders movement bounds and direction speed, simultaneous directions, delayed-frame caps, firing cooldown, projectile collisions, life loss, game over, and clean restart state.
-- Launch Runner jump and landing, double-jump prevention, safe obstacle clearance, collision, distance scoring, game over, and clean restart state.
-- Every trivia question, correct and incorrect scoring, invalid answer indices, and a perfect and zero score.
+- Agency Invaders movement bounds and direction speed, simultaneous directions, direct touch steering and keyboard priority, proportional portrait travel time, delayed-frame caps, firing cooldown, projectile collisions, life loss, shield protection, wave transitions, combo scoring, game over, and clean restart state.
+- Launch Runner two-jump limit and landing reset, safe obstacle clearance, collision, energy pickups and boost protection, distance scoring, game over, and clean restart state. Portrait collision and collection areas match the enlarged artwork; camera framing preserves the full astronaut without changing jump physics.
+- Resize preserves arcade progress and relative positions; Runner retains its physical jump height and velocity.
+- Every trivia question, correct and incorrect scoring, invalid answer indices, perfect and zero scores, and three distinct replay rounds containing 15 questions.
 
 The browser suite covers:
 
@@ -110,9 +112,58 @@ The initial run passed 17/19 and exposed two real menu failures at 320 pixels an
 
 The published HQ 2.16.2 navigation also passed 21/21 focused checks: all six panels at desktop 1280, phone 320, and landscape 844 pixels moved ArrowDown/ArrowUp focus to their visible first/last links with a clear focus indicator; the two mobile Demos flows accepted real emulated touch taps; no browser exceptions occurred. Menu screenshots were taken after the opacity transition settled. No forced clicks or contact-form submissions were used.
 
-The final state is Lab 1.0.1 and HQ 2.16.2. No unresolved failures remain from these game, viewport, control, navigation, and deployment-path checks. Reports and final proof are in:
+At that publication check, the installed versions were Lab 1.0.1 and HQ 2.16.2. No unresolved failures remained from those game, viewport, control, navigation, and deployment-path checks. Reports and final proof are in:
 
 - `artifacts/live-qa/`: integration reports and the public desktop Demos directory screenshot.
 - `artifacts/navigation-live/`: actual published keyboard/touch navigation results and settled 320-pixel menu proof.
 - `artifacts/live-games/`: complete live game results and desktop/mobile game screenshots.
 - `artifacts/live-landscape/`: published compact landscape viewport and rotation proof.
+
+## Cinematic upgrade verification — 1.1.0 candidate
+
+The 1.1.0 upgrade was verified locally on 16 October 2026 with Playwright 1.64.1 and Chrome 155.0.8059.84. These results describe the candidate source; the prior live-publication record above does not establish that this upgrade has been published.
+
+The final rules suite passed 24/24. The existing complete browser suite passed 25/25, including the six additional touch scenarios, with no browser exceptions or failed resources. The upgrade suite passed 20/20. The suites have overlapping coverage and their counts are not added together.
+
+The upgrade suite checks:
+
+- Both cinematic arcade games at 320 × 740, 390 × 844, 844 × 390, 1280 × 900, and 1440 × 900. The arena fills the available screen shape; its full visible area and every essential navigation/session/touch target fit together. Enabled targets are uncovered and at least 44 × 44 CSS pixels.
+- Actual touch drag steering, both arena edges, pointer release and cancellation, plus assistive-technology click nudges using the same bounds. Keyboard movement, held input clearing, pause/restart, native button activation, and a single animation loop remain covered by the core suite.
+- Paused and active portrait/landscape rotation, retained score and jump physics, and the full astronaut remaining visible at a landscape double-jump apex.
+- Native fullscreen entry and exit, with `document.fullscreenElement` explicitly checked; a deliberately rejected API tests the expanded-view fallback and Escape exit. Both retain the paused run.
+- Touch navigation through previous/next links and all three game-picker destinations. Help and the picker pause gameplay, dismiss on resume, and restore canvas focus; Escape closes the picker and restores its summary focus.
+- Readable trivia questions and answers at all five widths, answer/continuation focus, all 15 questions across three perfect rounds, progress, review, clean replay, and a working results skip-link focus target.
+- Simulated safe insets at 320/390-pixel portrait and 844-pixel landscape using the same CSS variables that read device safe-area values. Navigation and controls remain inside the usable area.
+- No browser exceptions, resource errors, or renderer mutations of game state. Client-only observation wraps the original renderer; production files contain no test globals.
+
+After the complete runs, focused follow-ups passed 4/4 for explicit native-versus-fallback fullscreen and release/cancel observations, then 4/4 for the final Help/picker resume, accessible edge nudges, and trivia results skip-link fixes. These follow-ups overlap the 20 upgrade scenarios and do not increase the scenario count. No unresolved application failures remained.
+
+Desktop and phone captures were visually reviewed after real gameplay, including enemies and projectiles in Invaders and an approaching obstacle, energy pickups, and a jump in Runner after approximately 2–3 seconds. The final portrait Runner has a shallow track and enlarged character/obstacles; the landscape double-jump camera keeps the astronaut in view. Trivia answers, explanations, and focus rings remain legible at 320 pixels. Fullscreen, safe-inset, paused, and ready views were also reviewed.
+
+Repeat the upgrade checks with `npm run test:upgrade`. The script starts and closes its own local fixture with the production security headers, or accepts `--url`, `--dir`, and repeated `--match` options. It saves viewport screenshots, geometry, browser version, and timestamped results in `artifacts/upgrade-qa/` (or `artifacts/upgrade-live/` for a public URL). The full 20-scenario record is `artifacts/upgrade-qa/full-results.json`; `results.json` holds the latest focused follow-up. The final core record is `artifacts/qa/upgrade-core-full-results.json`.
+
+Representative final visual evidence is `runner-running-390.png`, `runner-running-844.png`, `runner-double-jump-apex-844.png`, `invaders-running-390.png`, `invaders-running-1280.png`, `trivia-answer-320.png`, and `fullscreen-fallback-390.png` in `artifacts/upgrade-qa/`.
+
+All mobile interaction checks use Chromium touch emulation. Safe insets are simulated; no physical notch, iPhone, Android device, mobile browser fullscreen policy, or Safari was tested. The desktop browser API and fallback behavior are verified within this stated scope.
+
+## Published cinematic upgrade — 1.1.0
+
+On 16 October 2026 at approximately 5:45 p.m. EDT, the same frozen tests passed against [the published 1.1.0 Lab](https://holistictechsolutionsgroup.com/demos/interactive-lab/): all 20 upgrade scenarios and all 25 complete core browser scenarios passed. There were no browser exceptions, resource errors, or renderer state mutations. These were actual public-path tests with Playwright 1.64.1 and Chrome 155.0.8059.84; local source evidence is preserved separately.
+
+The live upgrade run includes every final controller regression: Help/picker dismissal on resume, canvas focus, accessible edge nudges, and the trivia results skip target. It also verifies actual native fullscreen, rejected-API fallback, drag/release/cancel, landscape camera framing, active/paused rotation, safe-inset simulation, the three replay rounds, and the five screen sizes listed above.
+
+Eleven published module, stylesheet, and world-art files matched the frozen source byte-for-byte by SHA-256, including all three new WebP backgrounds and `game-renderer.js`. A cache-busted `game.js` matched too. The published game HTML contains the new viewport/picker structure and serves the expected security policy.
+
+A focused public discovery smoke passed 8/8 at desktop 1280 and phone 390 pixels: menu-to-Demos, dropdown-to-Lab, the directory's three direct game links and gallery destination, homepage footer-to-Lab, and Lab return routes to All demos and the Rocket Menu. The parent navigation implementation was unchanged; the complete HQ keyboard audit was not repeated.
+
+Fresh public action screenshots were visually reviewed for Runner at 390 pixels and 844 × 390 landscape, Invaders at 390 and 1280 pixels, and trivia at 320 pixels. Final desktop/mobile gallery screenshots were captured after all three lazy-loaded artwork images decoded. An earlier automatic gallery screenshot preceded two lazy image loads; the settled captures supersede it. No application change was needed.
+
+Final published evidence:
+
+- `artifacts/upgrade-live/full-results-1.1.0.json`: 20/20 upgrade scenarios.
+- `artifacts/live-games/full-results-1.1.0.json`: 25/25 core browser scenarios.
+- `artifacts/live-qa/discovery-results-1.1.0.json`: 8/8 focused discovery scenarios.
+- `artifacts/upgrade-live/release-files.json`: production file hashes and freshness/security checks.
+- `artifacts/upgrade-live/`: public `runner-running-390.png`, `runner-running-844.png`, `invaders-running-390.png`, `invaders-running-1280.png`, `trivia-answer-320.png`, `gallery-settled-1280.png`, and `gallery-settled-390.png`.
+
+No unresolved failures remain from this published upgrade verification. Mobile results remain Chromium touch/viewport emulation with simulated safe insets; physical devices and Safari are outside the verified scope.

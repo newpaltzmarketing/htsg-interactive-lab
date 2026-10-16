@@ -17,6 +17,8 @@ const entrypoint = 'htsg-interactive-lab.php';
 const plugin = await readFile(resolve(root, 'wordpress/htsg-interactive-lab', entrypoint));
 const version = plugin.toString('utf8').match(/^\s*\* Version:\s*(\d+\.\d+\.\d+)\s*$/m)?.[1];
 if (!version) throw new Error('The WordPress companion needs a numeric release version');
+const projectVersion = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8')).version;
+if (version !== projectVersion) throw new Error('Project and WordPress release versions must match');
 const files = [{ name: `htsg-interactive-lab/${entrypoint}`, bytes: plugin }];
 for (const file of await collectFiles(resolve(root, 'dist'))) files.push({ ...file, name: `htsg-interactive-lab/site/${file.name}` });
 const bytes = createZip(files);

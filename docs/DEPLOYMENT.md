@@ -2,9 +2,15 @@
 
 The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. On October 16, 2026, the owner authorized publication and integration with the existing Demos area and navigation. The static games use the existing HTSG WordPress host. No new game backend, external API, database tables, account system, paid dependency, or DNS change is required.
 
+## Release 1.1.0
+
+The reviewed replacement is installed as version **1.1.0**. It adds original cinematic environments, procedural game drawing, deeper arcade and trivia rules, direct arena touch input, and a viewport-shaped player with expansion. These are static browser assets. The package and companion share the same version, and activation now requires the renderer, player stylesheet, and all three world images as well as the core pages and modules.
+
+The companion was replaced through the existing WordPress installer, its active version was confirmed, and SiteGround cache was purged. The preceding 1.0.1 archive remains unchanged as the rollback package. Existing Headquarters 2.16.2 links already point to this lab URL and required no change for this release. No Cloudflare, custom domain, or DNS change is part of this upgrade. The current anonymous game and mobile verification record is in [QA.md](QA.md).
+
 ## Existing HTSG WordPress host
 
-Run `npm run package:wordpress` to build `release/htsg-interactive-lab-wordpress-1.0.1.zip` and its SHA-256 file. The filename follows the companion's version metadata. This command sets the approved `SITE_URL`, makes social metadata absolute, and adjusts the missing-page stylesheet, favicon, and gallery link to `/demos/interactive-lab/`. Ordinary game links and modules remain relative. The ZIP contains one companion entry point and the built static site; no tests, credentials, dependencies, or source history are installed.
+Run `npm run package:wordpress` to build `release/htsg-interactive-lab-wordpress-1.1.0.zip` and its SHA-256 file. The filename follows the companion's version metadata, which must match `package.json`. This command sets the approved `SITE_URL`, makes social metadata absolute, and adjusts the missing-page stylesheet, favicon, and gallery link to `/demos/interactive-lab/`. Ordinary game links and modules remain relative. The ZIP contains one companion entry point and the built static site; no tests, credentials, dependencies, artwork originals, or source history are installed.
 
 Use the established authenticated **Plugins → Add New → Upload Plugin** route, upload the reviewed ZIP, and activate **HTSG Interactive Lab**. For later releases, replace this companion in place. Activation requires an HTSG administrator, the expected HTSG host, a complete static package, and no native page already owning `demos/interactive-lab`. It creates or overwrites no pages, options, roles, or game records; it only purges existing SiteGround cache when that function is available. A direct administration link appears under Headquarters.
 
@@ -12,11 +18,15 @@ Do not create a physical `demos/` directory in the WordPress webroot, which coul
 
 Only GET and HEAD are supported. The gallery without its final slash redirects to the canonical URL. Unknown or unsafe names return the branded 404. Dot paths, encoded path tricks, internal metadata, PHP files, and unlisted files cannot be served through the adapter. Assets must match the manifest's path, byte length, and SHA-256 hash and resolve inside the companion's `site/` directory. It sends the shared CSP/privacy headers from `_headers`, and gameplay remains entirely in the browser.
 
+Every served response uses `Cache-Control: public, max-age=0, must-revalidate`. Each static asset receives an ETag derived from its content hash. Browser caches must revalidate the same module and image paths after a replacement; the SiteGround purge clears the host's existing cached responses. Verify the new version's stylesheet, renderer, and all three worlds anonymously after purging, rather than relying on a previously open game tab.
+
+The three runtime world paths are `assets/invaders-world.webp`, `assets/runner-world.webp`, and `assets/trivia-world.webp`, each 1536 × 864. Their selected originals and exact prompts are preserved under `artwork/` and included in the source ZIP, outside the installed plugin. See [ARTWORK.md](ARTWORK.md) for file hashes and optimization, and [BRANDING.md](BRANDING.md) for the shared tokens and reusable asset contract.
+
 Development verification uses `php -l wordpress/htsg-interactive-lab/htsg-interactive-lab.php` and `php tests/wordpress.test.php` after `npm run package:wordpress`. The workspace has an existing PHP executable in `../custom-pools-showcase/growth-release/tools/php/php.exe`. PHP is only development tooling and part of the existing WordPress host; standalone games do not require it.
 
 After installation, purge SiteGround cache and verify the gallery, all three games, module/image content types, canonical slash, HEAD, branded nested 404, method restrictions, and actual policy headers anonymously. Follow the HTSG home logo, All demos, Rocket Menu, gallery return, and contact links on desktop and mobile. Preserve all existing demos and protected access controls. See [QA.md](QA.md) for actual device coverage and results.
 
-Rollback: deactivate only **HTSG Interactive Lab** to remove its scoped route and administration link. No game records or content require deletion. Restore the preserved Demos content and preceding Headquarters package separately if their discovery changes need rollback. Do not deactivate unrelated demos or perform a sitewide restore for this companion.
+Rollback for a 1.1.0 regression: replace only **HTSG Interactive Lab** with the preserved `release/htsg-interactive-lab-wordpress-1.0.1.zip`, verify version 1.0.1, purge SiteGround cache, and repeat the direct game/mobile checks. Its SHA-256 is `74b0dd800f971d7d9817bdf98a1662e6421b21762f24da8df508c43ac358765d` (167,592 bytes). That restores the preceding tested game edition while keeping the existing menu and Demos links valid. To remove the lab entirely, deactivate only this companion; no game records or content require deletion. Restore native Demos content and Headquarters separately only if their discovery changes also require rollback. Do not deactivate unrelated demos or perform a sitewide restore for this companion.
 
 ## Cloudflare alternative
 
@@ -74,7 +84,7 @@ Choose a Direct Upload Pages project for this procedure. Cloudflare documents li
 
 ## GitHub Actions
 
-`Validate static demo` runs on pushes and pull requests. It installs the pinned free testing dependency, runs the game and browser checks, uploads the standalone static build, then builds and checks the WordPress companion and uploads that ZIP as a separate artifact. It does not publish a website. There is no GitHub Pages deployment workflow.
+`Validate static demo` runs on pushes and pull requests. It installs the pinned free testing dependency, runs the game, browser, and upgrade touch/fullscreen/layout checks, uploads the standalone static build, then builds and checks the WordPress companion and uploads that ZIP as a separate artifact. It does not publish a website. There is no GitHub Pages deployment workflow.
 
 `Deploy demonstration preview` runs only when manually dispatched after a future deployment request. It validates the selected source and deploys the fixed `demo-preview` branch of the separate `htsg-interactive-lab` Pages project. There is no automatic deployment or production deployment workflow.
 
@@ -115,13 +125,13 @@ Re-run checks and deploy the same `demo-preview` branch with the command above. 
 
 ## Current publish status
 
-The **HTSG Interactive Lab 1.0.1** companion was uploaded through the existing WordPress plugin installer on October 16, 2026, and its active version was verified after replacement. The gallery and all three game routes are live at [the Interactive Lab](https://holistictechsolutionsgroup.com/demos/interactive-lab/). This release refines landscape phone layouts so the full arcade arena and its touch controls fit together. Desktop/mobile gameplay and navigation verification are recorded in [QA.md](QA.md).
+The **HTSG Interactive Lab 1.1.0** companion was uploaded through the existing WordPress plugin installer on October 16, 2026, and its active version was verified after replacement. SiteGround cache was then purged from the stable administration page. The gallery and all three game routes are live at [the Interactive Lab](https://holistictechsolutionsgroup.com/demos/interactive-lab/). This release adds the cinematic worlds and sharing artwork, deeper game rules, direct arena input, and a screen-filling responsive player. Desktop/mobile gameplay and navigation verification are recorded in [QA.md](QA.md).
 
-Installed archive: `release/htsg-interactive-lab-wordpress-1.0.1.zip`, 167,592 bytes, SHA-256 `74b0dd800f971d7d9817bdf98a1662e6421b21762f24da8df508c43ac358765d`. The ZIP's 20 files were independently decompressed and matched against the reviewed entry point and static build before installation. PHP lint and 56 adapter scope, canonical-route, permission, collision, integrity, and navigation checks passed. The unchanged 1.0.0 archive remains available locally as a rollback package.
+Installed archive: `release/htsg-interactive-lab-wordpress-1.1.0.zip`, 2,834,833 bytes, SHA-256 `f540082196a7194ed4974a9d07e724a170bb1d34e261bbdb5f7907a450b63738`. All 25 ZIP entries were independently decompressed and matched against the reviewed entry point and scoped static build before installation. PHP lint and 72 adapter scope, canonical-route, permission, collision, integrity, required-asset, and navigation checks passed. The preceding tested 1.0.1 archive remains the primary local rollback; the older 1.0.0 archive is also preserved.
 
 Public source repository: [newpaltzmarketing/htsg-interactive-lab](https://github.com/newpaltzmarketing/htsg-interactive-lab). Hosting uses the existing HTSG WordPress site. No Cloudflare project, Cloudflare deployment, custom domain, or DNS change was created. Cloudflare remains a prepared static hosting alternative.
 
-Public discovery is integrated with native Demos page 226 and Headquarters 2.16.2. The separately maintained Headquarters release supplies the site menu/footer links and the phone-menu positioning and keyboard behavior. Its source and recovery records live in the parent HTSG publication workspace:
+Public discovery is integrated with native Demos page 226 and Headquarters 2.16.2. The separately maintained Headquarters release supplies the site menu/footer links and the phone-menu positioning and keyboard behavior; it was not changed by the 1.1.0 upgrade. The current upgrade publication record is `output/interactive-lab-upgrade-2026-10-16/PUBLICATION.md` in the parent workspace. Earlier integration source and recovery records remain preserved separately:
 
 - Publication record: `output/interactive-lab-publication-2026-10-16/PUBLICATION.md`.
 - Headquarters installer: `output/interactive-lab-publication-2026-10-16/htsg-headquarters-2.16.2.zip` (SHA-256 `c313f09507a3eee80c7975b2cb711929d61a9f2e876500f90e23127f74f7eece`).

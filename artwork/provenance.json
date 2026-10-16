@@ -1,0 +1,107 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "assets": [
+    {
+      "asset": "invaders",
+      "original": "artwork/originals/invaders-world.png",
+      "original_dimensions": [
+        1672,
+        941
+      ],
+      "original_bytes": 2382898,
+      "original_sha256": "005a709d9158f71b513e77d6744110f49c2043037c4216af1e9931f2028d79e0",
+      "runtime": "public/assets/invaders-world.webp",
+      "runtime_dimensions": [
+        1536,
+        864
+      ],
+      "runtime_bytes": 367044,
+      "runtime_sha256": "7536a417e413e2be15cfa0f2cb916e3b629aae7bd585c69b7433df770727d04b",
+      "webp_quality": 95,
+      "webp_method": 6,
+      "source_generator_filename": "exec-e5bd85ba-ccff-4f7c-93a3-b740decb94a4.png"
+    },
+    {
+      "asset": "runner",
+      "original": "artwork/originals/runner-world.png",
+      "original_dimensions": [
+        1672,
+        941
+      ],
+      "original_bytes": 2356843,
+      "original_sha256": "83b141581c85cbc3773dd127b9c061c95bf268cd941a1b57d93af99c3f617a63",
+      "runtime": "public/assets/runner-world.webp",
+      "runtime_dimensions": [
+        1536,
+        864
+      ],
+      "runtime_bytes": 379038,
+      "runtime_sha256": "5735fe206f092e7c2eca397d8751607dc09e43b30c689eb2ec9ea0c30b8bbcbf",
+      "webp_quality": 95,
+      "webp_method": 6,
+      "source_generator_filename": "exec-7580c28f-11e1-404f-b46c-7d16c48339bf.png"
+    },
+    {
+      "asset": "trivia",
+      "original": "artwork/originals/trivia-world.png",
+      "original_dimensions": [
+        1672,
+        941
+      ],
+      "original_bytes": 2221079,
+      "original_sha256": "0dad3b688d683f71c1d28bddaa40d351b28830d51d34cb7b97a1de24edead7f6",
+      "runtime": "public/assets/trivia-world.webp",
+      "runtime_dimensions": [
+        1536,
+        864
+      ],
+      "runtime_bytes": 327786,
+      "runtime_sha256": "2f4c1c71a1d628ed5584e5411034264e0f0b5b3f4d04da0d106f0bfb390759d9",
+      "webp_quality": 95,
+      "webp_method": 6,
+      "source_generator_filename": "exec-b06c32ea-9411-41d4-b571-2adda84385b6.png"
+    }
+  ],
+  "share_card": {
+    "method": "Editable SVG composition of the approved HTSG logo and the three selected local environment WebPs; rendered by Chromium at 1200 x 630.",
+    "generator": "scripts/generate-share-card.mjs",
+    "dimensions": [
+      1200,
+      630
+    ],
+    "inputs": [
+      {
+        "path": "public/assets/htsg-logo.png",
+        "bytes": 51871,
+        "sha256": "e8084a0bdcfd63889c7629d8bc501ef8338bf0e0fc39545995f5a50a5870f69f"
+      },
+      {
+        "path": "public/assets/invaders-world.webp",
+        "bytes": 367044,
+        "sha256": "7536a417e413e2be15cfa0f2cb916e3b629aae7bd585c69b7433df770727d04b"
+      },
+      {
+        "path": "public/assets/runner-world.webp",
+        "bytes": 379038,
+        "sha256": "5735fe206f092e7c2eca397d8751607dc09e43b30c689eb2ec9ea0c30b8bbcbf"
+      },
+      {
+        "path": "public/assets/trivia-world.webp",
+        "bytes": 327786,
+        "sha256": "2f4c1c71a1d628ed5584e5411034264e0f0b5b3f4d04da0d106f0bfb390759d9"
+      }
+    ],
+    "outputs": [
+      {
+        "path": "public/assets/lab-share.svg",
+        "bytes": 1503313,
+        "sha256": "2e231348d4293ffe2588069b17920d3023975214262d1761e6a3ba053320154d"
+      },
+      {
+        "path": "public/assets/lab-share.png",
+        "bytes": 534298,
+        "sha256": "06e586a08d120363372de97651f1962c2533789e6c2bd81d2a77b077c9ba139e"
+      }
+    ]
+  }
+}

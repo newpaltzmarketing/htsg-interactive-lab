@@ -54,6 +54,16 @@ $state['can'] = true; $state['page'] = (object) ['ID' => 123];
 check(stopped('htsg_lab_activate', 409), 'Existing page must not be shadowed');
 $state['page'] = null;
 check(htsg_lab_ready(), 'The actual packaged dist files must verify');
+foreach (['game-renderer.js', 'play.css', 'assets/invaders-world.webp', 'assets/runner-world.webp', 'assets/trivia-world.webp'] as $name) {
+    $path = $fixture . '/site/' . $name;
+    rename($path, $path . '.unavailable');
+    clearstatcache();
+    check(!htsg_lab_ready(), 'Missing required play surface must fail readiness: ' . $name);
+    check(stopped('htsg_lab_activate', 409), 'Incomplete play surface must stop activation: ' . $name);
+    rename($path . '.unavailable', $path);
+    clearstatcache();
+}
+check(htsg_lab_ready(), 'Restored play surface must verify');
 foreach (htsg_lab_manifest() as $name => $entry) {
     if ($name === '_headers') { continue; }
     $asset = htsg_lab_asset($name);

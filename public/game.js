@@ -1,35 +1,40 @@
 import { brand } from './brand.js';
-import { questions } from './questions.js';
+import { questionsForRound } from './questions.js';
 import {
   ARENA, createInputState, setInput, getInput, clearInput,
   createInvadersState, stepInvaders, fireInvaders,
-  createRunnerState, jumpRunner, stepRunner, gradeAnswer,
+  createRunnerState, jumpRunner, stepRunner, gradeAnswer, resizeGame,
 } from './game-engine.js';
+import { createRenderer } from './game-renderer.js';
 
 const games = {
   invaders: {
-    title: 'Agency Invaders',
-    instructions: 'Clear the incoming project chaos. You have three lives; each hit scores 10 points.',
-    help: 'Move: A / D or left / right arrows. Fire: Space or up arrow. On touch screens, hold a direction and Fire together. P or Escape pauses.',
-    action: 'Fire',
+    title: 'Agency Invaders', headline: 'Clear the orbit.',
+    instructions: 'Pilot through incoming drone waves. Build a streak and collect shields to keep your launch alive.',
+    help: 'Touch or drag anywhere in the arena to steer and fire. Lift your finger to stop firing. You can also hold the arrow buttons and Fire together. Keyboard: A / D or left / right arrows to steer; Space or up arrow to fire. P or Escape pauses.',
+    depth: 'Each wave brings more pressure. Consecutive hits build your combo. Collect the glowing shield pickups to protect your three lives.',
+    hint: 'Drag the arena to steer and fire.', action: 'Fire',
   },
   runner: {
-    title: 'Launch Runner',
-    instructions: 'Keep the launch moving. Jump over each obstacle and see how far you can go.',
-    help: 'Jump: Space, W, or up arrow. On touch screens, tap the arena or Jump. Release and press again for your next jump. P or Escape pauses.',
-    action: 'Jump',
+    title: 'Launch Runner', headline: 'Find your next horizon.',
+    instructions: 'Cross the launch complex, clear the barriers, and collect energy. A second jump can change your flight.',
+    help: 'Tap the arena or swipe up to jump. Tap again in the air for a double jump. The Jump button works too. Keyboard: Space, W, or up arrow. Release before jumping again. P or Escape pauses.',
+    depth: 'Collect five glowing energy cells for a brief protective boost. Each cell also earns a bonus. The route gets faster as you travel; use your second jump to clear a late obstacle or reach a higher cell.',
+    hint: 'Tap or swipe up to jump. Tap again for a double jump.', action: 'Jump',
   },
   trivia: {
-    title: 'Trivia Challenge',
-    instructions: 'Answer five questions about useful digital experiences. Learn a little after every answer.',
-    help: 'Choose one answer, read the explanation, then continue. Use Tab and Enter or tap an answer.',
+    title: 'Trivia Challenge', headline: 'A little knowledge. A better launch.',
+    instructions: 'Five decisions per round. Explore digital experiences, build a streak, and learn why each answer works.',
+    help: 'Tap an answer, read the explanation, then continue. Use Tab and Enter on a keyboard. Each new round has five questions; three different rounds cover strategy, design, and trust.',
+    depth: 'Build a correct-answer streak and review what you learned at the end. There is no timer, so take the time you need.',
+    hint: 'Choose an answer to begin.',
   },
 };
 const requestedMode = new URLSearchParams(location.search).get('game');
 const mode = Object.hasOwn(games, requestedMode) ? requestedMode : 'invaders';
 const game = games[mode];
 const byId = id => document.getElementById(id);
-const canvas = byId('canvas') || document.querySelector('canvas');
+const canvas = byId('canvas');
 const context = canvas.getContext('2d');
 const status = byId('status');
 const controls = byId('controls');
@@ -37,176 +42,154 @@ const start = byId('start');
 const pause = byId('pause');
 const announcement = byId('announcement');
 const quiz = byId('quiz');
-const palette = {
-  background: '#111111', grid: '#242424', player: '#f7b21b', projectile: '#ffcf66',
-  obstacle: '#f5f2e9', text: '#ffffff', overlay: 'rgba(17,17,17,.94)',
-  ...(brand.canvas || {}),
-};
+const shell = byId('game-shell');
+const overlay = byId('arena-overlay');
+const picker = byId('game-picker');
+const helpPanel = byId('help-panel');
+const renderer = createRenderer();
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const input = createInputState();
+const arenaPointers = new Map();
 let state;
 let playing = false;
 let paused = false;
 let frameId = null;
 let lastFrame = 0;
 let accumulator = 0;
-let pixelRatio = 1;
+let world = { width: ARENA.width, height: ARENA.height };
 let lastLives = 3;
+let steeringPointer = null;
+let targetX;
+let fullscreenBusy = false;
 
+document.body.dataset.game = mode;
 byId('title').textContent = game.title;
 byId('instructions').textContent = game.instructions;
-if (byId('game-help')) byId('game-help').textContent = game.help;
-document.title = `${game.title} | ${brand.name || 'HTSG Interactive Lab'}`;
+byId('game-help').textContent = game.help;
+byId('game-depth').textContent = game.depth;
+byId('overlay-title').textContent = game.headline;
+byId('overlay-hint').textContent = game.hint;
+byId('touch-hint').textContent = mode === 'runner' ? 'Tap or swipe up · double jump' : 'Drag to steer & fire';
+document.title = `${game.title} | ${brand.labName}`;
 status.setAttribute('aria-live', 'off');
-
-function announce(message) {
-  if (announcement) announcement.textContent = message;
+const modes = Object.keys(games);
+const modeIndex = modes.indexOf(mode);
+for (const [id, offset, label] of [['previous-game', -1, 'Previous'], ['next-game', 1, 'Next']]) {
+  const nextMode = modes[(modeIndex + offset + modes.length) % modes.length];
+  byId(id).href = `play.html?game=${nextMode}`;
+  byId(id).setAttribute('aria-label', `${label} game: ${games[nextMode].title}`);
 }
+document.querySelectorAll('.game-option').forEach(link => {
+  if (new URL(link.href).searchParams.get('game') === mode) link.setAttribute('aria-current', 'page');
+});
 
-function setStatus(message) {
-  if (status.textContent !== message) status.textContent = message;
-}
-
+function announce(message) { announcement.textContent = message; }
+function setStatus(message) { if (status.textContent !== message) status.textContent = message; }
 function scoreText() {
   return mode === 'runner' ? `Distance: ${Math.floor(state.score)} m` : `Score: ${state.score} · Lives: ${state.lives} of 3`;
 }
-
 function syncStatus() {
+  byId('arcade-hud').hidden = !state;
   const message = state ? scoreText() : 'Ready to play';
   setStatus(paused ? `Paused · ${message}` : state?.ended ? `Game over · ${message}` : message);
-  if (byId('score-value') && state) byId('score-value').textContent = Math.floor(state.score);
+  const detail = !state ? '' : mode === 'invaders'
+    ? `Wave ${state.wave || 1}${state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
+    : `${state.boost > 0 ? `Boost · ${state.boost.toFixed(1)}s` : `Energy ${state.energy || 0}/5`}${state.bonus ? ` · +${state.bonus} bonus` : ''}`;
+  if (byId('mission-detail').textContent !== detail) byId('mission-detail').textContent = detail;
   if (state && mode === 'invaders' && state.lives !== lastLives) {
     lastLives = state.lives;
     if (!state.ended) announce(`${state.lives} ${state.lives === 1 ? 'life' : 'lives'} remaining.`);
   }
 }
-
+function syncInputButtons() {
+  const held = getInput(input);
+  for (const key of ['left', 'right', 'action']) byId(key).setAttribute('aria-pressed', String(held[key]));
+}
 function clearControls() {
   clearInput(input);
-  controls.querySelectorAll('[aria-pressed]').forEach(button => {
-    if (button !== pause) button.setAttribute('aria-pressed', 'false');
-  });
+  targetX = undefined;
+  steeringPointer = null;
+  arenaPointers.clear();
+  for (const element of [canvas, ...controls.querySelectorAll('button')]) {
+    // Release capture only for pointers held by this element; releases also clear their source.
+    for (const pointerId of activePointers.get(element) || []) {
+      if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+    }
+  }
+  activePointers.clear();
+  syncInputButtons();
 }
-
+const activePointers = new Map();
+function capture(element, pointerId) {
+  element.setPointerCapture(pointerId);
+  if (!activePointers.has(element)) activePointers.set(element, new Set());
+  activePointers.get(element).add(pointerId);
+}
+function releaseCapture(element, pointerId) {
+  activePointers.get(element)?.delete(pointerId);
+  if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+}
 function stopFrame() {
   if (frameId !== null) cancelAnimationFrame(frameId);
   frameId = null;
   lastFrame = 0;
   accumulator = 0;
 }
-
-function scheduleFrame() {
-  if (playing && !paused && frameId === null) frameId = requestAnimationFrame(frame);
-}
-
+function scheduleFrame() { if (playing && !paused && frameId === null) frameId = requestAnimationFrame(frame); }
 function resizeCanvas() {
-  pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(ARENA.width * pixelRatio);
-  canvas.height = Math.round(ARENA.height * pixelRatio);
-  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  if (mode === 'trivia') return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const next = { width: ARENA.width, height: ARENA.width * rect.height / rect.width };
+  if (state && (next.width !== world.width || Math.abs(next.height - world.height) > .1)) resizeGame(state, next.width, next.height);
+  world = next;
+  const ratio = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.round(rect.width * ratio));
+  canvas.height = Math.max(1, Math.round(rect.height * ratio));
+  // A rotation changes the coordinate system; require a fresh gesture rather than keeping stale targets.
+  clearControls();
   render();
 }
-
-function arena() {
-  context.fillStyle = palette.background;
-  context.fillRect(0, 0, ARENA.width, ARENA.height);
-  context.strokeStyle = palette.grid;
-  context.lineWidth = 1;
-  context.beginPath();
-  // A fixed grid provides depth without decorative animation.
-  for (let x = 0; x < ARENA.width; x += 60) { context.moveTo(x + 0.5, 0); context.lineTo(x + 0.5, ARENA.height); }
-  for (let y = 0; y < ARENA.height; y += 60) { context.moveTo(0, y + 0.5); context.lineTo(ARENA.width, y + 0.5); }
-  context.stroke();
-}
-
-function overlay(title, lines) {
-  const displayScale = Math.min(1, (canvas.getBoundingClientRect().width || ARENA.width) / ARENA.width);
-  const headingSize = Math.min(76, Math.max(44, 22 / displayScale));
-  const bodySize = Math.min(54, Math.max(24, 15 / displayScale));
-  context.fillStyle = palette.overlay;
-  context.fillRect(0, 0, ARENA.width, ARENA.height);
-  context.textAlign = 'center';
-  context.fillStyle = palette.player;
-  context.font = `700 ${headingSize}px system-ui, sans-serif`;
-  context.fillText(title, ARENA.width / 2, 220);
-  context.fillStyle = palette.text;
-  context.font = `${bodySize}px system-ui, sans-serif`;
-  lines.forEach((line, index) => context.fillText(line, ARENA.width / 2, 285 + index * bodySize * 1.5));
-}
-
-function drawInvaders() {
-  context.fillStyle = palette.player;
-  context.beginPath();
-  context.moveTo(state.player, 460);
-  context.lineTo(state.player - 27, 510);
-  context.lineTo(state.player - 9, 501);
-  context.lineTo(state.player + 9, 501);
-  context.lineTo(state.player + 27, 510);
-  context.closePath();
-  context.fill();
-  context.fillStyle = palette.text;
-  context.fillRect(state.player - 4, 480, 8, 15);
-  context.fillStyle = palette.projectile;
-  state.bullets.forEach(bullet => context.fillRect(bullet.x - 3, bullet.y, 6, 19));
-  state.enemies.forEach(enemy => {
-    context.fillStyle = palette.obstacle;
-    context.fillRect(enemy.x - 31, enemy.y - 20, 62, 40);
-    context.fillStyle = palette.background;
-    context.fillRect(enemy.x - 21, enemy.y - 10, 15, 6);
-    context.fillRect(enemy.x + 6, enemy.y - 10, 15, 6);
-    context.fillRect(enemy.x - 14, enemy.y + 5, 28, 5);
-  });
-}
-
-function drawRunner() {
-  context.strokeStyle = palette.obstacle;
-  context.lineWidth = 3;
-  context.beginPath();
-  context.moveTo(0, ARENA.floor + 1.5);
-  context.lineTo(ARENA.width, ARENA.floor + 1.5);
-  context.stroke();
-  context.fillStyle = palette.player;
-  context.fillRect(152, ARENA.floor - 54 - state.height, 50, 54);
-  context.fillStyle = palette.background;
-  context.fillRect(184, ARENA.floor - 42 - state.height, 8, 8);
-  state.obstacles.forEach(obstacle => {
-    context.fillStyle = palette.obstacle;
-    context.fillRect(obstacle.x, ARENA.floor - obstacle.height, obstacle.width, obstacle.height);
-    context.fillStyle = palette.background;
-    context.fillRect(obstacle.x + 9, ARENA.floor - obstacle.height + 10, obstacle.width - 18, 5);
-  });
-}
-
 function render() {
   if (mode === 'trivia') return;
-  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  arena();
-  if (state) mode === 'invaders' ? drawInvaders() : drawRunner();
-  if (!state) overlay(game.title, ['Select Start to play', mode === 'invaders' ? 'Move, fire, and protect the launch.' : 'Time your jumps. Keep moving.']);
-  else if (state.ended) overlay(mode === 'invaders' ? 'Shift complete' : 'Launch blocked', [mode === 'runner' ? `${Math.floor(state.score)} m traveled` : `${state.score} points`, 'Select Play again for another run.']);
-  else if (paused) overlay('Game paused', ['Select Resume when you’re ready.']);
+  context.setTransform(canvas.width / world.width, 0, 0, canvas.height / world.height, 0, 0);
+  renderer.render(context, state, { ...world, mode, time: state?.elapsed || 0, reducedMotion: reducedMotion.matches });
 }
-
+function syncOverlay() {
+  overlay.hidden = !!state && !paused && !state.ended;
+  if (overlay.hidden) return;
+  const ended = state?.ended;
+  byId('overlay-title').textContent = ended ? (mode === 'runner' ? 'One more launch?' : 'Flight complete.') : paused ? 'Take a breath.' : game.headline;
+  byId('instructions').textContent = ended
+    ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.score} points. Wave ${state.wave || 1} reached. Take another run at the incoming fleet.`)
+    : paused ? 'Your run is right where you left it.' : game.instructions;
+  byId('overlay-action').textContent = ended ? 'Play again →' : paused ? 'Resume →' : 'Start game →';
+  byId('overlay-hint').textContent = ended ? 'Try a different game with the arrows above.' : game.hint;
+}
 function finish() {
   playing = false;
   clearControls();
   stopFrame();
-  start.textContent = 'Play again';
-  if (pause) { pause.disabled = true; pause.textContent = 'Pause'; pause.setAttribute('aria-pressed', 'false'); }
+  start.textContent = 'Again';
+  start.setAttribute('aria-label', 'Play again');
+  pause.disabled = true;
+  pause.textContent = 'Pause';
+  pause.setAttribute('aria-pressed', 'false');
   syncStatus();
+  syncOverlay();
   canvas.setAttribute('aria-label', `${game.title}. Game over. ${scoreText()}. Select Play again for another run.`);
   announce(`Game over. ${scoreText()}. Select Play again to restart.`);
   render();
 }
-
 function frame(now) {
   frameId = null;
   if (!playing || paused) return;
   if (!lastFrame) lastFrame = now;
-  accumulator += Math.min((now - lastFrame) / 1000, 0.1);
+  accumulator += Math.min((now - lastFrame) / 1000, .1);
   lastFrame = now;
   const step = 1 / 120;
   while (accumulator >= step && !state.ended) {
-    if (mode === 'invaders') stepInvaders(state, getInput(input), step);
+    if (mode === 'invaders') stepInvaders(state, { ...getInput(input), targetX }, step);
     else stepRunner(state, step);
     accumulator -= step;
   }
@@ -215,64 +198,62 @@ function frame(now) {
   render();
   scheduleFrame();
 }
-
 function resetGame() {
   stopFrame();
   clearControls();
-  state = mode === 'invaders' ? createInvadersState() : createRunnerState();
+  state = mode === 'invaders' ? createInvadersState(world) : createRunnerState(world);
   lastLives = 3;
   playing = true;
   paused = false;
   start.textContent = 'Restart';
-  if (pause) { pause.disabled = false; pause.textContent = 'Pause'; pause.setAttribute('aria-pressed', 'false'); }
+  start.setAttribute('aria-label', 'Restart game');
+  pause.disabled = false;
+  pause.textContent = 'Pause';
+  pause.setAttribute('aria-pressed', 'false');
+  closeHelp(false);
+  picker.open = false;
   canvas.setAttribute('aria-label', `${game.title} arena. ${game.help}`);
   announce(`${game.title} started.`);
   syncStatus();
+  syncOverlay();
   render();
   canvas.focus({ preventScroll: true });
   scheduleFrame();
 }
-
 function setPaused(nextPaused, automatic = false) {
   if (!playing || paused === nextPaused) return;
   paused = nextPaused;
   clearControls();
   stopFrame();
-  if (pause) { pause.textContent = paused ? 'Resume' : 'Pause'; pause.setAttribute('aria-pressed', String(paused)); }
+  pause.textContent = paused ? 'Resume' : 'Pause';
+  pause.setAttribute('aria-pressed', String(paused));
   syncStatus();
+  syncOverlay();
   announce(paused ? `${automatic ? 'Game paused because you left the arena. ' : 'Game paused. '}Select Resume to continue.` : 'Game resumed.');
   render();
-  if (!paused) { canvas.focus({ preventScroll: true }); scheduleFrame(); }
+  if (!paused) { closeHelp(false); picker.open = false; canvas.focus({ preventScroll: true }); scheduleFrame(); }
 }
-
 function press(action, source, pressed) {
   if (!playing || paused) return;
   setInput(input, action, source, pressed);
   if (action === 'action' && pressed && mode === 'runner') jumpRunner(state);
-  ['left', 'right', 'action'].forEach(key => byId(key)?.setAttribute('aria-pressed', String(getInput(input)[key])));
+  syncInputButtons();
 }
-
-function bindPointer(element, action) {
-  element.style.touchAction = 'none';
-  element.addEventListener('pointerdown', event => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    if (!playing || paused) return;
+function bindButton(id, action) {
+  const button = byId(id);
+  button.setAttribute('aria-pressed', 'false');
+  button.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' && event.button !== 0 || !playing || paused) return;
     event.preventDefault();
-    element.setPointerCapture(event.pointerId);
+    capture(button, event.pointerId);
     press(action, `pointer:${event.pointerId}`, true);
   });
   const release = event => {
     setInput(input, action, `pointer:${event.pointerId}`, false);
-    byId(action)?.setAttribute('aria-pressed', String(getInput(input)[action]));
-    if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
+    syncInputButtons();
+    releaseCapture(button, event.pointerId);
   };
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(name => element.addEventListener(name, release));
-}
-
-function bindButton(id, action) {
-  const button = byId(id);
-  button.setAttribute('aria-pressed', 'false');
-  bindPointer(button, action);
+  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(event, release);
   button.addEventListener('keydown', event => {
     if (!['Space', 'Enter'].includes(event.code)) return;
     event.preventDefault();
@@ -282,97 +263,211 @@ function bindButton(id, action) {
     if (!['Space', 'Enter'].includes(event.code)) return;
     event.preventDefault();
     setInput(input, action, `button:${id}:${event.code}`, false);
-    button.setAttribute('aria-pressed', String(getInput(input)[action]));
+    syncInputButtons();
   });
   button.addEventListener('blur', () => {
-    ['Space', 'Enter'].forEach(code => setInput(input, action, `button:${id}:${code}`, false));
-    button.setAttribute('aria-pressed', String(getInput(input)[action]));
+    for (const code of ['Space', 'Enter']) setInput(input, action, `button:${id}:${code}`, false);
+    syncInputButtons();
   });
-  // Assistive technologies can activate a button without pointer or key events.
   button.addEventListener('click', event => {
     if (event.detail !== 0 || !playing || paused) return;
     if (action === 'action') mode === 'runner' ? jumpRunner(state) : fireInvaders(state);
-    else if (mode === 'invaders') state.player = Math.max(32, Math.min(ARENA.width - 32, state.player + (action === 'left' ? -48 : 48)));
+    else if (mode === 'invaders') state.player = Math.max(38, Math.min(world.width - 38, state.player + (action === 'left' ? -48 : 48)));
     render();
   });
 }
+function arenaX(clientX) {
+  const rect = canvas.getBoundingClientRect();
+  return Math.max(38, Math.min(world.width - 38, (clientX - rect.left) / rect.width * world.width));
+}
+function bindArena() {
+  canvas.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' && event.button !== 0 || !playing || paused) return;
+    event.preventDefault();
+    canvas.focus({ preventScroll: true });
+    capture(canvas, event.pointerId);
+    arenaPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, swiped: false });
+    if (mode === 'invaders') {
+      if (steeringPointer === null) { steeringPointer = event.pointerId; targetX = arenaX(event.clientX); }
+      press('action', `arena:${event.pointerId}`, true);
+    } else {
+      // Jump at contact, so taps feel immediate; an upward swipe can trigger the second jump.
+      jumpRunner(state);
+    }
+  });
+  canvas.addEventListener('pointermove', event => {
+    const gesture = arenaPointers.get(event.pointerId);
+    if (!gesture || !playing || paused) return;
+    event.preventDefault();
+    if (mode === 'invaders' && event.pointerId === steeringPointer) targetX = arenaX(event.clientX);
+    if (mode === 'runner' && !gesture.swiped && gesture.y - event.clientY > 32) {
+      gesture.swiped = true;
+      jumpRunner(state);
+    }
+  });
+  const release = event => {
+    arenaPointers.delete(event.pointerId);
+    setInput(input, 'action', `arena:${event.pointerId}`, false);
+    if (event.pointerId === steeringPointer) { steeringPointer = null; targetX = undefined; }
+    syncInputButtons();
+    releaseCapture(canvas, event.pointerId);
+  };
+  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(event, release);
+}
+function closeHelp(returnFocus = true) {
+  helpPanel.hidden = true;
+  byId('help-toggle').setAttribute('aria-expanded', 'false');
+  if (returnFocus) byId('help-toggle').focus({ preventScroll: true });
+}
+byId('help-toggle').addEventListener('click', () => {
+  if (!helpPanel.hidden) { closeHelp(); return; }
+  setPaused(true);
+  picker.open = false;
+  helpPanel.hidden = false;
+  byId('help-toggle').setAttribute('aria-expanded', 'true');
+  byId('help-close').focus({ preventScroll: true });
+});
+byId('help-close').addEventListener('click', () => closeHelp());
+picker.addEventListener('toggle', () => { if (picker.open) { setPaused(true); closeHelp(false); } });
+document.addEventListener('pointerdown', event => { if (picker.open && !picker.contains(event.target)) picker.open = false; });
+function syncFullscreen() {
+  const expanded = document.fullscreenElement === shell || shell.classList.contains('is-expanded');
+  byId('fullscreen').setAttribute('aria-label', expanded ? 'Exit full screen' : 'Enter full screen');
+  byId('fullscreen').setAttribute('aria-pressed', String(expanded));
+  resizeCanvas();
+}
+async function exitFullscreen() {
+  if (document.fullscreenElement) await document.exitFullscreen();
+  shell.classList.remove('is-expanded');
+  document.body.classList.remove('is-expanded');
+  syncFullscreen();
+}
+byId('fullscreen').addEventListener('click', async () => {
+  if (fullscreenBusy) return;
+  fullscreenBusy = true;
+  try {
+    if (document.fullscreenElement || shell.classList.contains('is-expanded')) await exitFullscreen();
+    else {
+      if (shell.requestFullscreen && document.fullscreenEnabled) {
+        try { await shell.requestFullscreen(); } catch { shell.classList.add('is-expanded'); document.body.classList.add('is-expanded'); }
+      } else { shell.classList.add('is-expanded'); document.body.classList.add('is-expanded'); }
+      syncFullscreen();
+    }
+  } finally { fullscreenBusy = false; }
+});
+document.addEventListener('fullscreenchange', syncFullscreen);
+document.addEventListener('keydown', event => {
+  if (event.code !== 'Escape') return;
+  if (!helpPanel.hidden) { event.preventDefault(); closeHelp(); }
+  else if (picker.open) { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); }
+  else if (shell.classList.contains('is-expanded')) { event.preventDefault(); void exitFullscreen(); }
+  else if (mode !== 'trivia' && playing && !event.repeat) { event.preventDefault(); setPaused(!paused); }
+});
 
 function setupArcade() {
   quiz.hidden = true;
+  byId('arcade-hud').hidden = true;
   canvas.setAttribute('aria-label', `${game.title} arena. Select Start to play. ${game.help}`);
   byId('action').textContent = game.action;
   if (mode === 'runner') { byId('left').hidden = true; byId('right').hidden = true; }
-  ['left', 'right', 'action'].forEach(id => bindButton(id, id));
-  bindPointer(canvas, 'action');
+  for (const id of ['left', 'right', 'action']) bindButton(id, id);
+  bindArena();
   start.addEventListener('click', resetGame);
-  if (pause) { pause.disabled = true; pause.addEventListener('click', () => setPaused(!paused)); }
+  byId('overlay-action').addEventListener('click', () => { if (paused && playing) setPaused(false); else resetGame(); });
+  pause.addEventListener('click', () => setPaused(!paused));
   const keyActions = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'action', Space: 'action', KeyW: 'action' };
   document.addEventListener('keydown', event => {
-    if (event.ctrlKey || event.metaKey || event.altKey || event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-    if (event.code === 'Escape' || event.code === 'KeyP') {
-      if (playing && !event.repeat) { event.preventDefault(); setPaused(!paused); }
-      return;
-    }
+    if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (event.code === 'KeyP') { if (playing && !event.repeat) { event.preventDefault(); setPaused(!paused); } return; }
     const action = keyActions[event.code];
-    if (!playing || paused || !action || event.target.closest('button, a')) return;
+    if (!playing || paused || !action || event.target.closest('button, a, summary')) return;
     event.preventDefault();
     if (!event.repeat) press(action, `key:${event.code}`, true);
   });
   document.addEventListener('keyup', event => {
     const action = keyActions[event.code];
-    if (action) {
-      setInput(input, action, `key:${event.code}`, false);
-      byId(action)?.setAttribute('aria-pressed', String(getInput(input)[action]));
-    }
+    if (action) { setInput(input, action, `key:${event.code}`, false); syncInputButtons(); }
   });
   window.addEventListener('blur', () => { clearControls(); setPaused(true, true); });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { clearControls(); setPaused(true, true); }
-  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { clearControls(); setPaused(true, true); } });
   window.addEventListener('resize', resizeCanvas);
+  window.visualViewport?.addEventListener('resize', resizeCanvas);
+  new ResizeObserver(resizeCanvas).observe(byId('arena-view'));
+  reducedMotion.addEventListener('change', render);
   resizeCanvas();
+  renderer.loadImages().then(() => { document.documentElement.dataset.artwork = 'ready'; render(); });
 }
 
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
 function setupTrivia() {
   canvas.hidden = true;
+  overlay.hidden = true;
   controls.hidden = true;
-  if (pause) pause.hidden = true;
-  if (start && !controls.contains(start)) start.hidden = true;
   quiz.hidden = false;
+  document.querySelector('.skip-link').href = '#quiz-question';
   let index = 0;
   let correct = 0;
-
-  function element(tag, className, text) {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text) node.textContent = text;
-    return node;
-  }
+  let streak = 0;
+  let bestStreak = 0;
+  let round = 0;
+  let roundQuestions = questionsForRound(round);
+  const choices = [];
+  const art = new Image();
+  art.onload = art.onerror = () => { document.documentElement.dataset.artwork = 'ready'; };
+  art.src = 'assets/trivia-world.webp';
 
   function showResults() {
     quiz.replaceChildren();
     const results = element('div', 'quiz-results');
     const title = element('h2', '', 'Challenge complete');
+    title.id = 'quiz-question';
     title.tabIndex = -1;
-    const summary = `You scored ${correct} out of ${questions.length}.`;
-    results.append(title, element('p', 'quiz-result-score', summary), element('p', '', 'Thanks for exploring what makes a digital experience useful.'));
+    const summary = `You scored ${correct} out of ${roundQuestions.length}.`;
+    results.append(element('p', 'quiz-category', `Round ${round + 1} complete`), title, element('p', 'quiz-result-score', summary), element('p', '', `Best streak: ${bestStreak}. ${correct === roundQuestions.length ? 'Every decision landed. Ready for a different set?' : 'Every explanation is another useful idea to take with you.'}`));
     const again = element('button', '', 'Play again');
     again.type = 'button';
-    again.addEventListener('click', () => { index = 0; correct = 0; showQuestion(true); });
-    results.append(again);
+    again.addEventListener('click', () => { round += 1; roundQuestions = questionsForRound(round); index = 0; correct = 0; streak = 0; bestStreak = 0; choices.length = 0; showQuestion(true); });
+    results.append(again, element('p', 'overlay-hint', 'The next round brings a different set of questions.'));
+    const review = element('details', 'quiz-review');
+    review.append(element('summary', '', 'Review this round'));
+    const list = element('ol');
+    roundQuestions.forEach((question, questionIndex) => {
+      const item = element('li');
+      item.append(element('strong', '', `${choices[questionIndex] === question.correct ? 'Correct' : 'Review'} · ${question.prompt}`), element('span', '', question.explanation));
+      list.append(item);
+    });
+    review.append(list);
+    results.append(review);
     quiz.append(results);
-    setStatus(`Complete · ${correct} of ${questions.length} correct`);
+    setStatus(`Complete · ${correct} of ${roundQuestions.length} correct`);
     announce(`Challenge complete. ${summary}`);
+    quiz.scrollTop = 0;
     title.focus({ preventScroll: true });
   }
-
   function showQuestion(moveFocus = false) {
-    const question = questions[index];
+    const question = roundQuestions[index];
     quiz.replaceChildren();
-    quiz.append(element('p', 'quiz-progress', `Question ${index + 1} of ${questions.length}`));
+    const inner = element('div', 'quiz-inner');
+    const progress = element('div', 'quiz-progress-row');
+    progress.append(element('p', 'quiz-progress', `Question ${index + 1} of ${roundQuestions.length}`), element('span', 'quiz-streak', streak > 1 ? `${streak} correct in a row` : `${correct} correct`));
+    const track = element('div', 'quiz-track');
+    track.setAttribute('role', 'progressbar');
+    track.setAttribute('aria-label', 'Round progress');
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', String(roundQuestions.length));
+    track.setAttribute('aria-valuenow', String(index));
+    const fill = element('span');
+    fill.style.width = `${index / roundQuestions.length * 100}%`;
+    track.append(fill);
+    inner.append(progress, track, element('p', 'quiz-category', question.category || 'Digital experiences'));
     const heading = element('h2', 'quiz-question', question.prompt);
     heading.id = 'quiz-question';
-    heading.setAttribute('aria-label', `Question ${index + 1} of ${questions.length}. ${question.prompt}`);
+    heading.setAttribute('aria-label', `Question ${index + 1} of ${roundQuestions.length}. ${question.prompt}`);
     heading.tabIndex = -1;
     const answers = element('div', 'answers');
     answers.setAttribute('role', 'group');
@@ -386,41 +481,43 @@ function setupTrivia() {
       button.addEventListener('click', () => {
         if (answered) return;
         answered = true;
+        choices[index] = answerIndex;
         const isCorrect = gradeAnswer(question, answerIndex);
-        if (isCorrect) correct += 1;
+        if (isCorrect) { correct += 1; streak += 1; bestStreak = Math.max(bestStreak, streak); } else streak = 0;
+        progress.querySelector('.quiz-streak').textContent = streak > 1 ? `${streak} correct in a row` : `${correct} correct`;
+        track.setAttribute('aria-valuenow', String(index + 1));
+        fill.style.width = `${(index + 1) / roundQuestions.length * 100}%`;
         [...answers.children].forEach((answerButton, optionIndex) => {
           answerButton.disabled = true;
-          if (optionIndex === question.correct) {
-            answerButton.dataset.result = 'correct';
-            answerButton.append(element('span', 'answer-result', 'Correct answer'));
-          } else if (optionIndex === answerIndex) {
-            answerButton.dataset.result = 'incorrect';
-            answerButton.append(element('span', 'answer-result', 'Your answer'));
-          }
+          if (optionIndex === question.correct) { answerButton.dataset.result = 'correct'; answerButton.append(element('span', 'answer-result', 'Correct answer')); }
+          else if (optionIndex === answerIndex) { answerButton.dataset.result = 'incorrect'; answerButton.append(element('span', 'answer-result', 'Your answer')); }
         });
         feedback.append(element('p', 'feedback-title', isCorrect ? 'Correct.' : 'Not quite.'), element('p', '', question.explanation));
-        const next = element('button', 'quiz-next', index === questions.length - 1 ? 'See results' : 'Next question');
+        const next = element('button', 'quiz-next', index === roundQuestions.length - 1 ? 'See results' : 'Next question');
         next.type = 'button';
         next.setAttribute('aria-describedby', feedback.id);
         next.addEventListener('click', () => {
           if (next.disabled) return;
           next.disabled = true;
           index += 1;
-          index === questions.length ? showResults() : showQuestion(true);
+          index === roundQuestions.length ? showResults() : showQuestion(true);
         });
-        quiz.append(next);
+        inner.append(next);
         setStatus(`${correct} correct`);
         announce(`${isCorrect ? 'Correct.' : `Not quite. The correct answer is ${question.answers[question.correct]}.`} ${question.explanation}`);
         next.focus({ preventScroll: true });
+        // The explanations can extend beyond a short landscape viewport; keep the next action reachable.
+        next.scrollIntoView({ block: 'nearest', behavior: 'auto' });
       });
       answers.append(button);
     });
-    quiz.append(heading, answers, feedback);
+    inner.append(heading, answers, feedback);
+    quiz.append(inner);
     setStatus(`${correct} correct`);
+    quiz.scrollTop = 0;
     if (moveFocus) heading.focus({ preventScroll: true });
   }
   showQuestion();
 }
-
 if (mode === 'trivia') setupTrivia();
 else setupArcade();

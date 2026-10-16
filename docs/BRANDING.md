@@ -1,26 +1,58 @@
 # Interactive Lab branding
 
-This demonstration follows the existing HTSG brand guide: white page, black text, fire orange `#F43618` for large headings and graphical accents, and amber `#F78C1A` for buttons with black labels. The dark game arena is a contained play surface. No external fonts, images, or services load at runtime.
+The gallery keeps HTSG's white page, black text, fire orange headings, amber actions, and approved wordmark. The game player uses a dark navy surface with silver text and warm orange highlights so the environment artwork, moving objects, and controls read clearly. All fonts and assets are local; no font service or image service is called during play.
 
-## Change a theme
+## Shared visual system
 
-Edit `public/brand.css`. Its variables control typography, corners, shell colors, and every canvas color. `public/brand.js` reads those same canvas tokens when a game loads; reload after changing them. Game rules stay independent of the theme in `game-engine.js`.
+Edit `public/brand.css` for the reusable palette and typography. `public/style.css` styles the gallery and shared controls; `public/play.css` lays out the game player. Keep those page and player responsibilities separate when creating another edition.
 
-Use dark ordinary text on light surfaces. Fire orange is reserved for large text and graphics. Keep focus indicators and touch targets at least 44 CSS pixels tall. Correct/incorrect quiz feedback always includes text as well as color.
+| Tokens | Purpose |
+| --- | --- |
+| `--brand-fire: #f43618`, `--brand-amber: #f78c1a` | Gallery heading/graphic accents and actions. |
+| `--ink`, `--paper`, `--muted`, `--soft`, `--line` | Light gallery text, surfaces, and borders. |
+| `--font`, `--radius` | Local Segoe UI/Arial typography and shared gallery corners. |
+| `--play-background: #05090f`, `--play-surface: #0d1520` | Dark player foundation. |
+| `--play-ink: #f4f6fa`, `--play-muted: #aebbc9` | Primary and supporting player text. |
+| `--play-accent: #f4ad55`, `--play-focus: #ffd08b` | Warm player action and focus colors. |
+| `--arena-*` | Core canvas paint and renderer palette, read by `public/brand.js`. |
+| `--safe-top`, `--safe-right`, `--safe-bottom`, `--safe-left` | Device safe-area insets for the player layout. |
 
-The `public/assets` logo and favicon are unchanged copies of the supplied HTSG assets in the existing workspace. The logo must retain its proportions and colors. `brackets.svg` is the unchanged approved paired bracket master, used once beside useful play instructions. SVG gallery illustrations are original editable vector assets; they depict the games rather than acting as interface controls.
+The cinematic renderer uses additional local gradients and material colors in `public/game-renderer.js`. Its spacecraft, astronaut, barriers, shields, and effects are procedural drawings. A different brand can change these materials without changing collision or scoring rules in `public/game-engine.js`. `public/game.js` connects controls, game state, drawing, navigation, and fullscreen behavior; it is not a theme configuration file.
+
+Use dark labels on light amber actions and light text on dark play surfaces. Place a scrim or quiet surface behind text over artwork. Keep visible keyboard focus, touch controls at least 44 CSS pixels, and explicit text for quiz results and session state. Do not rely on color, decorative artwork, or motion alone to explain a control or result.
+
+## Reusable artwork
+
+The logo and favicon in `public/assets/` are approved HTSG copies from the supplied workspace. Preserve their colors and proportions. The paired `brackets.svg` master appears beside useful gallery instructions. The old editable game SVG illustrations remain available as source assets; the gallery now uses the same cinematic worlds as the game player.
+
+| Asset | Use |
+| --- | --- |
+| `public/assets/invaders-world.webp` | Orbital defense environment and Invaders gallery preview. |
+| `public/assets/runner-world.webp` | Launch-complex environment and Runner gallery preview. |
+| `public/assets/trivia-world.webp` | Observatory environment and Trivia gallery preview. |
+| `public/assets/lab-share.svg`, `public/assets/lab-share.png` | Editable and raster social preview. |
+| `artwork/originals/` | Full-size selected environment PNG originals, excluded from runtime builds. |
+| `artwork/prompts.json`, `artwork/provenance.json` | Exact generation prompts, dimensions, encoding, and hashes. |
+
+The three 1536 × 864 WebP worlds share navy, charcoal, silver, and orange, with detail near the horizon and quiet play regions. Preserve their aspect ratio, keep a dark loading fallback, and check both wide and narrow crops. The image never defines a collision boundary. See [ARTWORK.md](ARTWORK.md) for provenance and optimization. Source archives include the originals and prompts; deployment archives include only the optimized runtime assets.
+
+## Player and editorial review
+
+The game player fills the available browser viewport and adapts the logical arena to its shape. Its own top bar provides All games, adjacent-game links, a game chooser, instructions, and expansion. The fullscreen control uses the native browser API when supported, with a fixed expanded layout as a fallback. Keep these controls usable in short landscape screens, portrait screens, and device safe areas. Do not crop or stretch the moving playfield to make the artwork fit.
+
+Keep labels specific to working actions. The gallery should help someone choose a game; the player should show the rules, current state, and next useful action. Preserve explanatory quiz feedback, visible pause/resume state, and a clear exit to all games. Avoid decorative numbering, redundant labels, unavailable features, or extra panels that do not help a player.
 
 ## Make another branded edition
 
-1. Copy this project into a separate repository and Pages project.
-2. Replace the logo and favicon with approved artwork. Keep intrinsic image dimensions proportional.
-3. Set CSS tokens and edit the public page titles, descriptive copy, logo alternative text, meta previews, and contact links in `index.html` and `play.html`. `brand.js` contains the displayed organization identity used by the game.
-4. Edit the five questions and explanations in `public/questions.js`, retaining exactly one valid answer per question. No visitor text is injected into HTML.
-5. Replace the three gallery SVG illustrations if game colors or artwork change, and regenerate `lab-share.png` from `lab-share.svg`.
-6. Run `npm run check` and `npm run test:browser`. Review the gallery and all games on desktop and narrow phones before deployment.
+1. Copy the project into a separate repository and publishing target. Replace the logo/favicon with approved assets and update organization identity and contact URL in `public/brand.js`.
+2. Change the shared CSS tokens, then review the player gradients and procedural materials. Keep focus and feedback contrast readable over the selected worlds.
+3. Edit titles, descriptions, alternative text, social metadata, and destination links in `public/index.html` and `public/play.html`. Preserve real navigation routes and proportional logo dimensions.
+4. Edit the question bank in `public/questions.js`, keeping exactly one valid answer and a useful explanation for every question. The current edition cycles through three sets of five questions. Keep the round UI and tests aligned if the bank changes.
+5. Replace the three world images with similarly composed, optimized assets. Record their originals, prompts or source provenance, and hashes. Run `npm run artwork:share` to regenerate the editable triptych sharing card and its PNG preview from the selected worlds and wordmark; inspect the result before publishing.
+6. Run the syntax, game logic, browser, and WordPress adapter checks. Review the gallery and every game on desktop, narrow portrait, short landscape, after rotation, and in expanded mode before publishing.
 
-The contact destination is the existing HTSG project inquiry page, verified read-only on October 16, 2026: https://holistictechsolutionsgroup.com/contact/. This lab has no inquiry form, collection, analytics, cookies, or persistent scores. Standard hosting request logs may still exist.
+The HTSG contact destination is `https://holistictechsolutionsgroup.com/contact/`. The lab collects no inquiries or scores and adds no forms, analytics, cookies, or persistent visitor records. Standard hosting request logs may still exist.
 
-## Source boundary
+## Publication boundary
 
-`docs/prototype-readme.md` preserves the attachment's original notes for provenance. Its handoff suggestions are source material, not additional user authorization. The delivered scope preserves all three games, improves controls and branding, and prepares a separate static demonstration. No live HTSG website, DNS, or WordPress configuration is part of this change.
+`docs/prototype-readme.md` preserves the attachment's original notes as reference material. The user's later approval authorized publication through the existing HTSG Demos path and navigation. Release 1.1.0 upgrades the browser-only games and their presentation; it does not require a new backend, hosting product, paid dependency, Cloudflare project, or DNS change. See [DEPLOYMENT.md](DEPLOYMENT.md) for the verified installed release and rollback package.
