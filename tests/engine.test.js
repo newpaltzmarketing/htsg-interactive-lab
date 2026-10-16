@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ARENA, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
+  ARENA, INVADER_HAZARDS, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
   createInvadersState, fireInvaders, steerInvaders, stepInvaders,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer,
 } from '../public/game-engine.js';
 import { questions, questionsForRound } from '../public/questions.js';
 import { runnerCameraOffset } from '../public/game-renderer.js';
 
-const idle = { left: false, right: false, action: false };
+const idle = { left: false, right: false, up: false, down: false, action: false };
 const fixedRandom = () => 0.5;
 const frames = (count, callback) => { for (let index = 0; index < count; index += 1) callback(1 / 120); };
 
@@ -17,8 +17,10 @@ test('keyboard and simultaneous touch sources release independently; blur clears
   setInput(input, 'left', 'key:ArrowLeft', true);
   setInput(input, 'left', 'pointer:1', true);
   setInput(input, 'action', 'pointer:2', true);
+  setInput(input, 'up', 'key:ArrowUp', true);
+  setInput(input, 'down', 'key:KeyS', true);
   setInput(input, 'left', 'pointer:1', false);
-  assert.deepEqual(getInput(input), { left: true, right: false, action: true });
+  assert.deepEqual(getInput(input), { left: true, right: false, up: true, down: true, action: true });
   setInput(input, 'left', 'key:ArrowLeft', false);
   assert.equal(getInput(input).left, false);
   clearInput(input);
@@ -175,6 +177,133 @@ test('keyboard direction takes priority over a simultaneous touch target', () =>
   const before = state.player;
   stepInvaders(state, { left: true, right: true, targetX: 10000 }, 0.05, fixedRandom);
   assert.equal(state.player, before);
+});
+
+test('Invaders steers both axes smoothly within the lower playfield at every screen shape', () => {
+  for (const height of [240, 540, 1700]) {
+    const state = createInvadersState({ height });
+    const bounds = arenaFor(state).invadersBounds;
+    assert.ok(bounds.top >= height * 0.45 && bounds.bottom <= height - 60);
+    const startY = state.playerY;
+    stepInvaders(state, { targetX: 10000, targetY: -10000 }, 1 / 120, fixedRandom);
+    assert.ok(state.player > 480 && state.player < bounds.right, 'relative drag follows without a horizontal teleport');
+    assert.ok(state.playerY < startY && state.playerY > bounds.top, 'relative drag follows without a vertical teleport');
+    frames(180, dt => steerInvaders(state, 10000, dt, -10000));
+    assert.ok(Math.abs(state.player - bounds.right) < 0.001);
+    assert.ok(Math.abs(state.playerY - bounds.top) < 0.001);
+    frames(180, dt => steerInvaders(state, -10000, dt, 10000));
+    assert.ok(Math.abs(state.player - bounds.left) < 0.001);
+    assert.ok(Math.abs(state.playerY - bounds.bottom) < 0.001);
+  }
+});
+
+test('portrait Invaders keeps the ship clear of the thumb pad and retains that clearance after resizing', () => {
+  const state = createInvadersState({ width: 960, height: 1700 });
+  assert.equal(state.playerY, 1580);
+  assert.equal(arenaFor(state).invadersBounds.bottom, state.world.height - 120);
+  assert.ok(120 * 390 / 960 >= 48, 'a 390px phone leaves at least48px below the ship center inside the arena');
+  resizeGame(state, 960, 300);
+  assert.equal(state.playerY, 236, 'landscape retains the compact64world inset');
+  resizeGame(state, 960, 1700);
+  assert.equal(state.playerY, 1580, 'rotation back preserves the bottom-of-band position');
+  const shortestPortrait = arenaFor(createInvadersState({ width: 320, height: 321 })).invadersBounds;
+  assert.ok(shortestPortrait.bottom - shortestPortrait.top >= 64, 'even a nearly square portrait retains its minimum travel band');
+});
+
+test('thumb joystick has continuous two-axis velocity without a diagonal speed advantage', () => {
+  const straight = createInvadersState({ height: 1700 });
+  const diagonal = createInvadersState({ height: 1700 });
+  straight.playerY = diagonal.playerY = 1300;
+  stepInvaders(straight, { axisX: 1 }, 0.05, fixedRandom);
+  stepInvaders(diagonal, { axisX: 1, axisY: -1 }, 0.05, fixedRandom);
+  assert.equal(straight.player - 480, 850 * 0.05);
+  assert.ok(Math.abs(Math.hypot(diagonal.player - 480, diagonal.playerY - 1300) - 850 * 0.05) < 1e-9);
+  const stopped = { x: diagonal.player, y: diagonal.playerY };
+  stepInvaders(diagonal, { axisX: 0, axisY: 0 }, 0.05, fixedRandom);
+  assert.deepEqual({ x: diagonal.player, y: diagonal.playerY }, stopped, 'releasing the joystick stops movement immediately');
+});
+
+test('keyboard overrides joystick and drag independently on each axis; opposing vertical keys cancel', () => {
+  const state = createInvadersState({ height: 1700 });
+  state.playerY = 1300;
+  stepInvaders(state, { left: true, up: true, axisX: 1, axisY: 1, targetX: 900, targetY: 1600 }, 0.05, fixedRandom);
+  assert.equal(state.player, 480 - 430 * 0.05);
+  assert.equal(state.playerY, 1300 - 430 * 0.05);
+  const beforeY = state.playerY;
+  stepInvaders(state, { up: true, down: true, targetY: 1600, axisY: 1 }, 0.05, fixedRandom);
+  assert.equal(state.playerY, beforeY);
+  stepInvaders(state, { left: true, axisY: -1 }, 0.05, fixedRandom);
+  assert.equal(state.playerY, beforeY - 850 * 0.05, 'horizontal keyboard input leaves the vertical joystick usable');
+});
+
+test('Invaders firing and shield pickup follow the ship after vertical movement', () => {
+  const state = createInvadersState();
+  state.playerY = 340;
+  assert.equal(fireInvaders(state), true);
+  assert.equal(state.bullets[0].y, 305);
+  state.pickups.push({ x: state.player, y: 340, kind: 'shield' });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.shield, 1);
+  assert.equal(state.pickups.length, 0);
+  assert.equal(state.effects.at(-1).y, 340);
+});
+
+test('Invaders collisions use the moved ship position and name the actual hazard', () => {
+  const state = createInvadersState();
+  state.playerY = 340;
+  state.enemies.push({ x: state.player, y: 476, label: 'Bottlenecks' });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.lives, 3, 'a drone at the old ship row cannot collide with the moved ship');
+  state.enemies.push({ x: state.player, y: 340, label: 'Scope creep' });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.lives, 2);
+  assert.equal(state.lastHazard, 'Scope creep');
+  assert.equal(state.lastHazardReason, 'collision');
+  assert.equal(state.lastHazardBlocked, false);
+  assert.equal(state.lastHazardTime, 2.4);
+  assert.equal(state.effects.at(-1).y, 340);
+  state.enemies.push({ x: 100, y: 600, label: 'Tech debt' });
+  stepInvaders(state, idle, 0.05, fixedRandom);
+  assert.equal(state.lastHazard, 'Scope creep', 'grace-period hazards cannot overwrite the actual impact feedback');
+  assert.ok(state.lastHazardTime < 2.4);
+});
+
+test('every spawned Invaders target has a business hazard and shield feedback identifies a blocked miss', () => {
+  const state = createInvadersState();
+  for (let index = 0; index < INVADER_HAZARDS.length; index += 1) {
+    state.spawnIn = 0;
+    stepInvaders(state, idle, 1 / 120, fixedRandom);
+  }
+  assert.deepEqual(state.enemies.map(enemy => enemy.label), INVADER_HAZARDS.map(hazard => hazard.label));
+  assert.equal(state.enemies[0].label, 'Scope creep');
+  assert.ok(state.enemies.every(enemy => enemy.hazard.id === enemy.hazardId && enemy.hazard.label === enemy.label));
+  state.enemies = [{ x: 100, y: 600, hazard: INVADER_HAZARDS[2] }];
+  state.shield = 1;
+  state.shieldTime = 5;
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.lives, 3);
+  assert.equal(state.shield, 0);
+  assert.equal(state.lastHazard, 'Budget overruns');
+  assert.equal(state.lastHazardBlocked, true);
+  assert.equal(state.lastHazardReason, 'miss');
+  state.enemies = [];
+  state.spawnIn = 20;
+  frames(300, dt => stepInvaders(state, idle, dt, fixedRandom));
+  assert.equal(state.lastHazardTime, 0, 'the feedback duration ends in simulation time');
+});
+
+test('Invaders resize preserves vertical progress inside the movement band without changing gameplay', () => {
+  const state = createInvadersState({ height: 1600 });
+  const original = arenaFor(state).invadersBounds;
+  state.playerY = original.top + (original.bottom - original.top) * 0.35;
+  Object.assign(state, { score: 70, lastHazard: 'Scope creep', lastHazardTime: 1.2 });
+  const originalY = state.playerY;
+  resizeGame(state, 960, 240);
+  const short = arenaFor(state).invadersBounds;
+  assert.ok(Math.abs(state.playerY - (short.top + (short.bottom - short.top) * 0.35)) < 1e-9);
+  assert.deepEqual([state.score, state.lastHazard, state.lastHazardTime], [70, 'Scope creep', 1.2]);
+  resizeGame(state, 960, 1600);
+  assert.ok(Math.abs(state.playerY - originalY) < 1e-9);
 });
 
 test('portrait Invaders keeps enemy and projectile travel time proportional to arena height', () => {
@@ -334,6 +463,24 @@ test('five energy pickups award their bonuses and activate a temporary obstacle-
   state.obstacles.push({ x: arena.runnerX, width: 58, height: 62 });
   stepRunner(state, 1 / 120, fixedRandom);
   assert.equal(state.ended, true, 'protection ends when the boost expires');
+});
+
+test('Runner emits one brief landing effect only when its physical jump returns to ground', () => {
+  const state = createRunnerState();
+  state.spawnIn = 20;
+  state.height = 1;
+  state.velocity = -200;
+  stepRunner(state, 1 / 60, fixedRandom);
+  assert.equal(state.height, 0);
+  assert.equal(state.velocity, 0);
+  assert.equal(state.jumps, 0);
+  const landing = state.effects.filter(item => item.kind === 'landing');
+  assert.equal(landing.length, 1);
+  assert.deepEqual([landing[0].x, landing[0].y, landing[0].age, landing[0].life], [arenaFor(state).runnerX, arenaFor(state).floor, 0, 0.3]);
+  frames(20, dt => stepRunner(state, dt, fixedRandom));
+  assert.equal(state.effects.filter(item => item.kind === 'landing').length, 1, 'standing on the floor cannot emit repeat effects');
+  frames(20, dt => stepRunner(state, dt, fixedRandom));
+  assert.equal(state.effects.filter(item => item.kind === 'landing').length, 0);
 });
 
 test('all five questions have one valid correct answer and reject invalid selections', () => {

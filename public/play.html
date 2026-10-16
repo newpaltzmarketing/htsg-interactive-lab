@@ -37,6 +37,7 @@
         <div id="arena-view" class="arena-view">
           <canvas id="canvas" width="960" height="540" tabindex="0" role="img" aria-label="Interactive game arena" aria-describedby="instructions game-help">Use the on-screen controls or try Trivia Challenge from the game selector.</canvas>
           <div id="arcade-hud" class="arcade-hud"><strong id="status" class="game-status">Ready to play</strong><span id="mission-detail" class="mission-detail"></span></div>
+          <p id="impact-feedback" class="impact-feedback" hidden></p>
           <div id="arena-overlay" class="arena-overlay"><div class="overlay-content">
             <h2 id="overlay-title">Clear the orbit.</h2>
             <p id="instructions">Drag to steer. Keep the incoming drones away from your launch.</p>
@@ -53,6 +54,7 @@
         </div>
         <div id="controls" class="game-controls">
           <div class="direction-controls"><button id="left" class="control-button secondary" type="button" aria-label="Move left"><span aria-hidden="true">←</span></button><button id="right" class="control-button secondary" type="button" aria-label="Move right"><span aria-hidden="true">→</span></button></div>
+          <div id="steering-pad" class="steering-pad" role="group" tabindex="0" aria-label="Ship steering pad. Drag and hold to fly and fire. Arrow keys also move the ship." hidden><span class="steering-pad-hint"><span aria-hidden="true">✥</span> Drag here to fly <span class="steering-pad-detail">· auto-fire</span></span><span class="steering-stick" aria-hidden="true"></span></div>
           <p id="touch-hint" class="touch-hint">Drag to steer &amp; fire</p>
           <button id="action" class="control-button action-control" type="button">Fire</button>
           <div class="session-controls"><button id="start" class="secondary" type="button">Start</button><button id="pause" class="secondary" type="button" disabled>Pause</button></div>

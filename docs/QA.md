@@ -40,10 +40,10 @@ Browser screenshots and the machine-readable report are saved in `artifacts/qa/`
 
 ## Automated coverage
 
-The 24 rules tests cover:
+The 33 rules tests cover:
 
 - Keyboard and touch sources held at the same time, individual release, repeated keydown, and clearing held controls.
-- Agency Invaders movement bounds and direction speed, simultaneous directions, direct touch steering and keyboard priority, proportional portrait travel time, delayed-frame caps, firing cooldown, projectile collisions, life loss, shield protection, wave transitions, combo scoring, game over, and clean restart state.
+- Agency Invaders two-axis movement, simultaneous directions, relative drag and thumb-stick input with per-axis keyboard priority, portrait thumb clearance and proportional travel time, delayed-frame caps, firing and collisions at the moved ship position, six named hazards, life loss, shield protection, wave transitions, combo scoring, game over, and clean restart state.
 - Launch Runner two-jump limit and landing reset, safe obstacle clearance, collision, energy pickups and boost protection, distance scoring, game over, and clean restart state. Portrait collision and collection areas match the enlarged artwork; camera framing preserves the full astronaut without changing jump physics.
 - Resize preserves arcade progress and relative positions; Runner retains its physical jump height and velocity.
 - Every trivia question, correct and incorrect scoring, invalid answer indices, perfect and zero scores, and three distinct replay rounds containing 15 questions.
@@ -140,7 +140,7 @@ After the complete runs, focused follow-ups passed 4/4 for explicit native-versu
 
 Desktop and phone captures were visually reviewed after real gameplay, including enemies and projectiles in Invaders and an approaching obstacle, energy pickups, and a jump in Runner after approximately 2–3 seconds. The final portrait Runner has a shallow track and enlarged character/obstacles; the landscape double-jump camera keeps the astronaut in view. Trivia answers, explanations, and focus rings remain legible at 320 pixels. Fullscreen, safe-inset, paused, and ready views were also reviewed.
 
-Repeat the upgrade checks with `npm run test:upgrade`. The script starts and closes its own local fixture with the production security headers, or accepts `--url`, `--dir`, and repeated `--match` options. It saves viewport screenshots, geometry, browser version, and timestamped results in `artifacts/upgrade-qa/` (or `artifacts/upgrade-live/` for a public URL). The full 20-scenario record is `artifacts/upgrade-qa/full-results.json`; `results.json` holds the latest focused follow-up. The final core record is `artifacts/qa/upgrade-core-full-results.json`.
+Repeat the upgrade checks with `npm run test:upgrade`. The script starts and closes its own local fixture with the production security headers, or accepts `--url`, `--dir`, repeated `--match`, and an optional `--output` directory. It saves viewport screenshots, geometry, browser version, and timestamped results in `artifacts/upgrade-qa/` (or `artifacts/upgrade-live/` for a public URL). The original full 20-scenario record is `artifacts/upgrade-qa/full-results-1.1.0.json`; `results.json` holds the latest focused follow-up. The final core record for that candidate is `artifacts/qa/upgrade-core-full-results.json`.
 
 Representative final visual evidence is `runner-running-390.png`, `runner-running-844.png`, `runner-double-jump-apex-844.png`, `invaders-running-390.png`, `invaders-running-1280.png`, `trivia-answer-320.png`, and `fullscreen-fallback-390.png` in `artifacts/upgrade-qa/`.
 
@@ -167,3 +167,29 @@ Final published evidence:
 - `artifacts/upgrade-live/`: public `runner-running-390.png`, `runner-running-844.png`, `invaders-running-390.png`, `invaders-running-1280.png`, `trivia-answer-320.png`, `gallery-settled-1280.png`, and `gallery-settled-390.png`.
 
 No unresolved failures remain from this published upgrade verification. Mobile results remain Chromium touch/viewport emulation with simulated safe insets; physical devices and Safari are outside the verified scope.
+
+## Thumb controls, named hazards and Halo — 1.1.1 candidate
+
+Local verification completed on 16 October 2026 at approximately 7:12 p.m. EDT with Chrome 155.0.8059.84 and Playwright 1.64.1. All 33 engine tests, all 25 core browser scenarios, and all 30 upgrade scenarios passed. A focused three-scenario follow-up also passed for the final named game-over cause and alpha-bound apex checks. These overlapping counts are reported separately.
+
+The expanded upgrade suite adds 568 × 320 landscape to the existing five sizes. Invaders now has a steering pad below the arena and relative two-axis arena dragging. Real emulated touches verify that distant contact, dead-zone jitter and re-grabbing do not teleport the ship; holding diagonal pad deflection moves continuously; both release and cancellation stop both axes. Holding Fire with another finger releases independently. A remaining pad or arena finger takes over when the first finger lifts, anchored to the current ship position. Both promotion directions are tested. At 320, 390, 568 and 844 pixels, the pad and every essential control fit below the full arena without covering the ship.
+
+The six named hazards are checked at a minimum 13 CSS pixels, within the arena edges, and outside the actual score/wave and impact-feedback rectangles. A real normal-play capture exposed a label behind the HUD; the final renderer now avoids those rectangles and nearby labels, adds a leader when needed, and briefly waits when no close position is free. The regression checks the actual controller-provided reservations and drawn label positions. Natural gameplay supplies the named-target and first life-loss screenshots. Only shield protection and the final-life overlay use client-only deterministic state setup; their normal engine and controller behavior still execute, and those fixtures are not presented as unassisted play.
+
+Launch Runner retains its name and physics while displaying Halo through articulated frames from the supplied animation. The test observes the actual atlas crops drawn during play, confirms different frames appear, and checks a pixel-identical frozen scene when paused. Reduced motion fixes the cosmetic pose/background while preserving playable jumping. The visible per-frame alpha bounds, cape, tilt, grounded boots, portrait enlargement and short-arena camera are checked without changing collision geometry. Actual landscape double-jump and rotation captures remain inside the arena.
+
+The supplied prototype ZIP and earliest tracked preparation were inspected read-only: they contain unnamed canvas enemies and the wording “incoming project chaos”; they do not contain a Scope creep hazard-name list. The named hazards are a requested refinement, not recovered prototype metadata.
+
+Local evidence is preserved in `artifacts/touch-polish-source/`: `full-results.json` contains the 30-scenario run, `core-results.json` the 25 core scenarios, and timestamped focused reports the final follow-up. Representative screenshots include `invaders-thumb-pad-390.png`, `invaders-thumb-pad-568.png`, `invaders-named-hazards-390.png`, `invaders-natural-impact-390.png`, `runner-running-390.png`, `runner-running-844.png`, and `runner-double-jump-apex-844.png`. The complete changed game surfaces were visually reviewed on phone and desktop. No unresolved local failures remain.
+
+For version-separated public proof after an authorized publication, use `--output artifacts/touch-polish-live` with the public URL. The prior 1.1.0 publication evidence remains in `artifacts/upgrade-live/`. This candidate record does not claim that 1.1.1 is published. Mobile checks remain Chromium emulation; physical devices and Safari are untested.
+
+## Published thumb-control and Halo refinements — 1.1.1
+
+At approximately 7:15 p.m. EDT on 16 October 2026, the authorized public 1.1.1 update passed all 16 selected live upgrade scenarios with Chrome 155.0.8059.84 and Playwright 1.64.1. The focused selection covers 390-pixel portrait, 568 × 320 and 844 × 390 landscape layouts and trivia answers; the corresponding thumb-pad controls; relative two-axis arena drag and release; both finger-promotion directions; named hazard/impact/HUD avoidance; actual Halo frame changes, pause and reduced motion; navigation among all three games; and browser errors. There were no unresolved failures, exceptions or renderer state mutations.
+
+All 13 published JavaScript, stylesheet and artwork files matched the frozen tested source by SHA-256, including the Halo atlas and fallback image. A cache-busted `game.js` also matched, and the public game HTML exposes the current pad/impact structure with the expected security policy. The unchanged complete core suite was not repeated on the public site; its final 25-scenario source run and the 30-scenario source upgrade run remain recorded above.
+
+Fresh public screenshots were visually reviewed. `runner-running-844.png` and `runner-running-390.png` show Halo jumping with an approaching obstacle and energy pickups during normal play. `invaders-running-390.png`, `invaders-running-844.png`, `invaders-named-hazards-390.png` and `invaders-natural-impact-390.png` show actual gameplay, the separate thumb pad, readable names and a natural first life-loss event. These representative screenshots use no state fixture. The separate shield and final-life regression setup remains explicitly deterministic as described above.
+
+The final public report is `artifacts/touch-polish-live/focused-results-1.1.1.json`; file identity and freshness proof is `artifacts/touch-polish-live/release-files.json`. All new public images are in that directory, preserving the earlier 1.1.0 evidence. This verification uses Chromium touch and viewport emulation with the stated physical-device and Safari limitations.

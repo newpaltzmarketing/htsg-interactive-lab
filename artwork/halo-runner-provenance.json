@@ -1,0 +1,287 @@
+{
+  "source_release": "HTSG Halo Assistant return-wave-release-1.2.1, existing approved local artwork",
+  "source_assets": [
+    {
+      "path": "artwork/originals/halo-entrance-source.webp",
+      "bytes": 1544848,
+      "sha256": "d786e2038e69976bb124563d9b8fcd40fb68f39f563735d997bdd999e6a357c2"
+    },
+    {
+      "path": "artwork/originals/halo-idle-source.png",
+      "bytes": 102494,
+      "sha256": "de3827bfa2b15796675f03e8755c308837ed5abef8ec0af21a8a5dfea92516ea"
+    }
+  ],
+  "method": "Decode selected existing transparent entrance frames; uniform Lanczos resize and helmet/boot alignment in isolated atlas tiles. No generation or painted character edits. Renderer mirrors the sprite to face approaching obstacles.",
+  "recipe": "artwork/prepare-halo-atlas.py",
+  "tile": [
+    256,
+    256
+  ],
+  "columns": 4,
+  "rows": 4,
+  "anchor": [
+    112,
+    246
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "source_frame": 0,
+      "helmet_center_x": 131.34,
+      "original_bounds": [
+        10,
+        3,
+        288,
+        338
+      ],
+      "atlas_bounds": [
+        31,
+        24,
+        215,
+        247
+      ]
+    },
+    {
+      "index": 1,
+      "source_frame": 2,
+      "helmet_center_x": 135.55,
+      "original_bounds": [
+        7,
+        17,
+        288,
+        356
+      ],
+      "atlas_bounds": [
+        27,
+        21,
+        213,
+        247
+      ]
+    },
+    {
+      "index": 2,
+      "source_frame": 4,
+      "helmet_center_x": 136.82,
+      "original_bounds": [
+        6,
+        27,
+        288,
+        370
+      ],
+      "atlas_bounds": [
+        25,
+        19,
+        212,
+        246
+      ]
+    },
+    {
+      "index": 3,
+      "source_frame": 6,
+      "helmet_center_x": 136.84,
+      "original_bounds": [
+        3,
+        44,
+        288,
+        392
+      ],
+      "atlas_bounds": [
+        23,
+        15,
+        212,
+        246
+      ]
+    },
+    {
+      "index": 4,
+      "source_frame": 8,
+      "helmet_center_x": 134.3,
+      "original_bounds": [
+        3,
+        65,
+        282,
+        393
+      ],
+      "atlas_bounds": [
+        24,
+        29,
+        210,
+        247
+      ]
+    },
+    {
+      "index": 5,
+      "source_frame": 10,
+      "helmet_center_x": 124.16,
+      "original_bounds": [
+        6,
+        70,
+        280,
+        393
+      ],
+      "atlas_bounds": [
+        33,
+        33,
+        216,
+        247
+      ]
+    },
+    {
+      "index": 6,
+      "source_frame": 12,
+      "helmet_center_x": 104.76,
+      "original_bounds": [
+        11,
+        71,
+        285,
+        393
+      ],
+      "atlas_bounds": [
+        50,
+        33,
+        232,
+        247
+      ]
+    },
+    {
+      "index": 7,
+      "source_frame": 14,
+      "helmet_center_x": 105.68,
+      "original_bounds": [
+        18,
+        68,
+        284,
+        393
+      ],
+      "atlas_bounds": [
+        53,
+        31,
+        230,
+        247
+      ]
+    },
+    {
+      "index": 8,
+      "source_frame": 16,
+      "helmet_center_x": 106.47,
+      "original_bounds": [
+        20,
+        66,
+        279,
+        393
+      ],
+      "atlas_bounds": [
+        55,
+        30,
+        227,
+        247
+      ]
+    },
+    {
+      "index": 9,
+      "source_frame": 18,
+      "helmet_center_x": 107.12,
+      "original_bounds": [
+        21,
+        64,
+        238,
+        393
+      ],
+      "atlas_bounds": [
+        54,
+        29,
+        199,
+        247
+      ]
+    },
+    {
+      "index": 10,
+      "source_frame": 20,
+      "helmet_center_x": 107.2,
+      "original_bounds": [
+        21,
+        64,
+        232,
+        393
+      ],
+      "atlas_bounds": [
+        54,
+        29,
+        195,
+        247
+      ]
+    },
+    {
+      "index": 11,
+      "source_frame": 22,
+      "helmet_center_x": 107.2,
+      "original_bounds": [
+        21,
+        64,
+        232,
+        393
+      ],
+      "atlas_bounds": [
+        54,
+        28,
+        195,
+        247
+      ]
+    },
+    {
+      "index": 12,
+      "source_frame": 24,
+      "helmet_center_x": 107.06,
+      "original_bounds": [
+        22,
+        62,
+        240,
+        393
+      ],
+      "atlas_bounds": [
+        54,
+        27,
+        200,
+        247
+      ]
+    },
+    {
+      "index": 13,
+      "source_frame": 26,
+      "helmet_center_x": 114.13,
+      "original_bounds": [
+        27,
+        52,
+        261,
+        393
+      ],
+      "atlas_bounds": [
+        54,
+        21,
+        210,
+        247
+      ]
+    }
+  ],
+  "runtime": [
+    {
+      "path": "public/assets/halo-runner-atlas.webp",
+      "bytes": 232394,
+      "sha256": "a159c229198e80b28bc2258d36170e1fdbd29d700cee1238c18a3d40cfc601fb",
+      "pixels": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "path": "public/assets/halo-runner-idle.png",
+      "bytes": 102185,
+      "sha256": "9caf031965dabd381e2caab10fa619ca8d8a0aa708e128a29abc6dd0953109d9",
+      "pixels": [
+        288,
+        396
+      ]
+    }
+  ]
+}

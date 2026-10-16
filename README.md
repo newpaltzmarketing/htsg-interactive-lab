@@ -4,11 +4,11 @@ Three browser games for Holistic Tech Solutions Group demonstrations:
 
 | Game | Play |
 | --- | --- |
-| [Agency Invaders](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=invaders) | Steer through drone waves, build hit streaks, and collect shields. |
-| [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Double-jump past barriers and collect energy for a protective boost. |
+| [Agency Invaders](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=invaders) | Fly in two dimensions, clear named business hazards, and collect shields. |
+| [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Take the actual Halo character past barriers with double jumps and energy boosts. |
 | [Trivia Challenge](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=trivia) | Explore three sets of five questions, with streaks and explanations. |
 
-Release **1.1.0 is installed** on the existing HTSG site, with original cinematic environments, more developed game rules, direct arena touch controls, and a screen-filling player. See [deployment status](docs/DEPLOYMENT.md#current-publish-status) for the installed archive and [QA evidence](docs/QA.md) for the actual validation scope.
+Release **1.1.1 is installed** on the existing HTSG site. It adds a separate thumb steering pad and relative arena dragging, readable named hazards and impact causes, and actual animated Halo artwork for Runner. The cinematic environments, deeper rules, and screen-filling player remain in place. See [deployment status](docs/DEPLOYMENT.md#current-publish-status) for the installed archive and [QA evidence](docs/QA.md) for the actual validation scope.
 
 The games use static HTML, CSS, local artwork, and JavaScript. There is no game backend, account system, advertising, analytics, payment service, or paid dependency. Games run locally in the browser. The WordPress companion serves the reviewed static files through the existing HTSG site and adds a direct administration link. It creates no game records or API. Playwright is a free development dependency used only for browser checks.
 
@@ -43,7 +43,7 @@ The validation workflow runs syntax and asset checks, game logic tests, browser 
 
 ## Controls
 
-Drag the Invaders arena to steer and fire, or use the direction and Fire buttons. Tap the Runner arena or Jump to jump; a second tap in the air performs a double jump. Desktop arcade controls support arrow keys and Space. The game player provides instructions, pause/resume, replay, previous/next game links, and a game selector. The expand control uses native full screen where available and an expanded browser layout otherwise. Games pause when the page loses visibility. Trivia uses ordinary answer buttons and supports keyboard navigation.
+Drag and hold the Invaders pad below the arena to fly in any direction and fire, keeping your thumb clear of the ship. Relative dragging in the arena and the direction/Fire buttons also work; keyboard controls use arrows or W/A/S/D and Space. Named hazards cost a life when they collide with the ship or pass its defenses, with the cause shown after impact. Tap the Runner arena, swipe up, or use Jump; a second jump in the air gives extra height. The game player provides instructions, pause/resume, replay, previous/next game links, and a game selector. The expand control uses native full screen where available and an expanded browser layout otherwise. Games pause when the page loses visibility. Trivia uses ordinary answer buttons and supports keyboard navigation.
 
 ## Project structure
 
@@ -51,9 +51,9 @@ Drag the Invaders arena to steer and fire, or use the direction and Fire buttons
 | --- | --- |
 | `public/` | All files served to players. |
 | `public/game-engine.js` | Game rules and state, separate from browser events and drawing. |
-| `public/game-renderer.js` | Procedural spacecraft, characters, effects, and environment drawing. |
+| `public/game-renderer.js` | Procedural spacecraft/effects, simulation-timed Halo frames, readable labels, and environment drawing. |
 | `public/brand.css`, `public/play.css` | Shared brand tokens and the responsive game player. |
-| `artwork/` | Selected original PNG environments, generation prompts, and file provenance. |
+| `artwork/` | Selected world originals/prompts, approved Halo source frames, extraction recipe, and file provenance. |
 | `scripts/` | Dependency-free static build, checks, and local server. |
 | `tests/` | Game logic and browser validation. |
 | `wordpress/` | Scoped static-file host for the existing HTSG WordPress site. |

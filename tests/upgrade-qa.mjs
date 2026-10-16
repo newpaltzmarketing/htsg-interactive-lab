@@ -6,8 +6,8 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { questionsForRound } from '../public/questions.js';
-import { arenaFor } from '../public/game-engine.js';
-import { runnerCameraOffset } from '../public/game-renderer.js';
+import { arenaFor, INVADER_HAZARDS } from '../public/game-engine.js';
+import { runnerCameraOffset, HALO_ATLAS, haloGeometry } from '../public/game-renderer.js';
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
@@ -20,7 +20,8 @@ if (requested) {
   if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Use a public HTTP(S) directory URL');
   external = url.href.replace(/\/+$/, '');
 }
-const output = resolve(root, 'artifacts', external && !['localhost', '127.0.0.1'].includes(new URL(external).hostname) ? 'upgrade-live' : 'upgrade-qa');
+const defaultOutput = external && !['localhost', '127.0.0.1'].includes(new URL(external).hostname) ? 'artifacts/upgrade-live' : 'artifacts/upgrade-qa';
+const output = resolve(root, option('--output', defaultOutput));
 await mkdir(output, { recursive: true });
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.json': 'application/json' };
 const headers = {};
@@ -66,6 +67,10 @@ async function contextFor(viewport, { fallback = false } = {}) {
     const cancel = window.cancelAnimationFrame.bind(window);
     const pending = new Set();
     window.__qaFrames = { pending };
+    window.__qaPointers = [];
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel']) document.addEventListener(type, event => {
+      window.__qaPointers.push({ type, pointerId: event.pointerId, target: event.target.id });
+    }, true);
     window.requestAnimationFrame = callback => {
       const id = request(time => { pending.delete(id); callback(time); });
       pending.add(id);
@@ -90,8 +95,27 @@ async function contextFor(viewport, { fallback = false } = {}) {
         return {
           render(ctx, state, options) {
             const before = state ? JSON.stringify(state) : null;
-            if (state) window.__qaState = JSON.parse(before);
-            const result = originalRender.call(renderer, ctx, state, options);
+            if (state) { window.__qaState = JSON.parse(before); window.__qaScene = state; }
+            const drawImage = ctx.drawImage;
+            const fillText = ctx.fillText;
+            window.__qaTexts = [];
+            ctx.fillText = function(text, ...coordinates) {
+              window.__qaTexts.push({ text, font: this.font });
+              return fillText.call(this, text, ...coordinates);
+            };
+            ctx.drawImage = function(image, ...coordinates) {
+              if (source.HALO_ATLAS && image?.src?.includes(source.HALO_ATLAS.file) && coordinates.length >= 8) {
+                window.__qaHaloFrame = Math.round(coordinates[0] / source.HALO_ATLAS.tileWidth) + source.HALO_ATLAS.columns * Math.round(coordinates[1] / source.HALO_ATLAS.tileHeight);
+              }
+              return drawImage.call(this, image, ...coordinates);
+            };
+            let result;
+            try { result = originalRender.call(renderer, ctx, state, options); }
+            finally { ctx.drawImage = drawImage; ctx.fillText = fillText; }
+            if (state?.kind === 'invaders' && source.hazardLabelLayout) {
+              window.__qaRenderOptions = JSON.parse(JSON.stringify(options));
+              window.__qaLabels = source.hazardLabelLayout(ctx, state.enemies, state.world, options);
+            }
             if (state && JSON.stringify(state) !== before) console.error('Renderer mutated game state');
             return result;
           },
@@ -119,7 +143,7 @@ async function bounds(page) {
     const rect = node => { const { x, y, width, height, bottom, right } = node.getBoundingClientRect(); return { x, y, width, height, bottom, right }; };
     const canvas = rect(document.getElementById('canvas'));
     const shell = rect(document.getElementById('game-shell'));
-    const targets = [...document.querySelectorAll('#controls button, #fullscreen, #help-toggle, #overlay-action, #previous-game, #next-game, #game-picker > summary')]
+    const targets = [...document.querySelectorAll('#controls button, #steering-pad, #fullscreen, #help-toggle, #overlay-action, #previous-game, #next-game, #game-picker > summary')]
       .filter(node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden')
       .map(node => {
         const dimensions = rect(node);
@@ -142,7 +166,7 @@ function assertFits(value, { portrait = false } = {}) {
 }
 
 try {
-  for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 900 }, { width: 1440, height: 900 }]) {
+  for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 568, height: 320 }, { width: 844, height: 390 }, { width: 1280, height: 900 }, { width: 1440, height: 900 }]) {
     const { context, page } = await contextFor(viewport);
     await check(`${viewport.width}px cinematic games use the screen and expose every essential control`, async () => {
       for (const mode of ['invaders', 'runner']) {
@@ -193,35 +217,39 @@ try {
 
   const { context, page } = await contextFor({ width: 390, height: 844 });
   const touch = await context.newCDPSession(page);
-  await check('direct touch drag steers the ship, clamps both edges and releases on cancel', async () => {
+  await check('relative arena drag moves both axes without contact or re-grab teleporting', async () => {
     await open(page, 'invaders');
     await page.locator('#overlay-action').tap();
     const arena = await page.locator('#canvas').boundingBox();
-    const center = { id: 1, x: arena.x + arena.width / 2, y: arena.y + arena.height * 0.6 };
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...center, x: arena.x + arena.width - 1 }] });
-    await page.waitForTimeout(350);
-    const right = await snapshot(page);
-    assert.ok(right.player / right.world.width > 0.75, 'Drag moves the actual ship toward the right edge');
-    assert.ok(right.player < right.world.width, 'Ship remains inside the arena');
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...center, x: Math.max(0, arena.x) }] });
-    await page.waitForTimeout(350);
-    const left = await snapshot(page);
-    assert.ok(left.player / left.world.width < 0.25, 'Captured drag can cross toward the left edge');
-    assert.ok(left.player > 0);
+    const anchor = { id: 1, x: arena.x + 45, y: arena.y + arena.height * 0.68 };
+    const before = await snapshot(page);
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [anchor] });
+    await page.waitForTimeout(90);
+    const contact = await snapshot(page);
+    assert.ok(Math.abs(contact.player - before.player) < 1 && Math.abs(contact.playerY - before.playerY) < 1, 'A distant touch begins relative steering without snapping the ship to the finger');
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...anchor, x: anchor.x + 90, y: anchor.y - 50 }] });
+    await page.waitForTimeout(250);
+    const moved = await snapshot(page);
+    assert.ok(moved.player > before.player + 30 && moved.playerY < before.playerY - 20, 'Relative horizontal and vertical motion both reach the actual ship');
+    const limits = arenaFor(moved).invadersBounds;
+    assert.ok(moved.player >= limits.left && moved.player <= limits.right && moved.playerY >= limits.top && moved.playerY <= limits.bottom);
     await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
     await page.waitForTimeout(80);
     const released = await snapshot(page);
     await page.waitForTimeout(150);
     const later = await snapshot(page);
-    assert.ok(Math.abs(later.player - released.player) <= later.world.width * 0.01, 'Cancelled pointer cannot keep steering');
+    assert.ok(Math.abs(later.player - released.player) <= 1 && Math.abs(later.playerY - released.playerY) <= 1, 'Cancelled pointer cannot keep steering either axis');
     assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'false');
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
-    await page.waitForTimeout(80);
+    const regrab = { ...anchor, x: arena.x + arena.width - 30, y: arena.y + 40 };
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [regrab] });
+    await page.waitForTimeout(100);
+    const grabbed = await snapshot(page);
+    assert.ok(Math.abs(grabbed.player - later.player) <= 1 && Math.abs(grabbed.playerY - later.playerY) <= 1, 'Re-grabbing at another point starts from the current ship position');
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     const ended = await snapshot(page);
     await page.waitForTimeout(120);
-    assert.ok(Math.abs((await snapshot(page)).player - ended.player) <= ended.world.width * 0.01, 'Released pointer cannot keep steering');
+    const afterRelease = await snapshot(page);
+    assert.ok(Math.abs(afterRelease.player - ended.player) <= 1 && Math.abs(afterRelease.playerY - ended.playerY) <= 1, 'Released pointer cannot keep steering either axis');
     assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'false');
     for (const id of ['left', 'right']) {
       await page.locator(`#${id}`).evaluate(button => { for (let count = 0; count < 30; count += 1) button.click(); });
@@ -229,6 +257,217 @@ try {
       assert.equal(nudged.player, id === 'left' ? 38 : nudged.world.width - 38, 'Assistive-technology activation uses the same visible edge bounds');
     }
     await capture(page, 'invaders-direct-drag-390');
+  });
+
+  for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 568, height: 320 }, { width: 844, height: 390 }]) {
+    await check(`${viewport.width}px thumb pad stays below the ship and supports relative two-axis multi-touch`, async () => {
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => {});
+      await page.setViewportSize(viewport);
+      await open(page, 'invaders');
+      await page.locator('#overlay-action').tap();
+      const canvas = await page.locator('#canvas').boundingBox();
+      const pad = await page.locator('#steering-pad').boundingBox();
+      assert.ok(pad && pad.y >= canvas.y + canvas.height - 1, 'The thumb surface is outside and below the complete arena');
+      assertFits(await bounds(page), { portrait: viewport.width < 600 });
+      const center = { id: 1, x: pad.x + pad.width / 2, y: pad.y + pad.height / 2 };
+      const before = await snapshot(page);
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...center, x: center.x + 3, y: center.y - 3 }] });
+      await page.waitForTimeout(90);
+      const deadzone = await snapshot(page);
+      assert.ok(Math.abs(deadzone.player - before.player) < 1 && Math.abs(deadzone.playerY - before.playerY) < 1, 'Contact and small thumb jitter stay inside the dead zone');
+      const deflected = { ...center, x: center.x + 30, y: center.y - 24 };
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [deflected] });
+      await page.waitForTimeout(250);
+      const moved = await snapshot(page);
+      assert.ok(moved.player > before.player + 15 && moved.playerY < before.playerY - 15, 'Held diagonal pad input moves both axes continuously');
+      const fireBox = await page.locator('#action').boundingBox();
+      const fire = { id: 2, x: fireBox.x + fireBox.width / 2, y: fireBox.y + fireBox.height / 2 };
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [deflected, fire] });
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [deflected] });
+      await page.waitForTimeout(50);
+      assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'true', 'Releasing the pad preserves the separately held Fire source');
+      const stopped = await snapshot(page);
+      await page.waitForTimeout(100);
+      const later = await snapshot(page);
+      assert.ok(Math.abs(later.player - stopped.player) < 1 && Math.abs(later.playerY - stopped.playerY) < 1, `Pad release clears both movement axes: ${JSON.stringify({ before: [stopped.player, stopped.playerY], after: [later.player, later.playerY], events: await page.evaluate(() => window.__qaPointers.slice(-8)) })}`);
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'false', 'Cancelling the remaining finger clears Fire');
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...center, x: pad.x + 12 }] });
+      await page.waitForTimeout(90);
+      const regrab = await snapshot(page);
+      assert.ok(Math.abs(regrab.player - later.player) < 1 && Math.abs(regrab.playerY - later.playerY) < 1, 'A new thumb contact establishes its own stationary anchor');
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      geometry.push({ mode: 'invaders', stage: 'thumb-pad', viewport, canvas, pad });
+      await capture(page, `invaders-thumb-pad-${viewport.width}`);
+    });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await check('a second held steering contact takes over without a jump when the first finger lifts', async () => {
+    for (const primary of ['pad', 'arena']) {
+      await open(page, 'invaders');
+      await page.locator('#overlay-action').tap();
+      const boxes = { pad: await page.locator('#steering-pad').boundingBox(), arena: await page.locator('#canvas').boundingBox() };
+      const firstBox = boxes[primary], secondBox = boxes[primary === 'pad' ? 'arena' : 'pad'];
+      const first = { id: 1, x: firstBox.x + firstBox.width / 2, y: firstBox.y + firstBox.height / 2 };
+      const second = { id: 2, x: secondBox.x + secondBox.width / 3, y: secondBox.y + secondBox.height / 2 };
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [first] });
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [first, second] });
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [first] });
+      const before = await snapshot(page);
+      await page.waitForTimeout(90);
+      const promoted = await snapshot(page);
+      assert.ok(Math.abs(promoted.player - before.player) < 1 && Math.abs(promoted.playerY - before.playerY) < 1, 'Promotion anchors at the current ship position');
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...second, x: second.x + 30, y: second.y - 24 }] });
+      await page.waitForTimeout(220);
+      const moved = await snapshot(page);
+      assert.ok(moved.player > promoted.player + 15 && moved.playerY < promoted.playerY - 15, 'The remaining finger can immediately steer both axes');
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'false');
+    }
+  });
+
+  await check('named hazards stay readable in the arena and identify damage versus shield protection', async () => {
+    await open(page, 'invaders');
+    await page.locator('#overlay-action').tap();
+    await page.waitForTimeout(1800);
+    const visibleHazards = (await snapshot(page)).enemies.filter(enemy => enemy.y > 0);
+    const drawnNames = await page.evaluate(() => window.__qaTexts.map(item => item.text));
+    assert.ok(visibleHazards.length > 0);
+    assert.ok(drawnNames.includes('Scope creep'), 'The actual game renderer paints the first named hazard after it enters');
+    await capture(page, 'invaders-named-hazards-390');
+    const labels = await page.evaluate(async () => {
+      const { hazardLabelLayout } = await import(new URL('game-renderer.js?qa-original=1', location.href));
+      const { arenaFor, INVADER_HAZARDS } = await import(new URL('game-engine.js', location.href));
+      const scene = window.__qaScene;
+      const arena = arenaFor(scene);
+      const canvas = document.getElementById('canvas');
+      const canvasRect = canvas.getBoundingClientRect();
+      const hud = ['status', 'mission-detail'].map(id => document.getElementById(id).getBoundingClientRect());
+      const enemies = INVADER_HAZARDS.map((hazard, index) => ({ x: index % 2 ? arena.width - 10 : 10, y: 160 + index * 130, hazard, label: hazard.label }));
+      return hazardLabelLayout(canvas.getContext('2d'), enemies, arena, { cssWidth: canvas.clientWidth, cssHeight: canvas.clientHeight, reservedRects: window.__qaRenderOptions.reservedRects }).map(label => {
+        const left = canvasRect.x + label.x * canvasRect.width / arena.width;
+        const right = left + label.width * canvasRect.width / arena.width;
+        const top = canvasRect.y + label.y * canvasRect.height / arena.height;
+        const bottom = top + label.height * canvasRect.height / arena.height;
+        return { ...label, cssFontSize: label.fontSize * canvas.clientHeight / arena.height, arenaWidth: arena.width, arenaHeight: arena.height,
+          overlapsHud: hud.some(rect => left < rect.right && right > rect.left && top < rect.bottom && bottom > rect.top) };
+      });
+    });
+    assert.equal(labels.length, INVADER_HAZARDS.length);
+    assert.deepEqual(labels.map(label => label.text).sort(), INVADER_HAZARDS.map(hazard => hazard.label).sort());
+    for (const label of labels) {
+      assert.ok(label.cssFontSize >= 13 - 1e-9, 'Hazard names stay at least 13 CSS pixels');
+      assert.ok(label.x >= 0 && label.y >= 0 && label.x + label.width <= label.arenaWidth && label.y + label.height <= label.arenaHeight, 'Edge labels remain inside the arena');
+      assert.equal(label.overlapsHud, false, `${label.text} cannot hide behind the score or wave text`);
+    }
+    await page.waitForFunction(() => window.__qaState?.lastHazardTime > 0 && !window.__qaState.lastHazardBlocked, undefined, { timeout: 15000 });
+    assert.equal(await page.locator('#impact-feedback').isVisible(), true);
+    assert.match(await page.locator('#impact-feedback').textContent(), /1 life lost/);
+    const hit = await snapshot(page);
+    assert.ok(INVADER_HAZARDS.some(hazard => hazard.label === hit.lastHazard));
+    assert.match(await page.locator('#impact-feedback').textContent(), new RegExp(hit.lastHazard));
+    assert.equal(hit.lives, 2);
+    const obscured = await page.evaluate(() => {
+      const canvas = document.getElementById('canvas').getBoundingClientRect();
+      const world = window.__qaState.world;
+      const boxes = ['status', 'mission-detail', 'impact-feedback'].map(id => document.getElementById(id)).filter(node => node.getClientRects().length).map(node => node.getBoundingClientRect());
+      return window.__qaLabels.filter(label => {
+        const left = canvas.x + label.x * canvas.width / world.width;
+        const top = canvas.y + label.y * canvas.height / world.height;
+        const right = left + label.width * canvas.width / world.width;
+        const bottom = top + label.height * canvas.height / world.height;
+        return boxes.some(box => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
+      }).map(label => label.text);
+    });
+    assert.deepEqual(obscured, [], 'Real gameplay hazard names cannot hide behind HUD or impact feedback');
+    await capture(page, 'invaders-natural-impact-390');
+    // Only shield protection uses deterministic client-only setup. Normal engine
+    // collision, damage, feedback, shield consumption and drawing still execute.
+    await page.evaluate(hazard => {
+      const scene = window.__qaScene;
+      scene.damageCooldown = 0;
+      scene.shield = 1;
+      scene.shieldTime = 5;
+      scene.enemies = [{ x: scene.player, y: scene.playerY, health: 1, hazard, hazardId: hazard.id, label: hazard.label }];
+    }, INVADER_HAZARDS[1]);
+    await page.waitForFunction(() => document.getElementById('impact-feedback').textContent.includes('Shield blocked'));
+    assert.match(await page.locator('#impact-feedback').textContent(), /Missed deadlines/);
+    assert.equal(await page.locator('#impact-feedback').getAttribute('data-kind'), 'shield');
+    assert.equal((await snapshot(page)).lives, 2);
+    await capture(page, 'invaders-shield-feedback-390');
+    await page.evaluate(hazard => {
+      const scene = window.__qaScene;
+      scene.lives = 1; scene.damageCooldown = 0; scene.shield = 0;
+      scene.enemies = [{ x: scene.player, y: scene.playerY, health: 1, hazard, hazardId: hazard.id, label: hazard.label }];
+    }, INVADER_HAZARDS[0]);
+    await page.waitForFunction(() => window.__qaState?.ended);
+    assert.equal(await page.locator('#arena-overlay').isVisible(), true);
+    assert.match(await page.locator('#instructions').textContent(), /Scope creep/, 'The final-life overlay retains the named cause');
+  });
+
+  await check('Halo uses articulated frames, freezes on pause and keeps its full sprite in each arena', async () => {
+    await open(page, 'runner');
+    await page.locator('#overlay-action').tap();
+    await page.waitForTimeout(180);
+    const before = await snapshot(page);
+    const poses = new Set();
+    for (const time of [0, 0.12, 0.24, 0.36]) poses.add(haloGeometry({ ...before, elapsed: time }).frame);
+    assert.ok(poses.size >= 3, 'Running selects distinct actual articulated source frames');
+    const drawnFrames = new Set();
+    for (let sample = 0; sample < 4; sample += 1) {
+      drawnFrames.add(await page.evaluate(() => window.__qaHaloFrame));
+      await page.waitForTimeout(110);
+    }
+    assert.ok(!drawnFrames.has(undefined) && drawnFrames.size >= 2, 'The real renderer draws different articulated atlas frames during play');
+    geometry.push({ mode: 'runner', stage: 'halo-animation', drawnFrames: [...drawnFrames] });
+    assert.equal(HALO_ATLAS.frames, HALO_ATLAS.sourceFrames.length);
+    for (const height of [240, 320, 540, 1700]) {
+      for (const jump of [0, 100, 300]) {
+        const scene = { ...before, world: { width: 960, height }, height: jump, velocity: jump ? 250 : 0, effects: [] };
+        const arena = arenaFor(scene);
+        const pose = haloGeometry(scene, arena);
+        assert.equal(pose.bootsY, arena.floor - jump);
+        assert.ok(pose.frame >= 0 && pose.frame < HALO_ATLAS.frames);
+        const camera = runnerCameraOffset(scene, arena);
+        assert.ok(pose.bounds.left >= 0 && pose.bounds.right <= arena.width && pose.bounds.top + camera >= 0 && pose.bounds.bottom + camera <= arena.height, 'The actual visible Halo frame, including cape and tilt, remains in view');
+      }
+    }
+    await page.waitForTimeout(80);
+    await page.locator('#pause').tap();
+    const frozen = await page.locator('#canvas').screenshot();
+    const paused = await snapshot(page);
+    await page.waitForTimeout(250);
+    assert.deepEqual(await page.locator('#canvas').screenshot(), frozen, 'The paused Halo frame and whole scene stay pixel-identical');
+    assert.deepEqual(await snapshot(page), paused);
+    await capture(page, 'halo-paused-390');
+  });
+
+  await check('reduced motion fixes the Halo pose while retaining jump placement and gameplay', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await open(page, 'runner');
+    await page.locator('#overlay-action').tap();
+    const observed = await snapshot(page);
+    const frames = [0, 0.2, 0.5, 1].map(elapsed => haloGeometry({ ...observed, elapsed }, undefined, { reducedMotion: true }).frame);
+    assert.equal(new Set(frames).size, 1);
+    const pixels = await page.evaluate(async () => {
+      const { createRenderer } = await import(new URL('game-renderer.js?qa-original=1', location.href));
+      const { createRunnerState } = await import(new URL('game-engine.js', location.href));
+      const renderer = createRenderer();
+      await renderer.loadImages();
+      const canvas = document.createElement('canvas'); canvas.width = 960; canvas.height = 540;
+      const ctx = canvas.getContext('2d');
+      const state = createRunnerState();
+      const render = elapsed => { state.elapsed = elapsed; renderer.render(ctx, state, { mode: 'runner', width: 960, height: 540, cssWidth: 960, cssHeight: 540, reducedMotion: true }); return canvas.toDataURL(); };
+      return { before: render(1), after: render(2) };
+    });
+    assert.equal(pixels.before, pixels.after, 'Reduced motion removes cosmetic frame, background and thruster animation');
+    await page.locator('#action').tap();
+    await page.waitForTimeout(80);
+    assert.ok((await snapshot(page)).height > 0, 'Reduced motion preserves playable jumping');
+    await capture(page, 'halo-reduced-motion-390');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
   });
 
   await check('rotation preserves a paused run and adapts the logical arena', async () => {
@@ -342,7 +581,7 @@ try {
     await page.waitForFunction(() => window.__qaState?.jumps === 2 && window.__qaState.height > 120 && window.__qaState.velocity <= 0);
     const apex = await snapshot(page);
     const arena = arenaFor(apex);
-    const head = arena.floor - apex.height + runnerCameraOffset(apex, arena) - 92 * (arena.runnerScale || 1);
+    const head = haloGeometry(apex, arena).bounds.top + runnerCameraOffset(apex, arena);
     assert.ok(head >= 0, `The astronaut's head clips above the landscape arena: ${head}`);
     await capture(page, 'runner-double-jump-apex-844');
     await page.setViewportSize({ width: 390, height: 844 });

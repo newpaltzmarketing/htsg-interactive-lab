@@ -1,4 +1,4 @@
-import { arenaFor, createInvadersState, createRunnerState } from './game-engine.js';
+import { arenaFor, createInvadersState, createRunnerState, INVADER_HAZARDS } from './game-engine.js';
 import { brand } from './brand.js';
 
 const TAU = Math.PI * 2;
@@ -163,6 +163,80 @@ function projectile(ctx, bullet, reducedMotion) {
   glow(ctx, bullet.x, bullet.y, 13, paint, 0.4);
 }
 
+export function hazardLabelLayout(ctx, enemies, arena, { cssHeight = arena.height, reservedRects = [] } = {}) {
+  const unit = arena.height / Math.max(1, cssHeight);
+  const fontSize = 13 * unit;
+  const height = 24 * unit;
+  const margin = 7 * unit;
+  ctx.save(); ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
+  const labels = [];
+  for (const enemy of [...(enemies || [])].sort((a, b) => b.y - a.y)) {
+    const text = enemy.label || enemy.hazard?.label;
+    if (!text || enemy.y < -15 || enemy.y > arena.height + 20) continue;
+    const width = Math.min(arena.width - margin * 2, ctx.measureText(text).width + 18 * unit);
+    const preferred = { x: clamp(enemy.x - width / 2, margin, arena.width - width - margin),
+      y: clamp(enemy.y - 42 - height, margin, arena.height - height - margin) };
+    const occupied = [...reservedRects, ...labels];
+    const candidates = [preferred, { x: preferred.x, y: enemy.y + 38 }];
+    for (const other of occupied) {
+      candidates.push({ x: preferred.x, y: other.y + other.height + margin },
+        { x: preferred.x, y: other.y - height - margin },
+        { x: other.x + other.width + margin, y: preferred.y },
+        { x: other.x - width - margin, y: preferred.y });
+    }
+    const fits = point => point.x >= margin && point.x + width <= arena.width - margin &&
+      point.y >= margin && point.y + height <= arena.height - margin &&
+      Math.abs(point.y + height / 2 - enemy.y) <= 100 * unit &&
+      !occupied.some(other => point.x < other.x + other.width + margin && point.x + width + margin > other.x &&
+        point.y < other.y + other.height + margin && point.y + height + margin > other.y);
+    const cost = point => Math.abs(point.y - preferred.y) + Math.abs(point.x - preferred.x) * .8;
+    const point = candidates.filter(fits).sort((a, b) => cost(a) - cost(b))[0];
+    // A just-entering hazard can briefly wait for a free label position instead
+    // of covering the HUD or showing a name far from its actual target.
+    if (!point) continue;
+    const shifted = Math.abs(point.x - preferred.x) > 8 * unit || Math.abs(point.y - preferred.y) > 12 * unit;
+    labels.push({ text, ...point, width, height, fontSize, unit, shifted, enemyX: enemy.x, enemyY: enemy.y });
+  }
+  ctx.restore();
+  return labels;
+}
+
+function hazardLabels(ctx, scene, arena, options) {
+  for (const label of hazardLabelLayout(ctx, scene.enemies, arena, options)) {
+    ctx.save();
+    if (label.shifted) {
+      ctx.strokeStyle = '#ed995b7d'; ctx.lineWidth = label.unit;
+      ctx.beginPath(); ctx.moveTo(label.enemyX, label.enemyY - 20);
+      ctx.lineTo(clamp(label.enemyX, label.x + 4 * label.unit, label.x + label.width - 4 * label.unit),
+        label.y > label.enemyY ? label.y : label.y + label.height); ctx.stroke();
+    }
+    ctx.fillStyle = '#09131fec'; ctx.strokeStyle = '#ed995b9c'; ctx.lineWidth = label.unit;
+    rounded(ctx, label.x, label.y, label.width, label.height, 6 * label.unit); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff3df'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `600 ${label.fontSize}px system-ui, sans-serif`;
+    ctx.fillText(label.text, label.x + label.width / 2, label.y + label.height / 2, label.width - 12 * label.unit);
+    ctx.restore();
+  }
+}
+
+function hazardImpact(ctx, scene, arena, reducedMotion) {
+  if (!(scene.lastHazardTime > 0)) return;
+  const age = Math.max(0, 2.4 - scene.lastHazardTime);
+  const fade = Math.min(1, scene.lastHazardTime / 0.7);
+  const blocked = scene.lastHazardBlocked;
+  ctx.save();
+  // A steady fade gives life-loss feedback without flashing or camera shake.
+  ctx.strokeStyle = blocked ? `rgba(133,225,244,${0.7 * fade})` : `rgba(255,112,72,${0.8 * fade})`;
+  ctx.lineWidth = 5; rounded(ctx, 3, 3, arena.width - 6, arena.height - 6, 8); ctx.stroke();
+  if (age < 0.7) {
+    ctx.globalAlpha = (1 - age / 0.7) * 0.8;
+    ctx.lineWidth = 3;
+    const spread = reducedMotion ? 0 : age * 42;
+    ellipse(ctx, scene.player, arena.playerY - 5, 54 + spread, 65 + spread); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function shieldPickup(ctx, item, time, reducedMotion) {
   const bob = reducedMotion ? 0 : Math.sin(time * 3 + item.x) * 3;
   ctx.save(); ctx.translate(item.x, item.y + bob);
@@ -178,7 +252,7 @@ function effects(ctx, list, reducedMotion) {
   for (const item of list || []) {
     const t = clamp(item.age / item.life, 0, 1);
     const fade = (1 - t) ** 1.6;
-    if (item.kind === 'wave') continue;
+    if (item.kind === 'wave' || item.kind === 'landing') continue;
     if (item.kind === 'explosion' || item.kind === 'impact') {
       const radius = reducedMotion ? 23 : 14 + t * 70;
       glow(ctx, item.x, item.y, radius, '#ff8e2a', fade * 0.75);
@@ -230,47 +304,85 @@ function terrain(ctx, arena, time, speed, reducedMotion) {
   ctx.strokeStyle = '#73838d38'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, height - 19); ctx.lineTo(width, height - 19); ctx.stroke();
 }
 
-function limb(ctx, x1, y1, x2, y2, width, color) {
-  ctx.strokeStyle = '#101e29'; ctx.lineWidth = width + 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+// These are articulated frames from the approved Halo entrance animation, not a
+// wall-clock animated image. Simulation time selects the pose and freezes on pause.
+export const HALO_ATLAS = Object.freeze({
+  file: 'halo-runner-atlas.webp', columns: 4, rows: 4,
+  tileWidth: 256, tileHeight: 256, anchorX: 112, anchorY: 246, frames: 14,
+  sourceFrames: Object.freeze([0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]),
+  bounds: Object.freeze([[31,24,215,247],[27,21,213,247],[25,19,212,246],[23,15,212,246],
+    [24,29,210,247],[33,33,216,247],[50,33,232,247],[53,31,230,247],[55,30,227,247],
+    [54,29,199,247],[54,29,195,247],[54,28,195,247],[54,27,200,247],[54,21,210,247]].map(Object.freeze)),
+});
+
+export function haloGeometry(state, arena = arenaFor(state), { reducedMotion = false } = {}) {
+  const time = Number.isFinite(state?.elapsed) ? Math.max(0, state.elapsed) : 0;
+  const airborne = (state?.height || 0) > 1;
+  const landing = (state?.effects || []).find(item => item.kind === 'landing');
+  let frame = 10;
+  let squash = 0;
+  let rotation = 0;
+  if (!reducedMotion && !state?.ended) {
+    if (airborne) {
+      frame = (state.velocity > 0 ? 0 : 3) + Math.floor(time * 12) % 4;
+      rotation = state.velocity > 0 ? 0.045 : -0.035;
+    } else if (landing) {
+      const progress = clamp(landing.age / landing.life, 0, 1);
+      frame = [6, 7, 8, 10][Math.min(3, Math.floor(progress * 4))];
+      squash = Math.sin(progress * Math.PI) * 0.075;
+    } else {
+      const cycle = [3, 4, 5, 6, 7, 8, 7, 6, 5, 4];
+      frame = cycle[Math.floor(time * 12) % cycle.length];
+    }
+  }
+  const artworkScale = arena.height > arena.width ? 1.35 : 1;
+  const scale = (arena.runnerScale || 1) * 0.4 * artworkScale;
+  const scaleX = scale * (1 + squash), scaleY = scale * (1 - squash);
+  const x = arena.runnerX, y = arena.floor - (state?.height || 0);
+  const [left, top, right, bottom] = HALO_ATLAS.bounds[frame];
+  const points = [[left,top],[right,top],[right,bottom],[left,bottom]].map(([px,py]) => {
+    const dx = -(px - HALO_ATLAS.anchorX) * scaleX, dy = (py - HALO_ATLAS.anchorY) * scaleY;
+    return { x: x + dx * Math.cos(rotation) - dy * Math.sin(rotation),
+      y: y + dx * Math.sin(rotation) + dy * Math.cos(rotation) };
+  });
+  return {
+    frame, x, y, rotation, artworkScale,
+    scaleX, scaleY, width: HALO_ATLAS.tileWidth * scaleX, height: HALO_ATLAS.tileHeight * scaleY,
+    drawX: -HALO_ATLAS.anchorX, drawY: -HALO_ATLAS.anchorY,
+    // The cape is decorative. The existing 37-unit body collision span is unchanged.
+    bodyLeft: arena.runnerX - 17 * (arena.runnerScale || 1),
+    bodyRight: arena.runnerX + 20 * (arena.runnerScale || 1),
+    bootsY: arena.floor - (state?.height || 0),
+    bounds: { left: Math.min(...points.map(point => point.x)), top: Math.min(...points.map(point => point.y)),
+      right: Math.max(...points.map(point => point.x)), bottom: Math.max(...points.map(point => point.y)) },
+  };
 }
 
-function astronaut(ctx, state, arena, time, reducedMotion) {
-  const x = arena.runnerX, y = arena.floor - state.height;
+function haloRunner(ctx, state, arena, time, reducedMotion, sprite) {
+  const pose = haloGeometry(state, arena, { reducedMotion });
+  const scale = (arena.runnerScale || 1) * pose.artworkScale;
   ctx.fillStyle = `rgba(0,0,0,${0.3 * Math.max(0.2, 1 - state.height / 300)})`;
-  ellipse(ctx, x + 4, arena.floor + 2, 31 * arena.runnerScale, 7 * arena.runnerScale); ctx.fill();
-  ctx.save(); ctx.translate(x, y); ctx.scale(arena.runnerScale, arena.runnerScale);
-  const airborne = state.height > 1;
-  const stride = airborne ? 0.55 : reducedMotion ? 0.15 : Math.sin(time * 13) * 0.75;
-  if (state.boost > 0) { glow(ctx, 0, -38, 79, '#ffaf4238'); ctx.strokeStyle = '#ffcf8599'; ctx.lineWidth = 2; ellipse(ctx, 0, -40, 38, 52); ctx.stroke(); }
-  if (airborne && state.jumps > 1) thruster(ctx, -18, -23, 39, time, reducedMotion, 5);
-  ctx.fillStyle = gradient(ctx, -28, -51, -10, -18, [[0, '#8d9eaa'], [0.5, '#233947'], [1, '#101f2c']]);
-  rounded(ctx, -26, -53, 17, 34, 6); ctx.fill();
-  ctx.fillStyle = paint; rounded(ctx, -28, -45, 4, 14, 2); ctx.fill();
-  // Far-side arm and legs stay darker, giving the silhouette clear depth.
-  limb(ctx, -8, -43, -16 - stride * 10, -27, 8, '#9c4b24');
-  const backKneeX = -8 - stride * 12, frontKneeX = 10 + stride * 12;
-  limb(ctx, -5, -24, backKneeX, -12, 11, '#a45428');
-  limb(ctx, backKneeX, -12, -9 + stride * 15, -2 - (airborne ? 9 : 0), 9, '#88979c');
-  ctx.fillStyle = '#172735'; rounded(ctx, -16 + stride * 15, -5 - (airborne ? 9 : 0), 21, 8, 4); ctx.fill();
-  limb(ctx, 7, -23, frontKneeX, -13 - (airborne ? 5 : 0), 12, paint);
-  limb(ctx, frontKneeX, -13 - (airborne ? 5 : 0), 10 - stride * 15, -2 - (airborne ? 4 : 0), 10, '#b9c4c3');
-  ctx.fillStyle = gradient(ctx, 0, -6, 0, 4, [[0, '#637681'], [1, '#142331']]); rounded(ctx, 3 - stride * 15, -5 - (airborne ? 4 : 0), 23, 8, 4); ctx.fill();
-  ctx.fillStyle = gradient(ctx, -17, -54, 18, -24, [[0, '#ffbf60'], [0.42, paint], [0.78, '#b34a20'], [1, '#723522']]);
-  ctx.strokeStyle = '#172634'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(-11, -55); ctx.quadraticCurveTo(3, -60, 16, -49); ctx.lineTo(17, -29); ctx.quadraticCurveTo(2, -19, -14, -27); ctx.lineTo(-17, -45); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = '#ffe0a8a6'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-11, -49); ctx.lineTo(-8, -33); ctx.stroke();
-  ctx.fillStyle = '#e9e7d6'; rounded(ctx, -2, -48, 12, 12, 2); ctx.fill();
-  ctx.fillStyle = '#c15c24'; ctx.fillRect(1, -45, 2, 7); ctx.fillRect(6, -45, 2, 7); ctx.fillRect(3, -42, 3, 2);
-  limb(ctx, 12, -47, 21 + stride * 6, -34, 10, paint);
-  limb(ctx, 21 + stride * 6, -34, 31, -37 + stride * 4, 8, '#a6b5bc');
-  ctx.fillStyle = paint; ellipse(ctx, 33, -36 + stride * 4, 6, 5); ctx.fill();
-  const helmet = gradient(ctx, -10, -88, 22, -51, [[0, '#fff6db'], [0.28, '#e1e8df'], [0.66, '#98aab4'], [1, '#374c60']]);
-  ctx.fillStyle = helmet; ctx.strokeStyle = '#223b4b'; ctx.lineWidth = 2; ellipse(ctx, 5, -70, 20, 21); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = gradient(ctx, 5, -84, 23, -56, [[0, '#4f91aa'], [0.4, '#092f48'], [0.85, '#091828'], [1, '#d69245']]);
-  ctx.beginPath(); ctx.ellipse(12, -70, 12, 14, 0.12, -Math.PI * 0.55, Math.PI * 0.65); ctx.quadraticCurveTo(-2, -65, 1, -78); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = '#e2fbffb3'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(9, -80); ctx.quadraticCurveTo(17, -80, 20, -72); ctx.stroke();
-  ctx.fillStyle = paint; rounded(ctx, -9, -56, 25, 5, 2); ctx.fill();
+  ellipse(ctx, pose.x + 4, arena.floor + 2, 29 * scale, 6 * scale); ctx.fill();
+  ctx.save(); ctx.translate(pose.x, pose.y); ctx.scale(scale, scale);
+  if (state.boost > 0) {
+    glow(ctx, 0, -42, 78, '#ffaf4238'); ctx.strokeStyle = '#ffcf8599'; ctx.lineWidth = 2;
+    ellipse(ctx, 0, -43, 39, 52); ctx.stroke();
+  }
+  if (state.height > 1 && state.jumps > 1) thruster(ctx, -8, -2, 32, time, reducedMotion, 5);
+  ctx.restore();
+  if (!sprite?.image?.naturalWidth) return;
+  ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(pose.rotation);
+  if (sprite.atlas) {
+    // Halo faces the incoming obstacles; his cape trails behind, outside the hitbox.
+    ctx.scale(-pose.scaleX, pose.scaleY);
+    const sx = (pose.frame % HALO_ATLAS.columns) * HALO_ATLAS.tileWidth;
+    const sy = Math.floor(pose.frame / HALO_ATLAS.columns) * HALO_ATLAS.tileHeight;
+    ctx.drawImage(sprite.image, sx, sy, HALO_ATLAS.tileWidth, HALO_ATLAS.tileHeight,
+      pose.drawX, pose.drawY, HALO_ATLAS.tileWidth, HALO_ATLAS.tileHeight);
+  } else {
+    ctx.scale(-scale * 0.27, scale * 0.27);
+    ctx.drawImage(sprite.image, -128, -393, 288, 396);
+  }
   ctx.restore();
 }
 
@@ -328,21 +440,21 @@ function preview(mode, width, height) {
     state.collectibles = [0.46, 0.53, 0.6].map((fraction, index) => ({ x: width * fraction, height: 112 + index % 2 * 24, id: index }));
   } else {
     state.player = width * 0.5;
-    state.enemies = [0.24, 0.5, 0.76].map((fraction, index) => ({ x: width * fraction, y: Math.max(95, height * 0.2) + (index % 2) * 45, type: index === 1 ? 'heavy' : 'drone', phase: index, age: 0 }));
-    state.enemies.push({ x: width * 0.34, y: arena.playerY * 0.6, type: 'interceptor', phase: 1.2, age: 0 });
+    state.enemies = [0.24, 0.5, 0.76].map((fraction, index) => ({ x: width * fraction, y: Math.max(95, height * 0.2) + (index % 2) * 45, type: index === 1 ? 'heavy' : 'drone', phase: index, age: 0, label: INVADER_HAZARDS[index].label }));
+    state.enemies.push({ x: width * 0.34, y: arena.playerY * 0.6, type: 'interceptor', phase: 1.2, age: 0, label: INVADER_HAZARDS[3].label });
     state.bullets = [{ x: width * 0.5, y: arena.playerY - 100 }, { x: width * 0.5, y: arena.playerY - 155 }];
   }
   return state;
 }
 
 // Follow high jumps in short arenas without changing their physical trajectory.
-export function runnerCameraOffset(state, arena = arenaFor(state)) {
-  return Math.max(0, (state?.height || 0) - (arena.floor - (92 * (arena.runnerScale || 1) + 54)));
+export function runnerCameraOffset(state, arena = arenaFor(state), options = {}) {
+  return Math.max(0, 54 - haloGeometry(state, arena, options).bounds.top);
 }
 
 /** No clock, animation loop, or mutable simulation state is held by the renderer. */
 export function createRenderer({ assetBase = new URL('./assets/', import.meta.url).href } = {}) {
-  const images = { invaders: null, runner: null, trivia: null };
+  const images = { invaders: null, runner: null, trivia: null, halo: null };
   let ready = false;
   let loading;
   async function loadImages() {
@@ -351,12 +463,12 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
       if (typeof Image === 'undefined') { resolve(); return; }
       const image = new Image(); image.decoding = 'async';
       let fallback = false;
-      image.onload = () => { images[mode] = image; resolve(); };
+      image.onload = () => { images[mode] = mode === 'halo' ? { image, atlas: !fallback } : image; resolve(); };
       image.onerror = () => {
-        if (!fallback) { fallback = true; image.src = new URL(`${mode}-world.png`, assetBase).href; }
+        if (!fallback) { fallback = true; image.src = new URL(mode === 'halo' ? 'halo-runner-idle.png' : `${mode}-world.png`, assetBase).href; }
         else resolve();
       };
-      image.src = new URL(`${mode}-world.webp`, assetBase).href;
+      image.src = new URL(mode === 'halo' ? HALO_ATLAS.file : `${mode}-world.webp`, assetBase).href;
     }))).then(() => { ready = true; });
     return loading;
   }
@@ -374,7 +486,7 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
     background(ctx, images[mode], arena, time, reducedMotion, mode);
     if (mode === 'runner') {
       ctx.save();
-      ctx.translate(0, runnerCameraOffset(scene, arena));
+      ctx.translate(0, runnerCameraOffset(scene, arena, { reducedMotion }));
       terrain(ctx, arena, time, scene.speed || 330, reducedMotion);
       for (const item of scene.collectibles || []) {
         ctx.save(); ctx.translate(item.x, arena.floor - item.height); ctx.scale(arena.runnerScale, arena.runnerScale);
@@ -384,7 +496,7 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
         ctx.save(); ctx.translate(item.x, arena.floor); ctx.scale(arena.runnerScale, arena.runnerScale);
         obstacle(ctx, { ...item, x: 0 }, 0); ctx.restore();
       }
-      astronaut(ctx, scene, arena, time, reducedMotion);
+      haloRunner(ctx, scene, arena, time, reducedMotion, images.halo);
       effects(ctx, scene.effects, reducedMotion);
       ctx.restore();
     } else if (mode === 'trivia') {
@@ -397,6 +509,10 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
     }
     if (mode !== 'runner') effects(ctx, scene.effects, reducedMotion);
     vignette(ctx, width, height);
+    if (mode === 'invaders') {
+      hazardLabels(ctx, scene, arena, options);
+      hazardImpact(ctx, scene, arena, reducedMotion);
+    }
     if (scene.phase === 'intermission') {
       ctx.fillStyle = '#f6dbad'; ctx.textAlign = 'center'; ctx.font = '700 24px system-ui, sans-serif';
       ctx.fillText(`WAVE ${scene.wave} CLEAR`, width / 2, height * 0.32);

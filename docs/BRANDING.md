@@ -17,7 +17,7 @@ Edit `public/brand.css` for the reusable palette and typography. `public/style.c
 | `--arena-*` | Core canvas paint and renderer palette, read by `public/brand.js`. |
 | `--safe-top`, `--safe-right`, `--safe-bottom`, `--safe-left` | Device safe-area insets for the player layout. |
 
-The cinematic renderer uses additional local gradients and material colors in `public/game-renderer.js`. Its spacecraft, astronaut, barriers, shields, and effects are procedural drawings. A different brand can change these materials without changing collision or scoring rules in `public/game-engine.js`. `public/game.js` connects controls, game state, drawing, navigation, and fullscreen behavior; it is not a theme configuration file.
+The cinematic renderer uses additional local gradients and material colors in `public/game-renderer.js`. Spacecraft, barriers, shields, and effects are procedural drawings. Runner uses actual approved Halo character frames, preserving the glossy black helmet, orange H suit/cape, and white gloves and boots; these raster colors are not recolored by CSS tokens. A different brand can change procedural materials or supply approved replacement character artwork without changing collision or scoring rules in `public/game-engine.js`. `public/game.js` connects controls, game state, drawing, navigation, and fullscreen behavior; it is not a theme configuration file.
 
 Use dark labels on light amber actions and light text on dark play surfaces. Place a scrim or quiet surface behind text over artwork. Keep visible keyboard focus, touch controls at least 44 CSS pixels, and explicit text for quiz results and session state. Do not rely on color, decorative artwork, or motion alone to explain a control or result.
 
@@ -30,17 +30,24 @@ The logo and favicon in `public/assets/` are approved HTSG copies from the suppl
 | `public/assets/invaders-world.webp` | Orbital defense environment and Invaders gallery preview. |
 | `public/assets/runner-world.webp` | Launch-complex environment and Runner gallery preview. |
 | `public/assets/trivia-world.webp` | Observatory environment and Trivia gallery preview. |
+| `public/assets/halo-runner-atlas.webp` | Simulation-timed articulated Halo poses derived from the approved chatbot entrance animation. |
+| `public/assets/halo-runner-idle.png` | Approved Halo still used only if the atlas fails to load. |
 | `public/assets/lab-share.svg`, `public/assets/lab-share.png` | Editable and raster social preview. |
-| `artwork/originals/` | Full-size selected environment PNG originals, excluded from runtime builds. |
+| `artwork/originals/` | Selected world originals and approved Halo source animation/still, excluded from runtime builds. |
 | `artwork/prompts.json`, `artwork/provenance.json` | Exact generation prompts, dimensions, encoding, and hashes. |
+| `artwork/halo-runner-provenance.json`, `artwork/prepare-halo-atlas.py` | Existing Halo source provenance, exact selected frames, alignment, and extraction recipe. |
 
 The three 1536 × 864 WebP worlds share navy, charcoal, silver, and orange, with detail near the horizon and quiet play regions. Preserve their aspect ratio, keep a dark loading fallback, and check both wide and narrow crops. The image never defines a collision boundary. See [ARTWORK.md](ARTWORK.md) for provenance and optimization. Source archives include the originals and prompts; deployment archives include only the optimized runtime assets.
+
+Halo's limbs and cape change through actual articulated frames. His animation follows simulation time and jump/landing state, freezes when paused, and uses a fixed pose for reduced motion. Keep the boots anchored, the cape decorative outside the collision body, and the camera aware of the visible sprite bounds. Portrait artwork is enlarged separately from landscape and physics.
 
 ## Player and editorial review
 
 The game player fills the available browser viewport and adapts the logical arena to its shape. Its own top bar provides All games, adjacent-game links, a game chooser, instructions, and expansion. The fullscreen control uses the native browser API when supported, with a fixed expanded layout as a fallback. Keep these controls usable in short landscape screens, portrait screens, and device safe areas. Do not crop or stretch the moving playfield to make the artwork fit.
 
 Keep labels specific to working actions. The gallery should help someone choose a game; the player should show the rules, current state, and next useful action. Preserve explanatory quiz feedback, visible pause/resume state, and a clear exit to all games. Avoid decorative numbering, redundant labels, unavailable features, or extra panels that do not help a player.
+
+Invaders names its business hazards in readable 13 CSS-pixel canvas labels. Labels avoid the actual status, wave, and impact-message rectangles passed by the controller and remain near their targets, with a small leader when shifted. A life-loss message names the cause; shield absorption uses distinct words and color. The separate steering pad keeps a phone user's thumb clear of the ship; relative arena dragging remains available.
 
 ## Make another branded edition
 
@@ -55,4 +62,4 @@ The HTSG contact destination is `https://holistictechsolutionsgroup.com/contact/
 
 ## Publication boundary
 
-`docs/prototype-readme.md` preserves the attachment's original notes as reference material. The user's later approval authorized publication through the existing HTSG Demos path and navigation. Release 1.1.0 upgrades the browser-only games and their presentation; it does not require a new backend, hosting product, paid dependency, Cloudflare project, or DNS change. See [DEPLOYMENT.md](DEPLOYMENT.md) for the verified installed release and rollback package.
+`docs/prototype-readme.md` preserves the attachment's original notes as reference material. The user's later approval authorized publication through the existing HTSG Demos path and navigation. The lab and these updates remain browser-only; they do not require a new backend, hosting product, paid dependency, Cloudflare project, or DNS change. See [DEPLOYMENT.md](DEPLOYMENT.md) for the verified installed release and rollback package.

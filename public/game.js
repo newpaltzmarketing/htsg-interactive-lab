@@ -1,7 +1,7 @@
 import { brand } from './brand.js';
 import { questionsForRound } from './questions.js';
 import {
-  ARENA, createInputState, setInput, getInput, clearInput,
+  ARENA, arenaFor, createInputState, setInput, getInput, clearInput,
   createInvadersState, stepInvaders, fireInvaders,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer, resizeGame,
 } from './game-engine.js';
@@ -10,14 +10,14 @@ import { createRenderer } from './game-renderer.js';
 const games = {
   invaders: {
     title: 'Agency Invaders', headline: 'Clear the orbit.',
-    instructions: 'Pilot through incoming drone waves. Build a streak and collect shields to keep your launch alive.',
-    help: 'Touch or drag anywhere in the arena to steer and fire. Lift your finger to stop firing. You can also hold the arrow buttons and Fire together. Keyboard: A / D or left / right arrows to steer; Space or up arrow to fire. P or Escape pauses.',
-    depth: 'Each wave brings more pressure. Consecutive hits build your combo. Collect the glowing shield pickups to protect your three lives.',
-    hint: 'Drag the arena to steer and fire.', action: 'Fire',
+    instructions: 'Scope creep, missed deadlines, budget overruns. Clear the project chaos before it costs you a life.',
+    help: 'Use the pad below the game: drag a little in any direction and hold to fly and fire. Your thumb stays clear of the ship. You can also drag anywhere in the arena; the ship moves with your finger without jumping under it. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
+    depth: 'Fly around the lower half of the arena. Named hazards cost a life when they hit you or pass your defenses. Consecutive hits build your combo. Collect a glowing shield to block the next impact.',
+    hint: 'Thumb on the pad. Eyes on the ship.', action: 'Fire',
   },
   runner: {
     title: 'Launch Runner', headline: 'Find your next horizon.',
-    instructions: 'Cross the launch complex, clear the barriers, and collect energy. A second jump can change your flight.',
+    instructions: 'Take Halo across the launch complex. Clear the barriers, collect energy, and give that cape some air.',
     help: 'Tap the arena or swipe up to jump. Tap again in the air for a double jump. The Jump button works too. Keyboard: Space, W, or up arrow. Release before jumping again. P or Escape pauses.',
     depth: 'Collect five glowing energy cells for a brief protective boost. Each cell also earns a bonus. The route gets faster as you travel; use your second jump to clear a late obstacle or reach a higher cell.',
     hint: 'Tap or swipe up to jump. Tap again for a double jump.', action: 'Jump',
@@ -46,6 +46,8 @@ const shell = byId('game-shell');
 const overlay = byId('arena-overlay');
 const picker = byId('game-picker');
 const helpPanel = byId('help-panel');
+const steeringPad = byId('steering-pad');
+const impactFeedback = byId('impact-feedback');
 const renderer = createRenderer();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const input = createInputState();
@@ -60,6 +62,9 @@ let world = { width: ARENA.width, height: ARENA.height };
 let lastLives = 3;
 let steeringPointer = null;
 let targetX;
+let targetY;
+let stickAxisX = 0;
+let stickAxisY = 0;
 let fullscreenBusy = false;
 
 document.body.dataset.game = mode;
@@ -69,7 +74,7 @@ byId('game-help').textContent = game.help;
 byId('game-depth').textContent = game.depth;
 byId('overlay-title').textContent = game.headline;
 byId('overlay-hint').textContent = game.hint;
-byId('touch-hint').textContent = mode === 'runner' ? 'Tap or swipe up · double jump' : 'Drag to steer & fire';
+byId('touch-hint').textContent = mode === 'runner' ? 'Tap or swipe up · double jump' : 'Arrows / WASD · Space to fire';
 document.title = `${game.title} | ${brand.labName}`;
 status.setAttribute('aria-live', 'off');
 const modes = Object.keys(games);
@@ -96,9 +101,16 @@ function syncStatus() {
     ? `Wave ${state.wave || 1}${state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
     : `${state.boost > 0 ? `Boost · ${state.boost.toFixed(1)}s` : `Energy ${state.energy || 0}/5`}${state.bonus ? ` · +${state.bonus} bonus` : ''}`;
   if (byId('mission-detail').textContent !== detail) byId('mission-detail').textContent = detail;
+  const impact = mode === 'invaders' && state?.lastHazardTime > 0;
+  impactFeedback.hidden = !impact;
+  if (impact) {
+    const text = state.lastHazardBlocked ? `Shield blocked ${state.lastHazard}` : `${state.lastHazard} · 1 life lost`;
+    if (impactFeedback.textContent !== text) impactFeedback.textContent = text;
+    impactFeedback.dataset.kind = state.lastHazardBlocked ? 'shield' : 'damage';
+  }
   if (state && mode === 'invaders' && state.lives !== lastLives) {
     lastLives = state.lives;
-    if (!state.ended) announce(`${state.lives} ${state.lives === 1 ? 'life' : 'lives'} remaining.`);
+    if (!state.ended) announce(`${state.lastHazard ? `${state.lastHazard} cost a life. ` : ''}${state.lives} ${state.lives === 1 ? 'life' : 'lives'} remaining.`);
   }
 }
 function syncInputButtons() {
@@ -108,9 +120,13 @@ function syncInputButtons() {
 function clearControls() {
   clearInput(input);
   targetX = undefined;
+  targetY = undefined;
+  stickAxisX = 0;
+  stickAxisY = 0;
+  steeringPad.classList.remove('is-active');
   steeringPointer = null;
   arenaPointers.clear();
-  for (const element of [canvas, ...controls.querySelectorAll('button')]) {
+  for (const element of [canvas, steeringPad, ...controls.querySelectorAll('button')]) {
     // Release capture only for pointers held by this element; releases also clear their source.
     for (const pointerId of activePointers.get(element) || []) {
       if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
@@ -153,7 +169,14 @@ function resizeCanvas() {
 function render() {
   if (mode === 'trivia') return;
   context.setTransform(canvas.width / world.width, 0, 0, canvas.height / world.height, 0, 0);
-  renderer.render(context, state, { ...world, mode, time: state?.elapsed || 0, reducedMotion: reducedMotion.matches });
+  const rect = canvas.getBoundingClientRect();
+  const reservedRects = mode === 'invaders' && rect.width && rect.height
+    ? [status, byId('mission-detail'), impactFeedback].filter(element => element.getClientRects().length).map(element => {
+      const box = element.getBoundingClientRect();
+      return { x: (box.left - rect.left - 4) * world.width / rect.width, y: (box.top - rect.top - 4) * world.height / rect.height,
+        width: (box.width + 8) * world.width / rect.width, height: (box.height + 8) * world.height / rect.height };
+    }) : [];
+  renderer.render(context, state, { ...world, cssWidth: rect.width, cssHeight: rect.height, reservedRects, mode, time: state?.elapsed || 0, reducedMotion: reducedMotion.matches });
 }
 function syncOverlay() {
   overlay.hidden = !!state && !paused && !state.ended;
@@ -161,7 +184,7 @@ function syncOverlay() {
   const ended = state?.ended;
   byId('overlay-title').textContent = ended ? (mode === 'runner' ? 'One more launch?' : 'Flight complete.') : paused ? 'Take a breath.' : game.headline;
   byId('instructions').textContent = ended
-    ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.score} points. Wave ${state.wave || 1} reached. Take another run at the incoming fleet.`)
+    ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.lastHazard ? `${state.lastHazard} broke through. ` : ''}${state.score} points. Wave ${state.wave || 1} reached. Ready to clear the project chaos?`)
     : paused ? 'Your run is right where you left it.' : game.instructions;
   byId('overlay-action').textContent = ended ? 'Play again →' : paused ? 'Resume →' : 'Start game →';
   byId('overlay-hint').textContent = ended ? 'Try a different game with the arrows above.' : game.hint;
@@ -189,7 +212,7 @@ function frame(now) {
   lastFrame = now;
   const step = 1 / 120;
   while (accumulator >= step && !state.ended) {
-    if (mode === 'invaders') stepInvaders(state, { ...getInput(input), targetX }, step);
+    if (mode === 'invaders') stepInvaders(state, { ...getInput(input), targetX, targetY, axisX: stickAxisX, axisY: stickAxisY }, step);
     else stepRunner(state, step);
     accumulator -= step;
   }
@@ -276,30 +299,68 @@ function bindButton(id, action) {
     render();
   });
 }
-function arenaX(clientX) {
-  const rect = canvas.getBoundingClientRect();
-  return Math.max(38, Math.min(world.width - 38, (clientX - rect.left) / rect.width * world.width));
+function anchorSteering(pointerId, gesture) {
+  steeringPointer = pointerId;
+  gesture.x = gesture.lastX;
+  gesture.y = gesture.lastY;
+  targetX = state.player;
+  targetY = state.playerY;
+  stickAxisX = 0;
+  stickAxisY = 0;
+  steeringPad.classList.toggle('is-active', gesture.isPad);
+  if (gesture.isPad) {
+    const rect = steeringPad.getBoundingClientRect();
+    steeringPad.style.setProperty('--stick-origin', `${Math.max(34, Math.min(rect.width - 34, gesture.x - rect.left))}px`);
+    steeringPad.style.setProperty('--stick-x', '0px');
+    steeringPad.style.setProperty('--stick-y', '0px');
+  }
 }
-function bindArena() {
-  canvas.addEventListener('pointerdown', event => {
+function bindArena(surface = canvas) {
+  const isPad = surface === steeringPad;
+  surface.addEventListener('pointerdown', event => {
     if (event.pointerType === 'mouse' && event.button !== 0 || !playing || paused) return;
     event.preventDefault();
-    canvas.focus({ preventScroll: true });
-    capture(canvas, event.pointerId);
-    arenaPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, swiped: false });
+    surface.focus({ preventScroll: true });
+    capture(surface, event.pointerId);
+    const gesture = { x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, swiped: false, isPad };
+    arenaPointers.set(event.pointerId, gesture);
     if (mode === 'invaders') {
-      if (steeringPointer === null) { steeringPointer = event.pointerId; targetX = arenaX(event.clientX); }
+      if (steeringPointer === null) anchorSteering(event.pointerId, gesture);
       press('action', `arena:${event.pointerId}`, true);
     } else {
       // Jump at contact, so taps feel immediate; an upward swipe can trigger the second jump.
       jumpRunner(state);
     }
   });
-  canvas.addEventListener('pointermove', event => {
+  surface.addEventListener('pointermove', event => {
     const gesture = arenaPointers.get(event.pointerId);
     if (!gesture || !playing || paused) return;
     event.preventDefault();
-    if (mode === 'invaders' && event.pointerId === steeringPointer) targetX = arenaX(event.clientX);
+    gesture.lastX = event.clientX;
+    gesture.lastY = event.clientY;
+    if (mode === 'invaders' && event.pointerId === steeringPointer) {
+      const dx = event.clientX - gesture.x;
+      const dy = event.clientY - gesture.y;
+      if (isPad) {
+        const distance = Math.hypot(dx, dy);
+        const strength = Math.min(1, Math.max(0, (distance - 5) / 27));
+        stickAxisX = distance ? dx / distance * strength : 0;
+        stickAxisY = distance ? dy / distance * strength : 0;
+        // The pad controls velocity. Hold a small deflection to keep flying.
+        targetX = undefined;
+        targetY = undefined;
+        surface.style.setProperty('--stick-x', `${stickAxisX * 20}px`);
+        surface.style.setProperty('--stick-y', `${stickAxisY * 20}px`);
+      } else {
+        const rect = canvas.getBoundingClientRect();
+        const bounds = arenaFor(state).invadersBounds;
+        targetX = Math.max(bounds.left, Math.min(bounds.right, (targetX ?? state.player) + dx * world.width / rect.width));
+        targetY = Math.max(bounds.top, Math.min(bounds.bottom, (targetY ?? state.playerY) + dy * world.height / rect.height));
+        // Rebase every move so reversing at an edge responds immediately.
+        gesture.x = event.clientX;
+        gesture.y = event.clientY;
+      }
+    }
     if (mode === 'runner' && !gesture.swiped && gesture.y - event.clientY > 32) {
       gesture.swiped = true;
       jumpRunner(state);
@@ -308,11 +369,21 @@ function bindArena() {
   const release = event => {
     arenaPointers.delete(event.pointerId);
     setInput(input, 'action', `arena:${event.pointerId}`, false);
-    if (event.pointerId === steeringPointer) { steeringPointer = null; targetX = undefined; }
+    if (event.pointerId === steeringPointer) {
+      steeringPointer = null;
+      targetX = undefined;
+      targetY = undefined;
+      stickAxisX = 0;
+      stickAxisY = 0;
+      steeringPad.classList.remove('is-active');
+      // A second finger can take over without snapping to its contact point.
+      const remaining = arenaPointers.entries().next().value;
+      if (remaining && playing && !paused) anchorSteering(...remaining);
+    }
     syncInputButtons();
-    releaseCapture(canvas, event.pointerId);
+    releaseCapture(surface, event.pointerId);
   };
-  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(event, release);
+  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) surface.addEventListener(event, release);
 }
 function closeHelp(returnFocus = true) {
   helpPanel.hidden = true;
@@ -372,10 +443,13 @@ function setupArcade() {
   if (mode === 'runner') { byId('left').hidden = true; byId('right').hidden = true; }
   for (const id of ['left', 'right', 'action']) bindButton(id, id);
   bindArena();
+  if (mode === 'invaders') { steeringPad.hidden = false; bindArena(steeringPad); }
   start.addEventListener('click', resetGame);
   byId('overlay-action').addEventListener('click', () => { if (paused && playing) setPaused(false); else resetGame(); });
   pause.addEventListener('click', () => setPaused(!paused));
-  const keyActions = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'action', Space: 'action', KeyW: 'action' };
+  const keyActions = mode === 'invaders'
+    ? { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'action' }
+    : { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'action', Space: 'action', KeyW: 'action' };
   document.addEventListener('keydown', event => {
     if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
     if (event.code === 'KeyP') { if (playing && !event.repeat) { event.preventDefault(); setPaused(!paused); } return; }

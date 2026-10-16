@@ -1,6 +1,6 @@
 {
   "name": "htsg-interactive-lab",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Three HTSG browser games for public demonstrations. Static files only.",
   "type": "module",
