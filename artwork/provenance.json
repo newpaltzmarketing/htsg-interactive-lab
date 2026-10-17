@@ -63,7 +63,7 @@
     }
   ],
   "share_card": {
-    "method": "Editable SVG composition of the approved HTSG logo and the three selected local environment WebPs; rendered by Chromium at 1200 x 630.",
+    "method": "Editable SVG composition of the approved HTSG logo, three local environments, actual Halo still, a vector spacecraft derived from the game renderer, and a quiz symbol; rendered by Chromium at 1200 x 630.",
     "generator": "scripts/generate-share-card.mjs",
     "dimensions": [
       1200,
@@ -74,6 +74,11 @@
         "path": "public/assets/htsg-logo.png",
         "bytes": 51871,
         "sha256": "e8084a0bdcfd63889c7629d8bc501ef8338bf0e0fc39545995f5a50a5870f69f"
+      },
+      {
+        "path": "public/assets/halo-runner-idle.png",
+        "bytes": 102185,
+        "sha256": "9caf031965dabd381e2caab10fa619ca8d8a0aa708e128a29abc6dd0953109d9"
       },
       {
         "path": "public/assets/invaders-world.webp",
@@ -94,13 +99,18 @@
     "outputs": [
       {
         "path": "public/assets/lab-share.svg",
-        "bytes": 1503313,
-        "sha256": "2e231348d4293ffe2588069b17920d3023975214262d1761e6a3ba053320154d"
+        "bytes": 1641708,
+        "sha256": "3bc4a2f2d5944f9fd25eb9f3c052c10804b6f1614e8be362c5a9aea49b14703d"
       },
       {
         "path": "public/assets/lab-share.png",
-        "bytes": 534298,
-        "sha256": "06e586a08d120363372de97651f1962c2533789e6c2bd81d2a77b077c9ba139e"
+        "bytes": 522006,
+        "sha256": "816fa926a7e7a6855102c8aae3456ef68d53de07fdba103795180275c5fa3af6"
+      },
+      {
+        "path": "public/assets/lab-share-20261016.jpg",
+        "bytes": 125637,
+        "sha256": "71dd56707da6f8c8a2fb3b4364ae7db4fb0d321e36bb058bd5e8aa2626da5385"
       }
     ]
   }

@@ -65,6 +65,60 @@ foreach (['game-renderer.js', 'play.css', 'assets/invaders-world.webp', 'assets/
     clearstatcache();
 }
 check(htsg_lab_ready(), 'Restored play surface must verify');
+$config = htsg_lab_share_config();
+check(is_array($config), 'Verified social configuration and actual JPEG must load');
+foreach (['invaders', 'runner', 'trivia'] as $game) {
+    $uri = $base . 'play.html?game=' . $game . '&utm_source=preview';
+    $fields = htsg_lab_share_fields($uri, 'play.html', $config);
+    $response = htsg_lab_response(htsg_lab_asset('play.html'), $uri, 'play.html');
+    check($fields['url'] === htsg_lab_url() . 'play.html?game=' . $game, 'Canonical must retain only the allowed game');
+    check($fields['title'] === $config['pages'][$game]['title'] && htsg_lab_share_valid($response['body'], $fields), 'Game metadata must exist in initial response');
+    check($response['bytes'] === strlen($response['body']) && $response['sha256'] === hash('sha256', $response['body']), 'Response length/hash must describe rendered game metadata');
+    $hashes[$game] = $response['sha256'];
+}
+check(count(array_unique($hashes)) === 3, 'Each game requires a distinct response ETag');
+foreach (['', '?game=unknown', '?game[]=runner', '?game=%22%3E%3Cscript%3E', '?game=RUNNER'] as $query) {
+    $fields = htsg_lab_share_fields($base . 'play.html' . $query, 'play.html', $config);
+    check($fields['url'] === htsg_lab_url() . 'play.html' && $fields['title'] === $config['pages']['play']['title'], 'Unsafe/missing query must use static all-game fallback');
+}
+check(htsg_lab_share_game('?game=runner&game=trivia') === 'runner', 'First game query must agree with browser URLSearchParams');
+check(htsg_lab_share_game('?game=bad&game=runner') === null, 'Invalid first duplicate must not select a later game');
+check(htsg_lab_share_game('?game[]=trivia&%67ame=runner') === 'runner', 'Array key is ignored; encoded exact key matches browser');
+$galleryFields = htsg_lab_share_fields($base . '?game=runner', 'index.html', $config);
+check($galleryFields['url'] === htsg_lab_url(), 'Gallery alias/tracking query must canonicalize to directory');
+$unsafeFields = $galleryFields; $unsafeFields['title'] = '\"><script>alert(1)</script>&';
+$safe = htsg_lab_share_html(file_get_contents($fixture . '/site/index.html'), $unsafeFields);
+check(strpos($safe, '<script>alert(1)</script>') === false && strpos($safe, '&lt;script&gt;') !== false, 'Configured text must be HTML escaped');
+check(htsg_lab_share_html('<html><head></head></html>', $galleryFields) === null, 'Missing initial metadata block must fail closed');
+$validHtml = file_get_contents($fixture . '/site/index.html');
+check(!htsg_lab_share_valid(str_replace('property="og:image"', 'property="missing:image"', $validHtml), $galleryFields), 'Missing OG image must fail metadata verification');
+check(!htsg_lab_share_valid(str_replace('name="twitter:image"', 'name="missing:image"', $validHtml), $galleryFields), 'Missing Twitter image must fail metadata verification');
+check(!htsg_lab_share_valid(str_replace('content="1200"', 'content="1"', $validHtml), $galleryFields), 'Incorrect image dimensions must fail metadata verification');
+check(!htsg_lab_share_valid(str_replace('</head>', '<meta property="og:image" content="https://invalid.example/duplicate.jpg"></head>', $validHtml), $galleryFields), 'Duplicate metadata must fail verification');
+$manifestPath = $fixture . '/site/build-manifest.json';
+$originalManifest = file_get_contents($manifestPath);
+$configPath = $fixture . '/site/share.json';
+$originalConfig = file_get_contents($configPath);
+foreach (['width', 'path', 'type', 'site_url', 'page'] as $broken) {
+    $bad = $config;
+    if ($broken === 'width') { $bad['image']['width'] = 1; }
+    if ($broken === 'path') { $bad['image']['path'] = '../private.png'; }
+    if ($broken === 'type') { $bad['image']['type'] = 'image/png'; }
+    if ($broken === 'site_url') { $bad['site_url'] = 'https://user@example.com/'; }
+    if ($broken === 'page') { unset($bad['pages']['runner']['description']); }
+    $json = json_encode($bad); file_put_contents($configPath, $json);
+    $manifest = json_decode($originalManifest, true);
+    $manifest['share.json'] = ['bytes' => strlen($json), 'sha256' => hash('sha256', $json)];
+    file_put_contents($manifestPath, json_encode($manifest)); clearstatcache();
+    check(htsg_lab_share_config() === null && !htsg_lab_ready(), 'Semantically invalid social package must fail: ' . $broken);
+    check(stopped('htsg_lab_activate', 409), 'Incomplete social package activation must stop: ' . $broken);
+}
+file_put_contents($configPath, $originalConfig); file_put_contents($manifestPath, $originalManifest); clearstatcache();
+$coverPath = $fixture . '/site/' . $config['image']['path'];
+rename($coverPath, $coverPath . '.unavailable'); clearstatcache();
+check(!htsg_lab_ready() && htsg_lab_response(htsg_lab_asset('play.html'), '?game=runner', 'play.html') === null, 'Missing cover must fail activation and page response');
+rename($coverPath . '.unavailable', $coverPath); clearstatcache();
+check(htsg_lab_ready(), 'Restored complete social package must verify');
 foreach (htsg_lab_manifest() as $name => $entry) {
     if ($name === '_headers') { continue; }
     $asset = htsg_lab_asset($name);

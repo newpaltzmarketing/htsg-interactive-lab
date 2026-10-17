@@ -2,6 +2,7 @@ import { readdir, mkdir, readFile, writeFile, rm, lstat } from 'node:fs/promises
 import { resolve, relative, extname, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { loadShareConfig, shareFields, replaceShareBlock, validateShareHtml } from './share-metadata.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const source = resolve(root, 'public');
@@ -37,6 +38,7 @@ async function collect(directory) {
 }
 
 await collect(source);
+const shareConfig = await loadShareConfig(source);
 for (const required of ['index.html', 'play.html', '_headers']) await readFile(join(source, required));
 const headerText = await readFile(join(source, '_headers'), 'utf8');
 const policy = headerText.match(/^\s+Content-Security-Policy:\s*(.+)$/m)?.[1];
@@ -65,10 +67,11 @@ for (const path of files.sort()) {
     if (/http-equiv=["']Content-Security-Policy["']/i.test(html)) throw new Error('Keep the shared CSP in public/_headers only');
     html = html.replace(/(<meta\s+charset=[^>]+>)/i, `$1\n  ${policyTag}`);
     if (!html.includes(policyTag)) throw new Error(`${name} needs a charset meta tag before styles and scripts`);
-    if (siteURL) html = html.replace(/(<meta\s+property="og:image"\s+content=")([^\"]+)(")/g, (_, before, image, after) => {
-        const url = new URL(image.replace(/^\/+/, ''), `${siteURL}/`).href;
-        return `${before}${url.replaceAll('&', '&amp;')}${after}`;
-      });
+    if (name === 'index.html' || name === 'play.html') {
+      const fields = shareFields(shareConfig, name === 'index.html' ? 'gallery' : 'play', siteURL || shareConfig.site_url);
+      html = replaceShareBlock(html, fields);
+      validateShareHtml(html, fields, name);
+    }
     if (siteURL && name === '404.html') {
       const basePath = new URL(`${siteURL}/`).pathname;
       html = html.replace(/href="\/([^\"]*)"/g, (_, path) => `href="${basePath}${path}"`);

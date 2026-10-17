@@ -32,12 +32,14 @@ The logo and favicon in `public/assets/` are approved HTSG copies from the suppl
 | `public/assets/trivia-world.webp` | Observatory environment and Trivia gallery preview. |
 | `public/assets/halo-runner-atlas.webp` | Simulation-timed articulated Halo poses derived from the approved chatbot entrance animation. |
 | `public/assets/halo-runner-idle.png` | Approved Halo still used only if the atlas fails to load. |
-| `public/assets/lab-share.svg`, `public/assets/lab-share.png` | Editable and raster social preview. |
+| `public/assets/lab-share.svg`, `public/assets/lab-share-20261016.jpg`, `public/assets/lab-share.png` | Editable cover, primary versioned JPEG social preview, and compatibility PNG. |
 | `artwork/originals/` | Selected world originals and approved Halo source animation/still, excluded from runtime builds. |
 | `artwork/prompts.json`, `artwork/provenance.json` | Exact generation prompts, dimensions, encoding, and hashes. |
 | `artwork/halo-runner-provenance.json`, `artwork/prepare-halo-atlas.py` | Existing Halo source provenance, exact selected frames, alignment, and extraction recipe. |
 
 The three 1536 × 864 WebP worlds share navy, charcoal, silver, and orange, with detail near the horizon and quiet play regions. Preserve their aspect ratio, keep a dark loading fallback, and check both wide and narrow crops. The image never defines a collision boundary. See [ARTWORK.md](ARTWORK.md) for provenance and optimization. Source archives include the originals and prompts; deployment archives include only the optimized runtime assets.
+
+The sharing cover includes all three game subjects, actual Halo, and the game names. `public/share.json` controls complete initial-HTML social metadata; valid WordPress game links receive the matching title and canonical URL. Every public release must pass the metadata/image gates and actual anonymous sharing check in [SHARING.md](SHARING.md). Use a new image filename when changing published cover pixels.
 
 Halo's limbs and cape change through actual articulated frames. His animation follows simulation time and jump/landing state, freezes when paused, and uses a fixed pose for reduced motion. Keep the boots anchored, the cape decorative outside the collision body, and the camera aware of the visible sprite bounds. Portrait artwork is enlarged separately from landscape and physics.
 

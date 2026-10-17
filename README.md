@@ -8,7 +8,7 @@ Three browser games for Holistic Tech Solutions Group demonstrations:
 | [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Take the actual Halo character past barriers with double jumps and energy boosts. |
 | [Trivia Challenge](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=trivia) | Explore three sets of five questions, with streaks and explanations. |
 
-Release **1.1.1 is installed** on the existing HTSG site. It adds a separate thumb steering pad and relative arena dragging, readable named hazards and impact causes, and actual animated Halo artwork for Runner. The cinematic environments, deeper rules, and screen-filling player remain in place. See [deployment status](docs/DEPLOYMENT.md#current-publish-status) for the installed archive and [QA evidence](docs/QA.md) for the actual validation scope.
+Release **1.1.2 is installed** on the existing HTSG site. It supplies complete link-preview metadata for the gallery and all three game links, a new all-game cover, and required release checks for image and metadata availability. The 1.1.1 thumb controls, named hazards, actual Halo animation, cinematic environments, and game rules remain unchanged. See [deployment status](docs/DEPLOYMENT.md#current-publish-status) for the installed archive and [QA evidence](docs/QA.md) for the actual validation scope.
 
 The games use static HTML, CSS, local artwork, and JavaScript. There is no game backend, account system, advertising, analytics, payment service, or paid dependency. Games run locally in the browser. The WordPress companion serves the reviewed static files through the existing HTSG site and adds a direct administration link. It creates no game records or API. Playwright is a free development dependency used only for browser checks.
 
@@ -32,14 +32,15 @@ npm test
 npm run test:browser
 npm run test:upgrade
 npm run build
+npm run test:share
 npm run preview
 ```
 
-The local preview serves `dist/` at `http://127.0.0.1:4173`. `npm run build` replaces only this project's `dist/` folder. It accepts static file types from `public/`, refuses symbolic links and backend entry points, and adds a SHA-256 asset manifest. Source documentation and test files are excluded from deployment. The build adds the shared Content Security Policy to each page and can make social images absolute when `SITE_URL` is provided.
+The local preview serves `dist/` at `http://127.0.0.1:4173`. `npm run build` replaces only this project's `dist/` folder. It accepts static file types from `public/`, refuses symbolic links and backend entry points, and adds a SHA-256 asset manifest. Source documentation and test files are excluded from deployment. The build adds the shared Content Security Policy and complete social metadata to each page, validating the actual cover image. Metadata uses the configured primary HTSG address; `SITE_URL` rewrites all canonical/social URLs together for an alternate HTTPS host.
 
 Run `npm run package` to rebuild and create `release/htsg-interactive-lab-deploy.zip`, `release/htsg-interactive-lab-source.zip`, and `release/SHA256SUMS.txt`. The deploy ZIP contains the built site at its root. The source ZIP includes code, documentation, tests, workflows, selected artwork originals, exact prompts, and provenance; it excludes credentials, dependencies, Git history, and test output. Only the optimized WebP artwork ships to players.
 
-The validation workflow runs syntax and asset checks, game logic tests, browser checks, and the upgrade's touch/fullscreen/layout scenarios before producing a static build artifact. See [QA evidence and remaining device checks](docs/QA.md) for the actual validation scope; browser emulation does not replace physical iOS and Android checks.
+The validation workflow runs syntax and asset checks, game logic tests, browser checks, the upgrade's touch/fullscreen/layout scenarios, and mandatory raw-HTML/image sharing checks before producing release artifacts. See [QA evidence and remaining device checks](docs/QA.md) for the actual validation scope; browser emulation does not replace physical iOS and Android checks. [The sharing guide](docs/SHARING.md) explains the per-game WordPress metadata, static fallback, and public release check.
 
 ## Controls
 
@@ -59,6 +60,7 @@ Drag and hold the Invaders pad below the arena to fly in any direction and fire,
 | `wordpress/` | Scoped static-file host for the existing HTSG WordPress site. |
 | `docs/BRANDING.md` | Reusable visual and content system. |
 | `docs/ARTWORK.md` | Artwork sources, optimization, and stable runtime paths. |
+| `public/share.json`, `docs/SHARING.md` | Initial-HTML preview configuration and mandatory release checks. |
 | `docs/QA.md` | Validation results and device coverage. |
 | `docs/DEPLOYMENT.md` | GitHub and Cloudflare Pages setup and release procedure. |
 | `docs/prototype-readme.md` | Original attachment notes retained as source reference. |

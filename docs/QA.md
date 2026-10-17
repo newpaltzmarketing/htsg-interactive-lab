@@ -14,6 +14,7 @@ npx playwright install chromium
 npm run test:browser
 npm run test:upgrade
 npm run build
+npm run test:share
 ```
 
 The browser script starts its own temporary local server, applies the production response headers, uses headless Chromium or installed Chrome, and closes the server after testing. Set `CHROME_PATH` to choose an installed compatible browser or `BASE_URL` to test a deployed preview. `PLAYWRIGHT_MODULE_PATH` can point to an existing Playwright `index.mjs` when using a managed development runtime.
@@ -193,3 +194,28 @@ All 13 published JavaScript, stylesheet and artwork files matched the frozen tes
 Fresh public screenshots were visually reviewed. `runner-running-844.png` and `runner-running-390.png` show Halo jumping with an approaching obstacle and energy pickups during normal play. `invaders-running-390.png`, `invaders-running-844.png`, `invaders-named-hazards-390.png` and `invaders-natural-impact-390.png` show actual gameplay, the separate thumb pad, readable names and a natural first life-loss event. These representative screenshots use no state fixture. The separate shield and final-life regression setup remains explicitly deterministic as described above.
 
 The final public report is `artifacts/touch-polish-live/focused-results-1.1.1.json`; file identity and freshness proof is `artifacts/touch-polish-live/release-files.json`. All new public images are in that directory, preserving the earlier 1.1.0 evidence. This verification uses Chromium touch and viewport emulation with the stated physical-device and Safari limitations.
+
+## Sharing cover and metadata — 1.1.2
+
+The initial anonymous audit checked the gallery, its `index.html` alias, and all three game URLs with normal, Facebook, Twitter and LinkedIn user agents. All 20 page responses were successful. The three game URLs contained no Open Graph, Twitter or canonical fields in their initial HTML; their runtime JavaScript titles were unavailable to a raw crawler. The gallery already advertised a reachable 1200 × 630 PNG, but omitted its canonical identity, image dimensions/alternative text and explicit Twitter image. The existing image returned 200 to anonymous and simulated Facebook requests, and robots rules did not block the Lab. That audit supports the direct-game metadata diagnosis; it does not establish a missing-image response or crawler block for the gallery.
+
+Version 1.1.2 adds the reviewed all-games montage at `assets/lab-share-20261016.jpg` (1200 × 630, image/jpeg, 125,637 bytes) and complete initial-HTML sharing fields. The required object identity and structured image fields follow the [Open Graph protocol](https://ogp.me/). The WordPress adapter supplies the matching title, description, `og:url` and canonical for each game query; the gallery alias canonicalizes to the directory. Missing/unknown game values and static hosts retain a complete generic player card. The image URL is dated so the new cover has a distinct cache identity.
+
+The repeatable `npm run test:share` gate passed 14/14 against the exact local staged WordPress adapter. Its `--static` mode also passed 14/14 against the static-host fallback. These are separate, overlapping runs. The gate checks source and built HTML, five URLs under three user agents, query fallbacks, JPEG/PNG signature and declared dimensions/type, source-image hash, GET/HEAD consistency, image access with JavaScript disabled, phone-card renditions, and a brief phone flow in every game. The exact adapter fixture requires PHP; `PHP_PATH` can select it. The static mode uses no PHP. CI runs the adapter gate after building, and the Cloudflare workflow selects `--static`.
+
+At approximately 8:08 p.m. EDT on 16 October 2026, all 14 sharing checks passed against the installed public 1.1.2 release with Playwright 1.64.1 and Chrome 155.0.8059.84. Gallery/index and game metadata was identical for anonymous, Facebook and Twitter user-agent requests; all three game titles and canonicals were correct before JavaScript. The served JPEG matched the reviewed source, returned the correct image type/dimensions/length on GET and HEAD, and loaded without JavaScript. All three brief phone game flows passed with no browser errors. Independent SHA-256 comparisons confirmed all 13 published gameplay/style/world/Halo files were unchanged from 1.1.1. Both visible HTML bodies also matched the 1.1.1 source after line-ending normalization; this release changes sharing metadata and cover presentation.
+
+The full cover and 320/390-pixel card renditions were visually reviewed: the Lab title and three game scenes/icons remain identifiable. A forced center-square crop trims side content and branding; it is a crop stress test, not the intended wide card. Automated card images are explicitly local layout simulations, not screenshots from a social platform.
+
+Actual Facebook Sharing Debugger checks were then completed on the public gallery and all three game links. Fresh scrapes showed the new JPEG, route-appropriate titles/descriptions/canonicals and the complete wide montage. An older cached Invaders result initially inferred an image; “Scrape Again” replaced that result with the explicit new image metadata. The final refreshed results had no missing-image warning. The unrelated optional `fb:app_id` warning was left unset because this site does not use a Facebook app. No social post was published. These actual platform checks are distinct from the automated user-agent simulations and do not promise how every future platform cache or crop will behave.
+
+Evidence is separated from prior releases:
+
+- `artifacts/share-preview-source/before-audit.json`: original raw metadata/crawler/image audit.
+- `artifacts/share-preview-source/adapter-results-1.1.2.json`: local 14-scenario adapter result; `static-host/results.json` records the static mode.
+- `artifacts/share-preview-live/full-results-1.1.2.json`: public 14-scenario result, response hashes and declared scope.
+- `artifacts/share-preview-live/gameplay-identity.json`: unchanged published gameplay files and visible HTML bodies.
+- `artifacts/share-preview-live/card-preview-320.png` and `card-preview-390.png`: small-card layout simulations using the real served image/metadata.
+- `artifacts/share-preview-live/facebook-{gallery,invaders,runner,trivia}-preview.png`: actual refreshed Facebook debugger screenshots.
+
+No unresolved sharing or gameplay-smoke failure remains. Physical phones and Safari remain outside the browser-emulation scope. Re-run the sharing gate after changing the cover, metadata configuration, build rewriting or adapter response handling; a valid share image is a release requirement rather than a manual afterthought.
