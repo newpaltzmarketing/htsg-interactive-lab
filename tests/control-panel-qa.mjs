@@ -30,6 +30,25 @@ async function openContext(viewport,{blockedStorage=false,audio=false}={}){
 async function open(page,mode='invaders'){await page.goto(`${base}/play.html?game=${mode}`);await page.waitForFunction(()=>document.documentElement.dataset.artwork==='ready');}
 async function start(page){await page.locator('#overlay-action').click();await page.waitForFunction(()=>window.__panelLive?.elapsed>0);}
 async function snapshot(page){return page.evaluate(()=>structuredClone(window.__panelLive));}
+async function arenaGeometry(page){return page.evaluate(()=>{
+ const rect=id=>{const{x,y,width,height}=document.getElementById(id).getBoundingClientRect();return{x,y,width,height};};
+ return{viewport:{width:innerWidth,height:innerHeight},fonts:document.fonts.status,canvas:rect('canvas'),arena:rect('arena-view'),topbar:document.querySelector('.game-topbar').getBoundingClientRect().height,controls:rect('controls'),world:{...window.__panelLive.world}};
+});}
+async function settleFixtureArena(page){
+ await page.evaluate(()=>document.fonts.ready);
+ await page.evaluate(()=>{window.__panelArenaStable=null;});
+ await page.waitForFunction(()=>{
+  const box=document.getElementById('canvas').getBoundingClientRect(),world=window.__panelLive?.world;
+  if(!world||!box.width||!box.height)return false;
+  const aligned=world.width===960&&Math.abs(world.height-960*box.height/box.width)<=.1;
+  const key=JSON.stringify([box.x,box.y,box.width,box.height,world.width,world.height]);
+  const previous=window.__panelArenaStable;
+  const frames=aligned&&previous?.key===key?previous.frames+1:0;
+  window.__panelArenaStable={key,frames};
+  return frames>=3;
+ },undefined,{polling:'raf'});
+ return arenaGeometry(page);
+}
 const retained=s=>({score:s.score,lives:s.lives,level:s.weaponLevel,ammo:s.missilePairs,elapsed:s.elapsed,ticks:s.ticks,player:s.player,playerY:s.playerY,boss:s.boss,phase:s.phase});
 async function pause(page){await page.locator('#pause').click();await page.locator('#control-panel').waitFor({state:'visible'});}
 async function resume(page){await page.locator('#panel-resume').click();await page.locator('#control-panel').waitFor({state:'hidden'});}
@@ -57,7 +76,16 @@ try{
   const{context,page}=await openContext({width:390,height:844});try{
    await open(page);await start(page);
    await page.evaluate(async()=>{const{bossGeometry}=await import(new URL('game-engine.js',location.href));const s=window.__panelLive,g=bossGeometry(s);Object.assign(s,{score:810,kills:12,weaponLevel:3,missilePairs:4,wave:5,phase:'boss',elapsed:44,ticks:5280});s.boss={label:'Scope Creep',x:480,y:g.targetY,health:60,maxHealth:80,phase:'windup',attackIn:.8,age:2,attackCount:1,warningOffsets:[0],pendingShots:[],aimX:s.player,aimY:s.playerY};});
-   await pause(page);const before=await snapshot(page);for(const family of ['focused','spread']){await page.locator('#weapon-'+family).click();assert.equal(await page.locator('#weapon-'+family).getAttribute('aria-pressed'),'true');const after=await snapshot(page);assert.equal(after.weaponFamily,family);assert.deepEqual(retained(after),retained(before),'Loadout changes no score, ammo, boss or clock');}
+   await pause(page);const baselineGeometry=await settleFixtureArena(page),before=await snapshot(page);
+   observations.push({stage:'paused boss baseline',...baselineGeometry});
+   for(const family of ['focused','spread']){
+    await page.locator('#weapon-'+family).click();assert.equal(await page.locator('#weapon-'+family).getAttribute('aria-pressed'),'true');
+    await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
+    const after=await snapshot(page),afterGeometry=await arenaGeometry(page);
+    observations.push({stage:'paused boss '+family,...afterGeometry});
+    assert.equal(after.weaponFamily,family);assert.deepEqual(afterGeometry,baselineGeometry,'Loadout preserves the settled viewport, arena and world');
+    assert.deepEqual(retained(after),retained(before),'Loadout changes no score, ammo, boss or clock');
+   }
    await page.locator('#reduced-effects').check();await volume(page,0);await page.keyboard.press('KeyP');assert.equal(await page.locator('#control-panel').isVisible(),true,'P keeps native range editing');await page.waitForTimeout(150);assert.deepEqual(retained(await snapshot(page)),retained(before));assert.equal(await page.evaluate(()=>window.__panelOptions.reducedMotion),true);
    await page.locator('#panel-help').click();await page.locator('#help-panel').waitFor({state:'visible'});assert.equal(await page.locator('#pickup-legend canvas').count(),2);await page.keyboard.press('Escape');assert.equal(await page.locator('#control-panel').isVisible(),true);assert.equal(await page.locator('#panel-help').evaluate(n=>n===document.activeElement),true);
    await page.locator('#panel-restart').click();assert.equal(await page.locator('#restart-confirm').isVisible(),true);assert.deepEqual(retained(await snapshot(page)),retained(before));await page.keyboard.press('Escape');assert.equal(await page.locator('#restart-confirm').isVisible(),false);assert.equal(await page.locator('#control-panel').isVisible(),true);await page.locator('#panel-restart').click();await page.locator('#restart-confirm-no').click();assert.deepEqual(retained(await snapshot(page)),retained(before));
