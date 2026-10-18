@@ -2,7 +2,7 @@ import { brand } from './brand.js';
 import { questionsForRound } from './questions.js';
 import {
   ARENA, arenaFor, createInputState, setInput, getInput, clearInput,
-  createInvadersState, stepInvaders, fireInvaders,
+  createInvadersState, stepInvaders, fireInvaders, invaderWeapon,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer, resizeGame,
 } from './game-engine.js';
 import { createRenderer } from './game-renderer.js';
@@ -12,7 +12,7 @@ const games = {
     title: 'Agency Invaders', headline: 'Clear the orbit.',
     instructions: 'Scope creep, missed deadlines, budget overruns. Clear the project chaos before it costs you a life.',
     help: 'Use the pad below the game: drag a little in any direction and hold to fly and fire. Your thumb stays clear of the ship. You can also drag anywhere in the arena; the ship moves with your finger without jumping under it. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
-    depth: 'Fly around the lower half of the arena. Named hazards cost a life when they hit you or pass your defenses. Consecutive hits build your combo. Collect a glowing shield to block the next impact.',
+    depth: 'Clear short waves of project hazards. Defeat 3 for Twin streams and 7 total for Quad spread. Your weapon stays upgraded after a hit. Collect a glowing shield to block an impact; hazards that hit you or pass your defenses cost a life.',
     hint: 'Thumb on the pad. Eyes on the ship.', action: 'Fire',
   },
   runner: {
@@ -60,6 +60,7 @@ let lastFrame = 0;
 let accumulator = 0;
 let world = { width: ARENA.width, height: ARENA.height };
 let lastLives = 3;
+let lastWeaponLevel = 1;
 let steeringPointer = null;
 let targetX;
 let targetY;
@@ -98,7 +99,7 @@ function syncStatus() {
   const message = state ? scoreText() : 'Ready to play';
   setStatus(paused ? `Paused · ${message}` : state?.ended ? `Game over · ${message}` : message);
   const detail = !state ? '' : mode === 'invaders'
-    ? `Wave ${state.wave || 1}${state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
+    ? `Wave ${state.wave || 1} · Weapon ${state.weaponLevel || 1}: ${invaderWeapon(state).name}${state.weaponUpgradeTime > 0 ? ' · Upgraded!' : ''}${state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
     : `${state.boost > 0 ? `Boost · ${state.boost.toFixed(1)}s` : `Energy ${state.energy || 0}/5`}${state.bonus ? ` · +${state.bonus} bonus` : ''}`;
   if (byId('mission-detail').textContent !== detail) byId('mission-detail').textContent = detail;
   const impact = mode === 'invaders' && state?.lastHazardTime > 0;
@@ -108,10 +109,16 @@ function syncStatus() {
     if (impactFeedback.textContent !== text) impactFeedback.textContent = text;
     impactFeedback.dataset.kind = state.lastHazardBlocked ? 'shield' : 'damage';
   }
+  const notices = [];
   if (state && mode === 'invaders' && state.lives !== lastLives) {
     lastLives = state.lives;
-    if (!state.ended) announce(`${state.lastHazard ? `${state.lastHazard} cost a life. ` : ''}${state.lives} ${state.lives === 1 ? 'life' : 'lives'} remaining.`);
+    if (!state.ended) notices.push(`${state.lastHazard ? `${state.lastHazard} cost a life. ` : ''}${state.lives} ${state.lives === 1 ? 'life' : 'lives'} remaining.`);
   }
+  if (state && mode === 'invaders' && state.weaponLevel > lastWeaponLevel) {
+    lastWeaponLevel = state.weaponLevel;
+    if (!state.ended) notices.push(`Weapon upgraded to ${invaderWeapon(state).name}. This upgrade stays with you for the rest of this run.`);
+  }
+  if (notices.length) announce(notices.join(' '));
 }
 function syncInputButtons() {
   const held = getInput(input);
@@ -226,6 +233,7 @@ function resetGame() {
   clearControls();
   state = mode === 'invaders' ? createInvadersState(world) : createRunnerState(world);
   lastLives = 3;
+  lastWeaponLevel = 1;
   playing = true;
   paused = false;
   start.textContent = 'Restart';

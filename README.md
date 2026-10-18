@@ -1,4 +1,4 @@
-# HTSG Interactive Lab
+# HTSG Gamification Labs
 
 Three browser games for Holistic Tech Solutions Group demonstrations:
 
@@ -8,7 +8,7 @@ Three browser games for Holistic Tech Solutions Group demonstrations:
 | [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Take the actual Halo character past barriers with double jumps and energy boosts. |
 | [Trivia Challenge](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=trivia) | Explore three sets of five questions, with streaks and explanations. |
 
-Release **1.1.2 is installed** on the existing HTSG site. It supplies complete link-preview metadata for the gallery and all three game links, a new all-game cover, and required release checks for image and metadata availability. The 1.1.1 thumb controls, named hazards, actual Halo animation, cinematic environments, and game rules remain unchanged. See [deployment status](docs/DEPLOYMENT.md#current-publish-status) for the installed archive and [QA evidence](docs/QA.md) for the actual validation scope.
+Release **1.2.0 is prepared for review**. It renames the public experience to Gamification Labs, refreshes its sharing cover and metadata, and adds short Invaders waves with automatic weapon upgrades after three and seven defeated hazards. The existing public URL and all game links remain stable. Version 1.1.2 remains the installed rollback until the reviewed update is published. See [deployment status](docs/DEPLOYMENT.md#current-publish-status) and [QA evidence](docs/QA.md) for the actual release state and validation scope.
 
 The games use static HTML, CSS, local artwork, and JavaScript. There is no game backend, account system, advertising, analytics, payment service, or paid dependency. Games run locally in the browser. The WordPress companion serves the reviewed static files through the existing HTSG site and adds a direct administration link. It creates no game records or API. Playwright is a free development dependency used only for browser checks.
 
@@ -44,7 +44,7 @@ The validation workflow runs syntax and asset checks, game logic tests, browser 
 
 ## Controls
 
-Drag and hold the Invaders pad below the arena to fly in any direction and fire, keeping your thumb clear of the ship. Relative dragging in the arena and the direction/Fire buttons also work; keyboard controls use arrows or W/A/S/D and Space. Named hazards cost a life when they collide with the ship or pass its defenses, with the cause shown after impact. Tap the Runner arena, swipe up, or use Jump; a second jump in the air gives extra height. The game player provides instructions, pause/resume, replay, previous/next game links, and a game selector. The expand control uses native full screen where available and an expanded browser layout otherwise. Games pause when the page loses visibility. Trivia uses ordinary answer buttons and supports keyboard navigation.
+Drag and hold the Invaders pad below the arena to fly in any direction and fire, keeping your thumb clear of the ship. Relative dragging in the arena and the direction/Fire buttons also work; keyboard controls use arrows or W/A/S/D and Space. Weapons upgrade automatically after three and seven defeated hazards and stay upgraded after a hit. Named hazards cost a life when they collide with the ship or pass its defenses, with the cause shown after impact. Tap the Runner arena, swipe up, or use Jump; a second jump in the air gives extra height. The game player provides instructions, pause/resume, replay, previous/next game links, and a game selector. The expand control uses native full screen where available and an expanded browser layout otherwise. Games pause when the page loses visibility. Trivia uses ordinary answer buttons and supports keyboard navigation.
 
 ## Project structure
 
@@ -69,7 +69,7 @@ The attachment's handoff notes are reference material. The requested scope is th
 
 ## Publishing
 
-The lab is live at [the HTSG Interactive Lab](https://holistictechsolutionsgroup.com/demos/interactive-lab/). Run `npm run package:wordpress` to build the reviewed plugin ZIP for upload through the existing WordPress plugin installer. The games remain browser-only; the companion serves its manifest-listed files on that path. See [the deployment guide](docs/DEPLOYMENT.md) for installation, verification, and rollback.
+The lab is live at [the HTSG Gamification Labs](https://holistictechsolutionsgroup.com/demos/interactive-lab/). Run `npm run package:wordpress` to build the reviewed plugin ZIP for upload through the existing WordPress plugin installer. The games remain browser-only; the companion serves its manifest-listed files on that path. See [the deployment guide](docs/DEPLOYMENT.md) for installation, verification, and rollback.
 
 The separate Cloudflare Pages project `htsg-interactive-lab` remains an optional static hosting route. Its workflow runs only by manual dispatch. Source pushes validate and package code without deploying a website. No workflow configures custom domains or DNS.
 

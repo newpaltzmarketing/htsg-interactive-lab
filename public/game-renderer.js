@@ -1,4 +1,4 @@
-import { arenaFor, createInvadersState, createRunnerState, INVADER_HAZARDS } from './game-engine.js';
+import { arenaFor, createInvadersState, createRunnerState, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon } from './game-engine.js';
 import { brand } from './brand.js';
 
 const TAU = Math.PI * 2;
@@ -88,7 +88,7 @@ function thruster(ctx, x, y, length, time, reducedMotion, width = 9) {
   ctx.fillStyle = '#fff8dc'; ellipse(ctx, x, y + 2, width * 0.7, 3); ctx.fill();
 }
 
-function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown = 0) {
+function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown = 0, weaponLevel = 1) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(bank * 0.16);
   glow(ctx, 0, 17, 85, paint, 0.14);
   const pulse = reducedMotion ? 0 : Math.sin(time * 4) * 4;
@@ -123,13 +123,20 @@ function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown
   ctx.strokeStyle = '#ddf8ffaf'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-2, -23); ctx.quadraticCurveTo(-6, -9, -5, 1); ctx.stroke();
   ctx.fillStyle = '#fff2cf'; ctx.fillRect(-5, 18, 2, 9); ctx.fillRect(3, 18, 2, 9); ctx.fillRect(-3, 21, 6, 2);
   ctx.fillStyle = '#213543'; for (const dx of [-12, 12]) { circle(ctx, dx, 14, 1.4); ctx.fill(); }
+  if (weaponLevel > 1) {
+    for (const shot of invaderWeapon({ weaponLevel }).pattern) {
+      ctx.fillStyle = '#9dabb0'; rounded(ctx, shot.offset - 3.5, -36, 7, 15, 2); ctx.fill();
+      ctx.fillStyle = beamCore; rounded(ctx, shot.offset - 2.5, -39, 5, 5, 2); ctx.fill();
+      glow(ctx, shot.offset, -37, 8, paint, 0.35);
+    }
+  }
   if (damageCooldown > 0) { ctx.strokeStyle = '#ffc58e99'; ctx.lineWidth = 2; ellipse(ctx, 0, -3, 58, 65); ctx.stroke(); }
   ctx.restore();
 }
 
 function drone(ctx, enemy, height, time, reducedMotion) {
   const progress = clamp((enemy.y + 30) / height, 0, 1);
-  const scale = (enemy.type === 'heavy' ? 1.24 : 1) * (0.7 + progress * 0.32);
+  const scale = (enemy.scale || INVADER_THREAT_SCALE) * (enemy.type === 'heavy' ? 1.24 : 1) * (0.7 + progress * 0.32);
   ctx.save(); ctx.translate(enemy.x, enemy.y); ctx.scale(scale, scale);
   ctx.rotate(reducedMotion ? 0 : Math.sin((enemy.age || 0) * 1.6 + (enemy.phase || 0)) * 0.1);
   glow(ctx, 0, 4, 50, droneAccent, 0.14);
@@ -158,9 +165,10 @@ function drone(ctx, enemy, height, time, reducedMotion) {
 
 function projectile(ctx, bullet, reducedMotion) {
   const tail = reducedMotion ? 22 : 43;
-  ctx.fillStyle = gradient(ctx, bullet.x, bullet.y - 8, bullet.x, bullet.y + tail, [[0, beamCore], [0.25, paint], [1, 'transparent']]);
-  rounded(ctx, bullet.x - 3, bullet.y - 9, 6, tail, 3); ctx.fill();
-  glow(ctx, bullet.x, bullet.y, 13, paint, 0.4);
+  ctx.save(); ctx.translate(bullet.x, bullet.y); ctx.rotate(Math.atan2(bullet.vx || 0, 620));
+  ctx.fillStyle = gradient(ctx, 0, -8, 0, tail, [[0, beamCore], [0.25, paint], [1, 'transparent']]);
+  rounded(ctx, -3, -9, 6, tail, 3); ctx.fill();
+  glow(ctx, 0, 0, 13, paint, 0.4); ctx.restore();
 }
 
 export function hazardLabelLayout(ctx, enemies, arena, { cssHeight = arena.height, reservedRects = [] } = {}) {
@@ -174,10 +182,11 @@ export function hazardLabelLayout(ctx, enemies, arena, { cssHeight = arena.heigh
     const text = enemy.label || enemy.hazard?.label;
     if (!text || enemy.y < -15 || enemy.y > arena.height + 20) continue;
     const width = Math.min(arena.width - margin * 2, ctx.measureText(text).width + 18 * unit);
+    const threatScale = enemy.scale || INVADER_THREAT_SCALE;
     const preferred = { x: clamp(enemy.x - width / 2, margin, arena.width - width - margin),
-      y: clamp(enemy.y - 42 - height, margin, arena.height - height - margin) };
+      y: clamp(enemy.y - 42 * threatScale - height, margin, arena.height - height - margin) };
     const occupied = [...reservedRects, ...labels];
-    const candidates = [preferred, { x: preferred.x, y: enemy.y + 38 }];
+    const candidates = [preferred, { x: preferred.x, y: enemy.y + 38 * threatScale }];
     for (const other of occupied) {
       candidates.push({ x: preferred.x, y: other.y + other.height + margin },
         { x: preferred.x, y: other.y - height - margin },
@@ -505,7 +514,7 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
       for (const enemy of scene.enemies || []) drone(ctx, enemy, height, time, reducedMotion);
       for (const bullet of scene.bullets || []) projectile(ctx, bullet, reducedMotion);
       for (const item of scene.pickups || []) shieldPickup(ctx, item, time, reducedMotion);
-      spacecraft(ctx, scene.player, arena.playerY, scene.bank || 0, time, reducedMotion, scene.shield, scene.damageCooldown);
+      spacecraft(ctx, scene.player, arena.playerY, scene.bank || 0, time, reducedMotion, scene.shield, scene.damageCooldown, scene.weaponLevel);
     }
     if (mode !== 'runner') effects(ctx, scene.effects, reducedMotion);
     vignette(ctx, width, height);

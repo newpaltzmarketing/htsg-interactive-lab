@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: HTSG Interactive Lab
+ * Plugin Name: HTSG Gamification Labs
  * Description: Serves the reviewed static browser games at /demos/interactive-lab/.
- * Version: 1.1.2
+ * Version: 1.2.0
  * Author: Holistic Tech Solutions Group
  * Requires PHP: 8.0
  */
@@ -248,7 +248,7 @@ function htsg_lab_activate(): void {
         wp_die('An HTSG administrator must activate this demo.', 'Activation stopped', ['response' => 403]);
     }
     if (get_page_by_path('demos/interactive-lab', OBJECT, 'page')) {
-        wp_die('An existing page owns the Interactive Lab address. No page was changed.', 'Activation stopped', ['response' => 409]);
+        wp_die('An existing page owns the Gamification Labs address. No page was changed.', 'Activation stopped', ['response' => 409]);
     }
     if (!htsg_lab_ready()) { wp_die('The static game package is incomplete. No page was changed.', 'Activation stopped', ['response' => 409]); }
     htsg_lab_purge();
@@ -259,6 +259,6 @@ register_deactivation_hook(__FILE__, 'htsg_lab_purge');
 add_action('template_redirect', 'htsg_lab_route', -100);
 add_action('admin_menu', static function(): void {
     if (htsg_lab_host_allowed()) {
-        add_submenu_page('htsg-hq', 'Interactive Lab', 'Interactive Lab', 'manage_options', htsg_lab_url());
+        add_submenu_page('htsg-hq', 'Gamification Labs', 'Gamification Labs', 'manage_options', htsg_lab_url());
     }
 }, 30);

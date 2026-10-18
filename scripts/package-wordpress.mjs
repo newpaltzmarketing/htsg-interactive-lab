@@ -11,7 +11,7 @@ const built = spawnSync(process.execPath, ['scripts/build.mjs'], { cwd: root, en
 if (built.status !== 0) process.exit(built.status || 1);
 const html = await readFile(resolve(root, 'dist/404.html'), 'utf8');
 if (!html.includes('href="/demos/interactive-lab/index.html"') || !html.includes('href="/demos/interactive-lab/style.css"')) {
-  throw new Error('The WordPress package must use the Interactive Lab path for its missing-page links');
+  throw new Error('The WordPress package must use the Gamification Labs path for its missing-page links');
 }
 const entrypoint = 'htsg-interactive-lab.php';
 const plugin = await readFile(resolve(root, 'wordpress/htsg-interactive-lab', entrypoint));

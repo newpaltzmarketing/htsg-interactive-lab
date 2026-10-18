@@ -44,7 +44,7 @@ for (const [index, scene] of scenes.entries()) {
   <text x="${x + 20}" y="535" fill="#ffffff" font-size="26" font-weight="600">${scene.label}</text>`);
 }
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
-  <title id="title">HTSG Interactive Lab</title>
+  <title id="title">HTSG Gamification Labs</title>
   <desc id="description">Three cinematic browser games: Agency Invaders, Launch Runner, and Trivia Challenge.</desc>
   <defs>
     <linearGradient id="metal"><stop stop-color="#506979"/><stop offset=".28" stop-color="#c6d6df"/><stop offset=".55" stop-color="#465e6c"/><stop offset=".78" stop-color="#afc3cf"/><stop offset="1" stop-color="#223d4d"/></linearGradient>
@@ -60,7 +60,7 @@ ${scenes.map((_, index) => `    <clipPath id="tile-${index}"><rect x="${64 + ind
   <rect width="1200" height="630" fill="#ffffff"/>
   <image x="64" y="48" width="660" height="54" preserveAspectRatio="xMinYMid meet" href="${logo}"/>
   <g font-family="Segoe UI, Arial, sans-serif">
-    <text x="60" y="218" fill="#111111" font-size="94" font-weight="750" letter-spacing="-5">Interactive Lab<tspan fill="#f43618">.</tspan></text>
+    <text x="60" y="218" fill="#111111" font-size="94" font-weight="750" letter-spacing="-5">Gamification Labs<tspan fill="#f43618">.</tspan></text>
 ${tiles.join('\n')}
   </g>
   <path d="M64 595h1072" stroke="#f43618" stroke-width="7"/>
@@ -80,7 +80,7 @@ try {
     })));
   });
   await page.screenshot({ path: asset('lab-share.png'), type: 'png' });
-  await page.screenshot({ path: asset('lab-share-20261016.jpg'), type: 'jpeg', quality: 88 });
+  await page.screenshot({ path: asset('lab-share-20261017.jpg'), type: 'jpeg', quality: 88 });
 } finally { await browser.close(); }
 const fingerprint = async name => {
   const bytes = await readFile(asset(name));
@@ -88,12 +88,15 @@ const fingerprint = async name => {
 };
 const provenancePath = resolve(root, 'artwork/provenance.json');
 const provenance = JSON.parse(await readFile(provenancePath, 'utf8'));
+if (provenance.share_card && !provenance.share_card.outputs?.some(output => output.path.endsWith('lab-share-20261017.jpg'))) {
+  provenance.share_card_history = [...(provenance.share_card_history || []), provenance.share_card];
+}
 provenance.share_card = {
   method: 'Editable SVG composition of the approved HTSG logo, three local environments, actual Halo still, a vector spacecraft derived from the game renderer, and a quiz symbol; rendered by Chromium at 1200 x 630.',
   generator: 'scripts/generate-share-card.mjs',
   dimensions: [1200, 630],
   inputs: await Promise.all(['htsg-logo.png', 'halo-runner-idle.png', ...scenes.map(scene => scene.file)].map(fingerprint)),
-  outputs: await Promise.all(['lab-share.svg', 'lab-share.png', 'lab-share-20261016.jpg'].map(fingerprint)),
+  outputs: await Promise.all(['lab-share.svg', 'lab-share.png', 'lab-share-20261017.jpg'].map(fingerprint)),
 };
 await writeFile(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`);
 console.log('Updated editable social card, 1200 x 630 PNG/JPEG, and derivative provenance.');

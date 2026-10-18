@@ -21,7 +21,7 @@ const errors = [];
 const panels = [
   ['products', 'Explore products & services', 'The Local Growth Site', 'Website care'],
   ['ai', 'Explore AI & automation', 'Website AI Chat Assistant', 'Prepare your business knowledge'],
-  ['demos', 'Browse all demos', 'Interactive Lab', 'Lead handoff'],
+  ['demos', 'Browse all demos', 'Gamification Labs', 'Lead handoff'],
   ['work', 'Browse all work', 'Customer response', 'Gunite Pool Design'],
   ['resources', 'Explore resources', 'All practical guides', 'Explore our capabilities'],
   ['company', 'Explore company', 'About HTSG', 'AI & Business Resource Library'],

@@ -62,8 +62,8 @@ assert.equal(coverURL.origin, site.origin);
 assert.ok(coverURL.pathname.startsWith(`${site.pathname}assets/`));
 assert.match(coverURL.pathname, /lab-share-\d{8}\.(?:jpe?g|png)$/i, 'A new cover uses a dated URL to avoid stale image bytes');
 const cases = [
-  { path: '', title: 'Interactive Lab', canonical: advertisedBase },
-  { path: 'index.html', title: 'Interactive Lab', canonical: advertisedBase },
+  { path: '', title: 'Gamification Labs', canonical: advertisedBase },
+  { path: 'index.html', title: 'Gamification Labs', canonical: advertisedBase },
   ...[['invaders', 'Agency Invaders'], ['runner', 'Launch Runner'], ['trivia', 'Trivia Challenge']].map(([mode, title]) => ({ path: `play.html?game=${mode}`, title, canonical: new URL(`play.html?game=${mode}`, advertisedBase).href })),
 ];
 const agents = {
@@ -185,25 +185,25 @@ try {
     const fields = parse(source);
     const base = single(fields.links, 'canonical');
     const image = single(fields.metadata, 'og:image');
-    validate(source, { title: 'Interactive Lab', canonical: base }, image);
-    validate(await readFile(resolve(root, 'public/play.html'), 'utf8'), { title: 'Interactive Lab', canonical: new URL('play.html', base).href }, image);
+    validate(source, { title: 'Gamification Labs', canonical: base }, image);
+    validate(await readFile(resolve(root, 'public/play.html'), 'utf8'), { title: 'Gamification Labs', canonical: new URL('play.html', base).href }, image);
   });
   await check('built static-host player has a complete generic fallback and a valid gallery canonical', async () => {
     validate(await readFile(resolve(directory, 'index.html'), 'utf8'), cases[0]);
-    validate(await readFile(resolve(directory, 'play.html'), 'utf8'), { title: 'Interactive Lab', canonical: new URL('play.html', advertisedBase).href });
+    validate(await readFile(resolve(directory, 'play.html'), 'utf8'), { title: 'Gamification Labs', canonical: new URL('play.html', advertisedBase).href });
   });
   for (const agent of Object.keys(agents)) {
     await check(`${agent}: gallery, index alias and all three game URLs return complete raw sharing cards`, async () => {
       for (const item of cases) {
         const html = await fetchHTML(item.path, agent);
-        validate(html, staticMode && item.path.startsWith('play.html') ? { title: 'Interactive Lab', canonical: new URL('play.html', advertisedBase).href } : item);
+        validate(html, staticMode && item.path.startsWith('play.html') ? { title: 'Gamification Labs', canonical: new URL('play.html', advertisedBase).href } : item);
         if (agent === 'anonymous') normalHashes.set(item.path, hash(html));
         else assert.equal(hash(html), normalHashes.get(item.path), 'Crawler and anonymous responses must agree');
       }
     });
   }
   await check('missing and unknown game parameters retain the generic sharing fallback', async () => {
-    for (const path of ['play.html', 'play.html?game=unknown']) validate(await fetchHTML(path, 'facebook'), { title: 'Interactive Lab', canonical: new URL('play.html', advertisedBase).href });
+    for (const path of ['play.html', 'play.html?game=unknown']) validate(await fetchHTML(path, 'facebook'), { title: 'Gamification Labs', canonical: new URL('play.html', advertisedBase).href });
   });
   const imageProbe = external ? cover : new URL(coverURL.pathname.slice(site.pathname.length), baseURL).href;
   for (const agent of ['anonymous', 'facebook']) {
@@ -238,7 +238,7 @@ try {
     const plain = await browser.newContext({ javaScriptEnabled: false });
     const page = await plain.newPage();
     await page.goto(new URL('play.html?game=runner', baseURL).href);
-    assert.ok((await page.title()).includes(staticMode ? 'Interactive Lab' : 'Launch Runner'));
+    assert.ok((await page.title()).includes(staticMode ? 'Gamification Labs' : 'Launch Runner'));
     assert.equal(await page.locator('meta[property="og:image"]').getAttribute('content'), cover);
     await page.goto(imageProbe);
     await page.locator('img').waitFor();

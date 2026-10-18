@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ARENA, INVADER_HAZARDS, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
+  ARENA, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
   createInvadersState, fireInvaders, steerInvaders, stepInvaders,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer,
 } from '../public/game-engine.js';
@@ -66,7 +66,7 @@ test('firing respects cooldown and consumes one projectile for one scored target
   assert.equal(state.bullets.length, 0);
   assert.equal(state.enemies.length, 0);
   assert.equal(state.lives, 3, 'a successful last-moment shot saves the life');
-  frames(24, dt => stepInvaders(state, idle, dt, fixedRandom));
+  frames(36, dt => stepInvaders(state, idle, dt, fixedRandom));
   assert.equal(fireInvaders(state), true);
 });
 
@@ -399,13 +399,100 @@ test('clearing a completed wave awards its bonus and starts the next wave after 
   assert.equal(state.phase, 'intermission');
   assert.equal(state.score, 25);
   const score = state.score;
-  frames(150, dt => stepInvaders(state, idle, dt, fixedRandom));
+  frames(210, dt => stepInvaders(state, idle, dt, fixedRandom));
   assert.equal(state.phase, 'intermission');
   assert.equal(state.score, score, 'the same cleared wave cannot award its bonus repeatedly');
   frames(12, dt => stepInvaders(state, idle, dt, fixedRandom));
   assert.equal(state.phase, 'wave');
   assert.equal(state.wave, 2);
   assert.equal(state.waveQuota, 8);
+});
+
+test('Invaders weapon progression is earned quickly by kills and survives damage until restart', () => {
+  const state = createInvadersState();
+  state.spawnIn = 100;
+  for (let kills = 1; kills <= 7; kills += 1) {
+    state.enemies.push({ x: 300, y: 100 });
+    state.bullets.push({ x: 300, y: 110 });
+    stepInvaders(state, idle, 1 / 120, fixedRandom);
+    assert.equal(state.kills, kills);
+    assert.equal(state.weaponLevel, kills >= 7 ? 3 : kills >= 3 ? 2 : 1);
+  }
+  assert.equal(invaderWeapon(state).name, 'Quad spread');
+  assert.ok(state.weaponUpgradeTime > 2);
+  state.enemies.push({ x: state.player, y: state.playerY, label: 'Scope creep' });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.lives, 2);
+  assert.equal(state.weaponLevel, 3, 'a hit cannot remove a weapon upgrade');
+  const fresh = createInvadersState();
+  assert.equal(fresh.weaponLevel, 1);
+  assert.equal(fresh.kills, 0);
+  assert.equal(fresh.weaponUpgradeTime, 0);
+});
+
+test('single, twin and quad weapons have distinct symmetric patterns and one bounded cadence', () => {
+  for (const [level, count] of [[1, 1], [2, 2], [3, 4]]) {
+    for (const x of [38, 480, 922]) {
+      const state = createInvadersState();
+      state.weaponLevel = level;
+      state.player = x;
+      assert.equal(fireInvaders(state), true);
+      assert.equal(state.bullets.length, count);
+      assert.ok(state.bullets.every(bullet => bullet.x >= 8 && bullet.x <= 952));
+      assert.equal(state.cooldown, 0.24);
+      assert.equal(fireInvaders(state), false, 'holding fire cannot bypass the volley cooldown');
+      if (x === 480) assert.equal(state.bullets.reduce((sum, bullet) => sum + bullet.x - x, 0), 0);
+      assert.equal(state.bullets.reduce((sum, bullet) => sum + bullet.vx, 0), 0);
+    }
+  }
+});
+
+test('quad streams spread outward, preserve resize coordinates, and are pruned with bounded sustained fire', () => {
+  const state = createInvadersState();
+  state.spawnIn = 100;
+  state.weaponLevel = 3;
+  fireInvaders(state);
+  const starts = state.bullets.map(bullet => bullet.x);
+  stepInvaders(state, idle, 0.05, fixedRandom);
+  assert.ok(state.bullets[0].x < starts[0] && state.bullets[3].x > starts[3]);
+  assert.ok(state.bullets[1].x < starts[1] && state.bullets[2].x > starts[2]);
+  assert.equal(state.bullets[0].y, state.playerY - 35 - 620 * 0.05);
+  const previousX = state.bullets[0].previousX;
+  resizeGame(state, 720, 1080);
+  assert.equal(state.bullets[0].previousX, previousX * 0.75);
+  assert.equal(state.weaponLevel, 3);
+  frames(1200, dt => stepInvaders(state, { action: true }, dt, fixedRandom));
+  assert.ok(state.bullets.length > 4 && state.bullets.length < 40, 'slow plasma and quad fire cannot accumulate an unbounded field');
+});
+
+test('spread projectile sweep can hit a larger hazard between frame endpoints', () => {
+  const state = createInvadersState();
+  state.spawnIn = 100;
+  state.bullets.push({ x: 100, y: 120, vx: 1000 });
+  state.enemies.push({ x: 95, y: 100, scale: INVADER_THREAT_SCALE });
+  stepInvaders(state, idle, 0.05, fixedRandom);
+  assert.equal(state.enemies.length, 0, 'swept collision follows the diagonal beam instead of only its endpoint');
+  assert.equal(state.kills, 1);
+});
+
+test('Invaders gives readable larger hazards a gentle opening and capped late-wave pace', () => {
+  const opening = createInvadersState();
+  frames(130, dt => stepInvaders(opening, idle, dt, fixedRandom));
+  assert.equal(opening.enemies.length, 0, 'the opening leaves a moment to take control');
+  frames(5, dt => stepInvaders(opening, idle, dt, fixedRandom));
+  assert.equal(opening.enemies.length, 1);
+  assert.equal(opening.enemies[0].scale, INVADER_THREAT_SCALE);
+  const y = opening.enemies[0].y;
+  stepInvaders(opening, idle, 0.05, fixedRandom);
+  assert.ok(opening.enemies[0].y - y < 4, 'first-wave descent stays forgiving');
+  const late = createInvadersState();
+  Object.assign(late, { wave: 99, phase: 'intermission', waveIn: 0 });
+  stepInvaders(late, idle, 0.05, fixedRandom);
+  assert.equal(late.waveQuota, 10);
+  late.spawnIn = 100;
+  late.enemies.push({ x: 100, y: 100, type: 'drone' });
+  stepInvaders(late, idle, 0.05, fixedRandom);
+  assert.ok(Math.abs(late.enemies[0].y - 100 - 118 * 0.05) < 1e-9);
 });
 
 test('heavy enemies require two hits, then combo scoring and shield rewards remain consistent', () => {

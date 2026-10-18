@@ -3,7 +3,7 @@ const token = (name, fallback) => typeof document === 'undefined'
   ? fallback : getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 export const brand = Object.freeze({
   name: 'Holistic Tech Solutions Group',
-  labName: 'Interactive Lab',
+  labName: 'Gamification Labs',
   contactUrl: 'https://holistictechsolutionsgroup.com/contact/',
   canvas: Object.freeze({
     background: token('--arena-background', '#111111'),

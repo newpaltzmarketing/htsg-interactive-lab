@@ -1,5 +1,30 @@
 # Demonstration QA
 
+## Gamification Labs 1.2.0 candidate — October 17, 2026
+
+The public gallery, player context, metadata and reviewed cover use Gamification
+Labs. Existing URLs remain stable. Agency Invaders now earns Twin streams after
+three defeated hazards and Quad spread after seven, retaining upgrades through
+damage. Hazards are larger and slower, with shorter capped waves and 1.8-second
+breathers. Launch Runner and Trivia Challenge retain their game rules.
+
+Completed local checks: source syntax/metadata, **43 Node tests** (38 gameplay
+and five sharing-gate tests), **19 core browser checks**, **30 upgrade checks**,
+**14 sharing checks**, PHP lint and **119 WordPress adapter checks**. The new
+`npm run test:gamification` check passed **3/3**: actual firing and keyboard
+aiming earned all three weapon stages on phone and desktop, the four streams
+diverged, active bullets remained bounded at 12 in the observed runs, pause
+froze the arena, restart reset progression, and thumb steering/rotation fit.
+Its seeded lane jitter makes these runs repeatable without setting scores,
+kills or weapon levels. This check is included in the validation workflow.
+
+The 1.2.0 installer is prepared. Live replacement requires the owner's approval
+after automatic review enforced the original live-site restriction. This local
+record does not claim 1.2.0 is installed; see the workspace publication record
+for the actual final status. Coverage uses Chromium emulation, not physical
+iOS/Android devices or Safari. The dated cover was reviewed at full, phone and
+compact sizes; live image/metadata verification follows publication.
+
 The lab contains Agency Invaders, Launch Runner, and Trivia Challenge. All game logic and scores stay in the browser. The games have no application backend or paid runtime dependencies.
 
 ## Repeatable checks
@@ -13,6 +38,7 @@ npm test
 npx playwright install chromium
 npm run test:browser
 npm run test:upgrade
+npm run test:gamification
 npm run build
 npm run test:share
 ```
@@ -41,10 +67,11 @@ Browser screenshots and the machine-readable report are saved in `artifacts/qa/`
 
 ## Automated coverage
 
-The 33 rules tests cover:
+The 38 gameplay rules tests cover:
 
 - Keyboard and touch sources held at the same time, individual release, repeated keydown, and clearing held controls.
 - Agency Invaders two-axis movement, simultaneous directions, relative drag and thumb-stick input with per-axis keyboard priority, portrait thumb clearance and proportional travel time, delayed-frame caps, firing and collisions at the moved ship position, six named hazards, life loss, shield protection, wave transitions, combo scoring, game over, and clean restart state.
+- Earned single/twin/quad progression, upgrade persistence after damage, symmetric spread and swept collisions, bounded firing/pruning, larger threat bounds, and gentler capped pacing.
 - Launch Runner two-jump limit and landing reset, safe obstacle clearance, collision, energy pickups and boost protection, distance scoring, game over, and clean restart state. Portrait collision and collection areas match the enlarged artwork; camera framing preserves the full astronaut without changing jump physics.
 - Resize preserves arcade progress and relative positions; Runner retains its physical jump height and velocity.
 - Every trivia question, correct and incorrect scoring, invalid answer indices, perfect and zero scores, and three distinct replay rounds containing 15 questions.
@@ -219,3 +246,15 @@ Evidence is separated from prior releases:
 - `artifacts/share-preview-live/facebook-{gallery,invaders,runner,trivia}-preview.png`: actual refreshed Facebook debugger screenshots.
 
 No unresolved sharing or gameplay-smoke failure remains. Physical phones and Safari remain outside the browser-emulation scope. Re-run the sharing gate after changing the cover, metadata configuration, build rewriting or adapter response handling; a valid share image is a release requirement rather than a manual afterthought.
+
+## Gamification Labs and weapon progression — 1.2.0 candidate
+
+The focused browser check passed 3/3 on 17 October 2026 with Chrome 155.0.8059.84. It runs real game inputs with deterministic lane jitter and keyboard aiming; it never sets score, kills, lives, weapon level, enemies or timers. The initial harness incorrectly assumed fixed random input centered every spawn; cyclic lanes required keyboard aiming instead. That harness assumption was corrected without changing the product.
+
+At 390 × 844, the run earned Twin streams after three kills at 5.18 seconds and Quad spread after seven kills at 12.19 seconds. A 1.82-second wave breather separated the waves. The observed active projectile list peaked at 12. The desktop 1280 × 900 run independently earned all three weapon stages. Actual twin volleys have separate straight streams; quad volleys have four diverging trajectories. Paused canvas pixels remain identical, and restart restores the first weapon with zero kills and score.
+
+The upgraded phone run also accepted real two-axis thumb-pad input and retained its weapon through rotation to 844 × 390. The complete arena, controls and weapon HUD fit together without horizontal overflow; the phone HUD ended at CSS pixel 339 within the 390-pixel screen. Phone and desktop quad-spread images were visually reviewed, including the larger hazards and upgrade feedback. There were no focused browser exceptions or unresolved application failures.
+
+Evidence is in `artifacts/gamification-qa/results.json`, `invaders-quad-390.png`, `invaders-quad-844.png` and `invaders-quad-1280.png`. The three focused scenarios overlap the main task's existing required suites and are not added to their counts. Run this specific check with `node tests/gamification-qa.mjs`; it accepts `--url` and `--output` for a separately authorized public follow-up. It is a focused manual gate rather than a claim of automated coverage across other projects. All mobile results remain Chromium emulation; physical devices and Safari were not tested.
+
+Visible-name expectations in the sharing, navigation and public-integration tests now use Gamification Labs, while the stable `/demos/interactive-lab/` routes remain unchanged. The sharing-image fixture uses the reviewed dated cover `lab-share-20261017.jpg`. Existing historical publication records and evidence remain separate.

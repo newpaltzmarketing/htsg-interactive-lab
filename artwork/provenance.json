@@ -99,19 +99,73 @@
     "outputs": [
       {
         "path": "public/assets/lab-share.svg",
-        "bytes": 1641708,
-        "sha256": "3bc4a2f2d5944f9fd25eb9f3c052c10804b6f1614e8be362c5a9aea49b14703d"
+        "bytes": 1641712,
+        "sha256": "5a28b7051078c5d99ea0e07138918071577b510acd924b8914d428797e9b5727"
       },
       {
         "path": "public/assets/lab-share.png",
-        "bytes": 522006,
-        "sha256": "816fa926a7e7a6855102c8aae3456ef68d53de07fdba103795180275c5fa3af6"
+        "bytes": 524535,
+        "sha256": "d9e1b97b2e5d3e9fa4b3a2919d6f90bae0a2d732688ebb986bb0fa5d1f0ea4d5"
       },
       {
-        "path": "public/assets/lab-share-20261016.jpg",
-        "bytes": 125637,
-        "sha256": "71dd56707da6f8c8a2fb3b4364ae7db4fb0d321e36bb058bd5e8aa2626da5385"
+        "path": "public/assets/lab-share-20261017.jpg",
+        "bytes": 128579,
+        "sha256": "e126476fd8d0d32006583387631cddaef03129892d0726da58f196d6846d5eee"
       }
     ]
-  }
+  },
+  "share_card_history": [
+    {
+      "method": "Editable SVG composition of the approved HTSG logo, three local environments, actual Halo still, a vector spacecraft derived from the game renderer, and a quiz symbol; rendered by Chromium at 1200 x 630.",
+      "generator": "scripts/generate-share-card.mjs",
+      "dimensions": [
+        1200,
+        630
+      ],
+      "inputs": [
+        {
+          "path": "public/assets/htsg-logo.png",
+          "bytes": 51871,
+          "sha256": "e8084a0bdcfd63889c7629d8bc501ef8338bf0e0fc39545995f5a50a5870f69f"
+        },
+        {
+          "path": "public/assets/halo-runner-idle.png",
+          "bytes": 102185,
+          "sha256": "9caf031965dabd381e2caab10fa619ca8d8a0aa708e128a29abc6dd0953109d9"
+        },
+        {
+          "path": "public/assets/invaders-world.webp",
+          "bytes": 367044,
+          "sha256": "7536a417e413e2be15cfa0f2cb916e3b629aae7bd585c69b7433df770727d04b"
+        },
+        {
+          "path": "public/assets/runner-world.webp",
+          "bytes": 379038,
+          "sha256": "5735fe206f092e7c2eca397d8751607dc09e43b30c689eb2ec9ea0c30b8bbcbf"
+        },
+        {
+          "path": "public/assets/trivia-world.webp",
+          "bytes": 327786,
+          "sha256": "2f4c1c71a1d628ed5584e5411034264e0f0b5b3f4d04da0d106f0bfb390759d9"
+        }
+      ],
+      "outputs": [
+        {
+          "path": "public/assets/lab-share.svg",
+          "bytes": 1641708,
+          "sha256": "3bc4a2f2d5944f9fd25eb9f3c052c10804b6f1614e8be362c5a9aea49b14703d"
+        },
+        {
+          "path": "public/assets/lab-share.png",
+          "bytes": 522006,
+          "sha256": "816fa926a7e7a6855102c8aae3456ef68d53de07fdba103795180275c5fa3af6"
+        },
+        {
+          "path": "public/assets/lab-share-20261016.jpg",
+          "bytes": 125637,
+          "sha256": "71dd56707da6f8c8a2fb3b4364ae7db4fb0d321e36bb058bd5e8aa2626da5385"
+        }
+      ]
+    }
+  ]
 }

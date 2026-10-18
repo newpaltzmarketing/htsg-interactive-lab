@@ -175,7 +175,7 @@ try {
       const existingPaths = await choices.evaluateAll(links => links.slice(1).map(link => new URL(link.href).pathname));
       assert.deepEqual(existingPaths, ['/demos/exhibitor-operations/', '/demos/all-in-advisors/', '/custom-pools-preview/', '/demos/insights/', '/demos/question-to-project-brief/', '/demos/inquiry-to-reviewed-reply/', '/demos/regional-lead-handoff/']);
       const lab = choices.first();
-      assert.match(await lab.textContent(), /^Interactive Lab/);
+      assert.match(await lab.textContent(), /^Gamification Labs/);
       assert.equal(normalized(await lab.evaluate(element => element.href)), normalized(labURL));
       await lab.scrollIntoViewIfNeeded();
       await page.waitForTimeout(220);
@@ -224,7 +224,7 @@ try {
     });
     await check(`${viewport.width}px lab returns to all demos and the Rocket Menu`, async () => {
       await page.goto(siteURL);
-      const footerLab = page.locator('footer').getByRole('link', { name: 'Interactive Lab', exact: true });
+      const footerLab = page.locator('footer').getByRole('link', { name: 'Gamification Labs', exact: true });
       assert.equal(normalized(await footerLab.evaluate(element => element.href)), normalized(labURL));
       if (mobile) await footerLab.tap(); else await footerLab.click();
       await page.waitForURL(url => normalized(url.href) === normalized(labURL));

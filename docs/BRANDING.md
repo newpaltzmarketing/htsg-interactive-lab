@@ -1,4 +1,6 @@
-# Interactive Lab branding
+# Gamification Labs branding
+
+Use **Gamification Labs** for the public name, including page titles, navigation, administration links, metadata, and sharing artwork. Keep the established `/demos/interactive-lab/` URL and game routes stable. The compact menu group is **Demos & Labs**.
 
 The gallery keeps HTSG's white page, black text, fire orange headings, amber actions, and approved wordmark. The game player uses a dark navy surface with silver text and warm orange highlights so the environment artwork, moving objects, and controls read clearly. All fonts and assets are local; no font service or image service is called during play.
 
@@ -32,7 +34,7 @@ The logo and favicon in `public/assets/` are approved HTSG copies from the suppl
 | `public/assets/trivia-world.webp` | Observatory environment and Trivia gallery preview. |
 | `public/assets/halo-runner-atlas.webp` | Simulation-timed articulated Halo poses derived from the approved chatbot entrance animation. |
 | `public/assets/halo-runner-idle.png` | Approved Halo still used only if the atlas fails to load. |
-| `public/assets/lab-share.svg`, `public/assets/lab-share-20261016.jpg`, `public/assets/lab-share.png` | Editable cover, primary versioned JPEG social preview, and compatibility PNG. |
+| `public/assets/lab-share.svg`, `public/assets/lab-share-20261017.jpg`, `public/assets/lab-share.png` | Editable cover, primary versioned JPEG social preview, and compatibility PNG. |
 | `artwork/originals/` | Selected world originals and approved Halo source animation/still, excluded from runtime builds. |
 | `artwork/prompts.json`, `artwork/provenance.json` | Exact generation prompts, dimensions, encoding, and hashes. |
 | `artwork/halo-runner-provenance.json`, `artwork/prepare-halo-atlas.py` | Existing Halo source provenance, exact selected frames, alignment, and extraction recipe. |

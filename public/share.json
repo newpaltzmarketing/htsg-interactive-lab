@@ -3,35 +3,35 @@
   "site_name": "Holistic Tech Solutions Group",
   "locale": "en_US",
   "image": {
-    "path": "assets/lab-share-20261016.jpg",
+    "path": "assets/lab-share-20261017.jpg",
     "width": 1200,
     "height": 630,
     "type": "image/jpeg",
-    "alt": "HTSG Interactive Lab featuring Agency Invaders, Halo in Launch Runner, and Trivia Challenge."
+    "alt": "HTSG Gamification Labs featuring Agency Invaders, Halo in Launch Runner, and Trivia Challenge."
   },
   "pages": {
     "gallery": {
-      "title": "Interactive Lab | Holistic Tech Solutions Group",
+      "title": "Gamification Labs | Holistic Tech Solutions Group",
       "description": "Play Agency Invaders, Launch Runner, and Trivia Challenge. Three browser games with cinematic worlds, keyboard and touch controls, and Halo.",
       "path": ""
     },
     "play": {
-      "title": "Play three games | HTSG Interactive Lab",
-      "description": "Defend against project chaos, double-jump with Halo, or test your digital know-how. Choose from three games in the HTSG Interactive Lab.",
+      "title": "Play three games | HTSG Gamification Labs",
+      "description": "Defend against project chaos, double-jump with Halo, or test your digital know-how. Choose from three games in the HTSG Gamification Labs.",
       "path": "play.html"
     },
     "invaders": {
-      "title": "Agency Invaders | HTSG Interactive Lab",
-      "description": "Fly around scope creep, missed deadlines, and budget overruns. Steer, fire, and protect your launch in Agency Invaders.",
+      "title": "Agency Invaders | HTSG Gamification Labs",
+      "description": "Outfly scope creep, missed deadlines, and budget overruns. Clear short waves with automatically upgrading weapons in Agency Invaders.",
       "path": "play.html?game=invaders"
     },
     "runner": {
-      "title": "Launch Runner | HTSG Interactive Lab",
+      "title": "Launch Runner | HTSG Gamification Labs",
       "description": "Double-jump with Halo across a futuristic launch complex. Clear barriers, collect energy, and keep moving in Launch Runner.",
       "path": "play.html?game=runner"
     },
     "trivia": {
-      "title": "Trivia Challenge | HTSG Interactive Lab",
+      "title": "Trivia Challenge | HTSG Gamification Labs",
       "description": "Explore three five-question rounds about strategy, design, and trust. Choose an answer, learn why it works, and build a streak.",
       "path": "play.html?game=trivia"
     }

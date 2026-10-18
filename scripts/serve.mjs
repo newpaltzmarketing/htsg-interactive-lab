@@ -65,5 +65,5 @@ const server = http.createServer(async (request, response) => {
     else await notFound(response, request.method);
   }
 });
-server.listen(port, '127.0.0.1', () => console.log(`HTSG Interactive Lab: http://127.0.0.1:${port} (${directory}/)`));
+server.listen(port, '127.0.0.1', () => console.log(`HTSG Gamification Labs: http://127.0.0.1:${port} (${directory}/)`));
 server.on('error', error => { console.error(error.message); process.exitCode = 1; });

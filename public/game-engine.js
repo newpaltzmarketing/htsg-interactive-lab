@@ -1,5 +1,14 @@
 // Deterministic rules. Browser events, rendering, and clocks stay outside this module.
 export const ARENA = Object.freeze({ width: 960, height: 540, floor: 454 });
+export const INVADER_THREAT_SCALE = 1.35;
+export const INVADER_WEAPONS = Object.freeze([
+  { level: 1, kills: 0, name: 'Single shot', pattern: [{ offset: 0, vx: 0 }] },
+  { level: 2, kills: 3, name: 'Twin streams', pattern: [{ offset: -16, vx: 0 }, { offset: 16, vx: 0 }] },
+  { level: 3, kills: 7, name: 'Quad spread', pattern: [{ offset: -28, vx: -115 }, { offset: -10, vx: -30 }, { offset: 10, vx: 30 }, { offset: 28, vx: 115 }] },
+].map(weapon => Object.freeze({ ...weapon, pattern: Object.freeze(weapon.pattern.map(Object.freeze)) })));
+export function invaderWeapon(state) {
+  return INVADER_WEAPONS[Math.max(0, Math.min(2, Math.floor(state?.weaponLevel || 1) - 1))];
+}
 export const INVADER_HAZARDS = Object.freeze([
   { id: 'scope-creep', label: 'Scope creep' },
   { id: 'missed-deadlines', label: 'Missed deadlines' },
@@ -51,6 +60,7 @@ export function resizeGame(state, width, height) {
         item.y *= scaleY;
         if (Number.isFinite(item.baseX)) item.baseX *= scaleX;
         if (Number.isFinite(item.previousY)) item.previousY *= scaleY;
+        if (Number.isFinite(item.previousX)) item.previousX *= scaleX;
       }
     }
   } else {
@@ -86,18 +96,24 @@ export function createInvadersState(options = {}) {
   return {
     kind: 'invaders', world, score: 0, lives: 3, player: world.width / 2, playerY: arenaFor({ world }).playerY,
     bullets: [], enemies: [], pickups: [], effects: [], elapsed: 0,
-    spawnIn: 0.8, cooldown: 0, ended: false, bank: 0,
+    spawnIn: 1.1, cooldown: 0, ended: false, bank: 0,
     wave: 1, waveSpawned: 0, waveQuota: 6, phase: 'wave', waveIn: 0,
     combo: 0, bestCombo: 0, kills: 0, shield: 0, shieldTime: 0,
+    weaponLevel: 1, weaponUpgradeTime: 0,
     damageCooldown: 0, lastHazard: '', lastHazardTime: 0, lastHazardBlocked: false, lastHazardReason: '', nextId: 1,
   };
 }
 
 export function fireInvaders(state) {
   if (state.ended || state.cooldown > 0) return false;
-  const { playerY } = arenaFor(state);
-  state.bullets.push({ x: state.player, y: playerY - 35, previousY: playerY - 35, id: state.nextId++ });
-  state.cooldown = state.combo >= 8 ? 0.145 : 0.19;
+  const { playerY, width } = arenaFor(state);
+  const weapon = invaderWeapon(state);
+  for (const shot of weapon.pattern) {
+    const x = clamp(state.player + shot.offset, 8, width - 8);
+    state.bullets.push({ x, previousX: x, y: playerY - 35, previousY: playerY - 35, vx: shot.vx, weaponLevel: weapon.level, id: state.nextId++ });
+  }
+  // More coverage is the reward; cadence stays bounded at every weapon level.
+  state.cooldown = 0.24;
   return true;
 }
 
@@ -136,14 +152,14 @@ function damageInvaders(state, x, y, enemy, reason) {
 }
 
 function spawnInvader(state, random) {
-  const margin = 60;
+  const margin = 76;
   const laneCount = 5;
   const lane = (state.waveSpawned + state.wave) % laneCount;
   const x = margin + (state.world.width - margin * 2) * (lane + 0.3 + randomUnit(random) * 0.4) / laneCount;
   const heavy = state.wave >= 3 && state.waveSpawned % 4 === 3;
   const hazard = INVADER_HAZARDS[(state.waveSpawned + state.wave - 1) % INVADER_HAZARDS.length];
   state.enemies.push({
-    id: state.nextId++, x, baseX: x, y: -48,
+    id: state.nextId++, x, baseX: x, y: -58, scale: INVADER_THREAT_SCALE,
     type: heavy ? 'heavy' : state.waveSpawned % 3 === 0 ? 'interceptor' : 'drone',
     hazard, hazardId: hazard.id, label: hazard.label,
     health: heavy ? 2 : 1, maxHealth: heavy ? 2 : 1,
@@ -161,6 +177,7 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
   state.cooldown = Math.max(0, state.cooldown - dt);
   state.damageCooldown = Math.max(0, state.damageCooldown - dt);
   state.lastHazardTime = Math.max(0, state.lastHazardTime - dt);
+  state.weaponUpgradeTime = Math.max(0, state.weaponUpgradeTime - dt);
   state.shieldTime = Math.max(0, state.shieldTime - dt);
   if (state.shieldTime === 0) state.shield = 0;
   tickEffects(state, dt);
@@ -191,34 +208,43 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
     if (state.waveIn <= 0) {
       state.wave += 1;
       state.waveSpawned = 0;
-      state.waveQuota = Math.min(18, 6 + (state.wave - 1) * 2);
+      state.waveQuota = Math.min(10, 6 + (state.wave - 1) * 2);
       state.phase = 'wave';
-      state.spawnIn = 0.4;
+      state.spawnIn = 0.75;
     }
   } else if (state.waveSpawned < state.waveQuota) {
     state.spawnIn -= dt;
     if (state.spawnIn <= 0) {
       spawnInvader(state, random);
-      state.spawnIn += Math.max(0.42, 0.82 - state.wave * 0.035);
+      state.spawnIn += Math.max(0.85, 1.15 - (state.wave - 1) * 0.025);
     }
   }
   // Keep crossing times comparable on a tall phone and a wide desktop arena.
   const verticalScale = clamp(arena.height / 540, 0.65, 4.5);
-  const descent = Math.min(285, 112 + state.wave * 13) * verticalScale;
-  state.bullets.forEach(bullet => { bullet.previousY = bullet.y; bullet.y -= 810 * verticalScale * dt; });
+  const descent = Math.min(118, 74 + (state.wave - 1) * 4) * verticalScale;
+  state.bullets.forEach(bullet => {
+    bullet.previousX = bullet.x; bullet.previousY = bullet.y;
+    bullet.x += (bullet.vx || 0) * verticalScale * dt;
+    bullet.y -= 620 * verticalScale * dt;
+  });
   state.enemies.forEach(enemy => {
     enemy.age = (enemy.age || 0) + dt;
-    enemy.y += descent * (enemy.type === 'interceptor' ? 1.13 : 1) * dt;
+    enemy.y += descent * (enemy.type === 'interceptor' ? 1.04 : 1) * dt;
     if (Number.isFinite(enemy.baseX)) {
-      enemy.x = clamp(enemy.baseX + Math.sin(enemy.age * 1.6 + enemy.phase) * (enemy.type === 'heavy' ? 15 : 30), 38, arena.width - 38);
+      const edge = enemy.type === 'heavy' ? 78 : 64;
+      enemy.x = clamp(enemy.baseX + Math.sin(enemy.age * 1.25 + enemy.phase) * (enemy.type === 'heavy' ? 12 : 22), edge, arena.width - edge);
     }
   });
   for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
     const enemy = state.enemies[enemyIndex];
-    const radius = enemy.type === 'heavy' ? 39 : 32;
-    const bulletIndex = state.bullets.findIndex(bullet => (
-      Math.abs(enemy.x - bullet.x) < radius && bullet.y < enemy.y + 25 && bullet.previousY >= enemy.y - 25
-    ));
+    const scale = enemy.scale || INVADER_THREAT_SCALE;
+    const radius = (enemy.type === 'heavy' ? 39 : 32) * scale;
+    const halfHeight = 25 * scale;
+    const bulletIndex = state.bullets.findIndex(bullet => {
+      const progress = clamp((bullet.previousY - enemy.y) / Math.max(0.001, bullet.previousY - bullet.y), 0, 1);
+      const crossingX = bullet.previousX + (bullet.x - bullet.previousX) * progress;
+      return Math.abs(enemy.x - crossingX) < radius && bullet.y < enemy.y + halfHeight && bullet.previousY >= enemy.y - halfHeight;
+    });
     if (bulletIndex !== -1) {
       state.bullets.splice(bulletIndex, 1);
       enemy.health = (enemy.health ?? 1) - 1;
@@ -227,6 +253,12 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
         state.combo += 1;
         state.bestCombo = Math.max(state.bestCombo, state.combo);
         state.kills += 1;
+        const unlocked = state.kills >= 7 ? 3 : state.kills >= 3 ? 2 : 1;
+        if (unlocked > state.weaponLevel) {
+          state.weaponLevel = unlocked;
+          state.weaponUpgradeTime = 2.4;
+          effect(state, 'upgrade', state.player, state.playerY, 0.9);
+        }
         state.score += 10 + Math.min(3, Math.floor(state.combo / 4)) * 5;
         effect(state, 'explosion', enemy.x, enemy.y);
         if (state.kills % 5 === 0) state.pickups.push({ x: enemy.x, y: enemy.y, kind: 'shield', id: state.nextId++ });
@@ -234,29 +266,29 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
       }
       effect(state, 'spark', enemy.x, enemy.y, 0.25);
     }
-    const hitsPlayer = Math.abs(enemy.x - state.player) < radius + 21 && Math.abs(enemy.y - state.playerY) < 35;
+    const hitsPlayer = Math.abs(enemy.x - state.player) < radius + 21 && Math.abs(enemy.y - state.playerY) < halfHeight + 17;
     if (enemy.y > arena.height + 26 || hitsPlayer) {
       state.enemies.splice(enemyIndex, 1);
       damageInvaders(state, state.player, state.playerY, enemy, hitsPlayer ? 'collision' : 'miss');
     }
   }
-  state.bullets = state.bullets.filter(bullet => bullet.y > -40);
+  state.bullets = state.bullets.filter(bullet => bullet.y > -40 && bullet.x > -20 && bullet.x < arena.width + 20);
   for (let index = state.pickups.length - 1; index >= 0; index -= 1) {
     const pickup = state.pickups[index];
     pickup.y += Math.max(110, descent * 0.75) * dt;
     if (Math.abs(pickup.x - state.player) < 55 && Math.abs(pickup.y - state.playerY) < 48) {
       state.pickups.splice(index, 1);
       state.shield = 1;
-      state.shieldTime = 10;
+      state.shieldTime = 12;
       state.score += 20;
       effect(state, 'shield', state.player, state.playerY, 0.9);
     } else if (pickup.y > arena.height + 40) state.pickups.splice(index, 1);
   }
   if (state.phase === 'wave' && state.waveSpawned >= state.waveQuota && state.enemies.length === 0 && !state.ended) {
     state.phase = 'intermission';
-    state.waveIn = 1.3;
+    state.waveIn = 1.8;
     state.score += 25 * state.wave;
-    effect(state, 'wave', arena.width / 2, arena.height * 0.32, 1.3);
+    effect(state, 'wave', arena.width / 2, arena.height * 0.32, 1.8);
   }
   return state;
 }

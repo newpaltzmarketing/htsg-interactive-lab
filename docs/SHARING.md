@@ -4,7 +4,7 @@ Sharing is a release check for the gallery, its `index.html` alias, and all thre
 
 ## Source of truth
 
-`public/share.json` defines the site identity, canonical paths, gallery/player/game copy, and the shared cover. The current primary image is `assets/lab-share-20261016.jpg`: a real 1200 × 630 JPEG, 125,637 bytes, featuring the three game subjects and actual Halo character. `lab-share.png` remains available for earlier references. Use a new image filename when replacing published sharing artwork so a previous image URL does not keep referring to different pixels.
+`public/share.json` defines the site identity, canonical paths, gallery/player/game copy, and the shared cover. The current primary image is `assets/lab-share-20261017.jpg`: a real 1200 × 630 JPEG, 128,579 bytes, featuring the three game subjects and actual Halo character. `lab-share.png` remains available for earlier references. Use a new image filename when replacing published sharing artwork so a previous image URL does not keep referring to different pixels.
 
 Both HTML entry points contain a complete metadata block in source. It includes the document title/description, canonical link, Open Graph title/description/type/site/URL, image URL/type/dimensions/alternative text, Twitter large-image title/description/image/alternative text, and an `image_src` fallback link. All social URLs are absolute HTTPS URLs.
 
