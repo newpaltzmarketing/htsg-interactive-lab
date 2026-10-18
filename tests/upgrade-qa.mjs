@@ -69,7 +69,9 @@ async function contextFor(viewport, { fallback = false } = {}) {
     window.__qaFrames = { pending };
     window.__qaPointers = [];
     for (const type of ['pointerdown', 'pointerup', 'pointercancel']) document.addEventListener(type, event => {
-      window.__qaPointers.push({ type, pointerId: event.pointerId, target: event.target.id });
+      const scene = window.__qaScene;
+      window.__qaPointers.push({ type, pointerId: event.pointerId, target: event.target.id, at: performance.now(),
+        state: scene ? { player: scene.player, playerY: scene.playerY, world: { ...scene.world } } : null });
     }, true);
     window.requestAnimationFrame = callback => {
       const id = request(time => { pending.delete(id); callback(time); });
@@ -261,16 +263,35 @@ try {
       await page.setViewportSize(viewport);
       await open(page, 'invaders');
       await page.locator('#overlay-action').tap();
+      // Start changes the control row. Wait for its visible geometry and the
+      // live simulation world to agree before testing a stationary gesture.
+      await page.waitForFunction(() => {
+        const box = document.getElementById('canvas').getBoundingClientRect();
+        const scene = window.__qaScene;
+        if (!scene?.elapsed || Math.abs(scene.world.height - scene.world.width * box.height / box.width) > .1) return false;
+        const key = `${box.width}:${box.height}:${scene.world.height}`;
+        const previous = window.__qaStableCanvas;
+        window.__qaStableCanvas = { key, frames: previous?.key === key ? previous.frames + 1 : 1 };
+        return window.__qaStableCanvas.frames >= 2;
+      });
       const canvas = await page.locator('#canvas').boundingBox();
       assert.equal(await page.locator('#steering-pad').count(), 0, 'The separate steering pad is removed');
       if (viewport.width === 390) assert.ok(canvas.height >= 666, `The phone arena reclaims at least 60px from its former 606px height: ${canvas.height}`);
       assertFits(await bounds(page), { portrait: viewport.width < 600 });
       const center = { id: 1, x: canvas.x + canvas.width * 0.35, y: canvas.y + canvas.height * 0.65 };
-      const before = await snapshot(page);
+      const preDispatch = await snapshot(page);
       await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
       await page.waitForTimeout(90);
-      const contact = await snapshot(page);
-      assert.ok(Math.abs(contact.player - before.player) < 1 && Math.abs(contact.playerY - before.playerY) < 1, 'Contact anchors relative steering without moving the ship');
+      const { anchor, contact } = await page.evaluate(() => ({
+        anchor: window.__qaPointers.findLast(event => event.type === 'pointerdown' && event.target === 'canvas')?.state,
+        contact: { player: window.__qaScene.player, playerY: window.__qaScene.playerY, world: { ...window.__qaScene.world } },
+      }));
+      assert.ok(anchor, 'The real canvas pointerdown was delivered');
+      const before = anchor;
+      const diagnostic = { viewport, preDispatch: { player: preDispatch.player, playerY: preDispatch.playerY, world: preDispatch.world }, anchor, contact };
+      geometry.push({ mode: 'invaders', stage: 'stationary-contact', ...diagnostic });
+      assert.deepEqual(contact.world, before.world, `Canvas world stays stable during stationary contact: ${JSON.stringify(diagnostic)}`);
+      assert.ok(Math.abs(contact.player - before.player) < 1 && Math.abs(contact.playerY - before.playerY) < 1, `Contact anchors relative steering without moving the ship: ${JSON.stringify(diagnostic)}`);
       const deflected = { ...center, x: center.x + 50, y: center.y - 35 };
       await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [deflected] });
       await page.waitForTimeout(250);
