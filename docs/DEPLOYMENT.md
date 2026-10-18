@@ -2,7 +2,15 @@
 
 The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. The static games use the existing HTSG WordPress host. Free play requires no account, game backend, paid dependency or DNS change. The optional first-party community service is maintained and accepted separately.
 
-## Release 1.5.1 live — October 17, 2026
+## Release 1.5.2 live — October 17, 2026
+
+The renderer-only release replaces one falling Scope Creep hazard with a finger-wagging client. Rules remain 1.5.0 and Community remains 1.0.5; no schema, account, Google, subscription or data change is included. Artwork is approved; source checks, 70 Node tests, six presentation cases and three actual-size client probes passed. The existing reviewed three-game cover and initial metadata remain unchanged.
+
+Installed installer: `release/htsg-interactive-lab-wordpress-1.5.2.zip`, **3,529,515 bytes**, SHA-256 `5a3e36aa03a572e0f1e8a8c23b49a5ca067e03e7bc4dc11e10125624ef1c878c`. All **34 entries** independently matched; only the release field, renderer and derived manifest differ from 1.5.1. PHP lint/125 adapter checks and 14 sharing checks passed. The publisher confirmed active 1.5.2 and purged SiteGround cache. The ordinary anonymous public renderer matched the frozen bytes/hash, and actual public sharing passed **14/14**. No Community replacement/audit or other state change was required.
+
+Immediate rollback is the preserved 1.5.1 installer, **3,528,783 bytes**, SHA-256 `a66c7577ca95e3e9fb3dcbe4641deae6faf344204915d6dcd44db805f410673d`. Its hash was reverified; no older installer was overwritten.
+
+## Historical release 1.5.1 — October 17, 2026
 
 The game-only replacement fixes phone arena resizing caused by an Arial-fallback weapon label wrapping in the dashboard. Its internal small-screen gap changes from four to two pixels; engine rules remain **1.5.0** and Community remains **1.0.5**, with no new audit or data change required. Targeted Arial/boss and phone geometry checks passed, followed by **8/8** actual public controls checks, the exact corrected CSS hash and **14/14** public sharing checks.
 

@@ -1,6 +1,8 @@
 # HTSG Gamification Labs
 
-**1.5.1 is installed** with a compact pause panel, weapon-family switching while paused and more generous, gently guided missiles. It uses new challenge rules and separate versioned weekly scores; existing history and unexpired prior attempts are preserved by the coordinated Community 1.0.5 update. The phone dashboard also keeps the arena height fixed when a fallback font wraps a weapon label. Challenge rules remain 1.5.0 and Community remains 1.0.5. All three games retain their public URLs.
+**1.5.2 is installed**. The falling Scope Creep hazard is now an animated finger-wagging client, with the same movement and hitbox. Its Help icon uses the same artwork. Rules remain 1.5.0 and Community remains 1.0.5; all three games and their URLs are preserved.
+
+Retained features include a compact pause panel, weapon-family switching while paused and more generous, gently guided missiles. Challenges use separate versioned weekly scores; existing history and unexpired prior attempts are preserved by the coordinated Community 1.0.5 update. The phone dashboard also keeps the arena height fixed when a fallback font wraps a weapon label. Challenge rules remain 1.5.0 and Community remains 1.0.5. All three games retain their public URLs.
 
 Three browser games for Holistic Tech Solutions Group demonstrations:
 

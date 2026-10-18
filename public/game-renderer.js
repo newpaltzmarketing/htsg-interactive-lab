@@ -5,7 +5,7 @@ const TAU = Math.PI * 2;
 const paint = brand.canvas?.player || '#f78c1a';
 const droneAccent = brand.canvas?.obstacle || '#f43618';
 const beamCore = brand.canvas?.projectile || '#ffffff';
-const hazardDescriptions = { 'scope-creep': 'Expanding briefs', 'missed-deadlines': 'Ticking clock', 'budget-overruns': 'Cash overflow', 'tech-debt': 'Tangled circuits', bottlenecks: 'Clogged flow', 'broken-handoffs': 'Broken connection' };
+const hazardDescriptions = { 'scope-creep': 'Finger-wagging client', 'missed-deadlines': 'Ticking clock', 'budget-overruns': 'Cash overflow', 'tech-debt': 'Tangled circuits', bottlenecks: 'Clogged flow', 'broken-handoffs': 'Broken connection' };
 export const HAZARD_VISUALS = Object.freeze(Object.fromEntries(INVADER_HAZARDS.map(({ id, label }) => [id, Object.freeze({ label, description: hazardDescriptions[id] })])));
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const noise = value => { const n = Math.sin(value * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); };
@@ -174,15 +174,44 @@ function paper(ctx, x, y, width, height, tilt = 0, tint = '#fff4d5') {
 function hazardModel(ctx, id, time = 0, damaged = false) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   if (id === 'scope-creep') {
-    const claw = Math.sin(time * 2) * 2;
-    for (const side of [-1, 1]) {
-      ctx.strokeStyle = '#603723'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(side * 17, 9); ctx.lineTo(side * 27, 16); ctx.lineTo(side * 30, 22); ctx.stroke();
-      ctx.strokeStyle = paint; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(side * 18, -1); ctx.lineTo(side * 27, -3); ctx.lineTo(side * 29, -11); ctx.stroke();
-      ctx.fillStyle = gradient(ctx, side * 30, -18, side * 24, -3, [[0, '#ffd99a'], [0.5, paint], [1, '#a74d22']]);
-      ctx.beginPath(); ctx.moveTo(side * 26, -6); ctx.lineTo(side * 21, -15 - claw); ctx.lineTo(side * 27, -12); ctx.lineTo(side * 31, -20 + claw); ctx.lineTo(side * 32, -7); ctx.closePath(); ctx.fill();
-    }
-    paper(ctx, -4, -3, 31, 38, -.13); paper(ctx, 4, -1, 31, 38, .13); paper(ctx, 0, 3, 31, 38);
-    ctx.fillStyle = droneAccent; rounded(ctx, -11, -13, 17, 4, 1); ctx.fill(); eyes(ctx, 0, -2, 6, 1);
+    // A generic comic client: the raised hand and face stay inside the same
+    // 64 by 50 envelope at every wag angle, including the static Help pose.
+    ctx.fillStyle = gradient(ctx, -25, 3, 12, 24, [[0, '#7596b3'], [.4, '#355671'], [1, '#172f48']]);
+    ctx.strokeStyle = '#0b2035'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-17, 3); ctx.lineTo(1, 3); ctx.quadraticCurveTo(10, 5, 14, 14); ctx.lineTo(11, 23); ctx.lineTo(-27, 23); ctx.lineTo(-28, 15); ctx.quadraticCurveTo(-25, 6, -17, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff6dc'; ctx.beginPath(); ctx.moveTo(-15, 4); ctx.lineTo(-6, 16); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = paint; ctx.beginPath(); ctx.moveTo(-9, 7); ctx.lineTo(-5, 7); ctx.lineTo(-3, 21); ctx.lineTo(-7, 24); ctx.lineTo(-11, 21); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#9db9cc'; ctx.lineWidth = 1.7;
+    ctx.beginPath(); ctx.moveTo(-18, 6); ctx.lineTo(-13, 15); ctx.lineTo(-18, 17); ctx.lineTo(-12, 23); ctx.moveTo(3, 6); ctx.lineTo(0, 15); ctx.lineTo(4, 17); ctx.lineTo(0, 23); ctx.stroke();
+    // Bent suit sleeve and bright cuff frame the separately articulated hand.
+    ctx.strokeStyle = '#142e47'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(7, 9); ctx.lineTo(15, 16); ctx.lineTo(22, 7); ctx.stroke();
+    ctx.strokeStyle = '#7598b6'; ctx.lineWidth = 6; ctx.stroke();
+    ctx.strokeStyle = '#fff5dd'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(20, 8); ctx.lineTo(23, 5); ctx.stroke();
+    ctx.save(); ctx.translate(23, 7); ctx.rotate(Math.sin(time * 3.4) * .18);
+    ctx.fillStyle = gradient(ctx, -7, -25, 6, 3, [[0, '#ffe1b6'], [.55, '#edb47d'], [1, '#c78558']]);
+    ctx.strokeStyle = '#633d2e'; ctx.lineWidth = 1.7;
+    ctx.beginPath(); ctx.moveTo(-6, 2); ctx.lineTo(4, 2); ctx.quadraticCurveTo(8, -3, 4, -10); ctx.quadraticCurveTo(2, -12, 1, -8); ctx.lineTo(1, -26); ctx.quadraticCurveTo(-2, -29, -4, -26); ctx.lineTo(-4, -10); ctx.lineTo(-6, -12); ctx.quadraticCurveTo(-10, -13, -9, -9); ctx.lineTo(-6, -3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#a86a47'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-3, -4); ctx.lineTo(2, -4); ctx.moveTo(-2, -8); ctx.lineTo(2, -7); ctx.stroke(); ctx.restore();
+    const skin = gradient(ctx, -18, -19, 5, 4, [[0, '#ffe8c3'], [.5, '#efbd87'], [1, '#c98355']]);
+    ctx.fillStyle = skin; ctx.strokeStyle = '#633d2e'; ctx.lineWidth = 1.5;
+    for (const x of [-19, 5]) { ellipse(ctx, x, -7, 3, 4); ctx.fill(); ctx.stroke(); }
+    rounded(ctx, -12, 0, 10, 8, 3); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-18, -15); ctx.quadraticCurveTo(-18, -23, -7, -23); ctx.quadraticCurveTo(5, -23, 5, -13); ctx.lineTo(3, -2); ctx.quadraticCurveTo(-7, 8, -17, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#34343b';
+    ctx.beginPath(); ctx.moveTo(-19, -9); ctx.lineTo(-20, -16); ctx.quadraticCurveTo(-18, -25, -8, -24); ctx.quadraticCurveTo(1, -26, 6, -17); ctx.lineTo(5, -10); ctx.lineTo(1, -15); ctx.quadraticCurveTo(-5, -13, -11, -17); ctx.lineTo(-16, -14); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#a4a6a7'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-17, -17); ctx.quadraticCurveTo(-15, -21, -10, -21); ctx.stroke();
+    ctx.fillStyle = '#fff9e8';
+    for (const x of [-12, -2]) { ellipse(ctx, x, -7, 3.7, 3.2); ctx.fill(); }
+    ctx.fillStyle = '#203040'; for (const x of [-11.5, -1.5]) { ellipse(ctx, x, -6.5, 1.8, 2.5); ctx.fill(); }
+    ctx.strokeStyle = '#3c3030'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-16, -12); ctx.lineTo(-8, -10); ctx.moveTo(-5, -10); ctx.lineTo(3, -13); ctx.stroke();
+    ctx.strokeStyle = '#a86a47'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-7, -6); ctx.lineTo(-9, -1); ctx.lineTo(-5, -1); ctx.stroke();
+    ctx.strokeStyle = '#6e332a'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-12, 2); ctx.quadraticCurveTo(-7, -2, -2, 2); ctx.stroke();
+    ctx.save(); ctx.translate(-23, 14); ctx.rotate(-.12);
+    ctx.fillStyle = '#996233'; ctx.strokeStyle = '#342e28'; ctx.lineWidth = 1.5; rounded(ctx, -6, -8, 13, 17, 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff0ca'; rounded(ctx, -4, -6, 9, 13, 1); ctx.fill(); ctx.fillStyle = paint; rounded(ctx, -2, -9, 5, 4, 1); ctx.fill();
+    ctx.strokeStyle = '#a28a63'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(3, 0); ctx.moveTo(-2, 3); ctx.lineTo(2, 3); ctx.stroke(); ctx.restore();
   } else if (id === 'missed-deadlines') {
     ctx.strokeStyle = '#a8ceda'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(-12, 16); ctx.lineTo(-18, 24); ctx.moveTo(12, 16); ctx.lineTo(18, 24); ctx.stroke();

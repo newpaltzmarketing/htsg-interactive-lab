@@ -1,6 +1,10 @@
 # Release changes
 
-## 1.5.1 — live, October 17, 2026
+## 1.5.2 — live, October 17, 2026
+
+Replace only the falling Scope Creep hazard artwork with a recognizable finger-wagging client. Existing movement, collision geometry, damage, weapons and seeded rules remain unchanged. Help uses the same rendered model. Other games, Community 1.0.5 and the approved three-game sharing cover remain unchanged. The approved renderer passed focused source checks, installer verification and actual public renderer-byte/sharing checks before the release handoff.
+
+## 1.5.1 — historical, October 17, 2026
 
 Keep the phone arena height fixed when switching weapon families under an Arial font fallback. The small-screen Invaders dashboard uses a smaller internal gap so the wrapped “Quad spread” label fits its existing dock. No engine, weapon, challenge, community or other-game rule changes are included; challenge rules remain 1.5.0. Arial-fallback and phone checks passed, the verified game-only installer was published, and the actual corrected CSS and sharing checks passed.
 
