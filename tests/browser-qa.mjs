@@ -21,7 +21,8 @@ if (requestedBaseURL) {
 const directoryArgument = process.argv.indexOf('--dir');
 const publicRoot = resolve(root, process.env.QA_SITE_DIR || (directoryArgument >= 0 ? process.argv[directoryArgument + 1] : 'public'));
 const publicTarget = externalBaseURL && !['localhost', '127.0.0.1'].includes(new URL(externalBaseURL).hostname);
-const output = resolve(root, 'artifacts', publicTarget ? 'live-games' : 'qa');
+const outputArgument = process.argv.indexOf('--output');
+const output = outputArgument >= 0 ? resolve(root, process.argv[outputArgument + 1]) : resolve(root, 'artifacts', publicTarget ? 'live-games' : 'qa');
 await mkdir(output, { recursive: true });
 let playwright;
 try {

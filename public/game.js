@@ -7,13 +7,13 @@ import {
   createRunnerState, jumpRunner, stepRunner, gradeAnswer, resizeGame,
   chooseInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA, INVADER_RULES_VERSION,
 } from './game-engine.js';
-import { createRenderer } from './game-renderer.js';
+import { createRenderer, HAZARD_VISUALS, drawHazardIcon } from './game-renderer.js';
 import { createGameAudio } from './game-audio.js';
 
 const games = {
   invaders: {
-    title: 'Agency Invaders', headline: 'Clear the orbit.',
-    instructions: 'Scope creep, missed deadlines, budget overruns. Clear the project chaos before it costs you a life.',
+    title: 'Agency Invaders', headline: 'Your inbox fights back.',
+    instructions: 'Deadlines are ticking. Budgets are bursting. Clear the agency chaos, power up, and take on the big brief.',
     help: 'Drag anywhere in the game to fly and fire. The ship follows your movement without jumping under your finger. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
     depth: 'Earn upgrades at 3 and 7 defeated hazards. After wave 2, keep wide spread or choose stronger focused beams. Collect missile capsules from wave 3: up to four pairs launch automatically while you fire. Shields block one impact. Every fifth wave brings a boss with locked warning marks. Upgrades survive hits. Your personal best stays on this device.',
     hint: 'Drag anywhere to fly and fire.', action: 'Fire',
@@ -76,6 +76,10 @@ let choiceVisible = false;
 let lastPickup = 0;
 let lastVolley = 0;
 let lastBossPhase = '';
+let lastKills = 0;
+let lastBossesDefeated = 0;
+let lastMissileId = 0;
+let lastWavePhase = '';
 
 document.body.dataset.game = mode;
 byId('title').textContent = game.title;
@@ -115,10 +119,21 @@ function syncStatus() {
     byId('weapon-readout').textContent = invaderWeapon(state).name;
     const missilePairs = state.missilePairs || 0;
     byId('missile-readout').textContent = `${missilePairs} missile ${missilePairs === 1 ? 'pair' : 'pairs'}`;
-    if (state.volleys !== lastVolley) { lastVolley = state.volleys; if (lastVolley % 2) audio.play('fire'); }
+    if (state.volleys !== lastVolley) {
+      lastVolley = state.volleys;
+      audio.play(state.weaponFamily === 'focused' ? 'lance' : state.weaponLevel >= 3 ? 'spread' : 'fire');
+    }
+    const missileId = Math.max(0, ...(state.missiles || []).map(shot => shot.id || 0));
+    if (missileId > lastMissileId) { lastMissileId = missileId; audio.play('missile'); }
     const bossPhase = state.boss?.phase || '';
-    if (bossPhase === 'windup' && lastBossPhase !== bossPhase) audio.play('warning');
+    if (bossPhase === 'entering' && !lastBossPhase) audio.play('bossEnter');
+    if (bossPhase === 'windup' && lastBossPhase !== bossPhase) audio.play(state.boss.label === 'Change Request' ? 'revision' : 'warning');
     lastBossPhase = bossPhase;
+    if (state.bossesDefeated > lastBossesDefeated) { lastBossesDefeated = state.bossesDefeated; audio.play('bossClear'); }
+    else if (state.kills > lastKills) audio.play('destroy');
+    lastKills = state.kills;
+    if (state.phase === 'intermission' && lastWavePhase !== 'intermission' && !state.lastBoss) audio.play('waveClear');
+    lastWavePhase = state.phase;
   }
   const impact = mode === 'invaders' && state?.lastHazardTime > 0;
   impactFeedback.hidden = !impact;
@@ -290,6 +305,7 @@ function resetGame(options = {}) {
   state = mode === 'invaders' ? challengeSettings ? createInvadersChallenge(challengeSettings) : createInvadersState(world) : createRunnerState(world);
   if (mode === 'invaders') { byId('pause-actions').append(start); byId('weapon-dashboard').hidden = false; }
   resultEmitted = false; choiceVisible = false; lastPickup = 0; lastVolley = 0; lastBossPhase = '';
+  lastKills = 0; lastBossesDefeated = 0; lastMissileId = 0; lastWavePhase = '';
   lastLives = 3;
   lastWeaponLevel = 1;
   newPersonalBest = false;
@@ -483,6 +499,17 @@ document.addEventListener('keydown', event => {
 
 function setupArcade() {
   byId('sound-toggle').hidden = mode !== 'invaders';
+  if (mode === 'invaders') {
+    byId('hazard-guide').hidden = false;
+    for (const [id, hazard] of Object.entries(HAZARD_VISUALS)) {
+      const item = document.createElement('li');
+      const icon = document.createElement('canvas'); icon.width = 128; icon.height = 128; icon.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span'), label = document.createElement('strong'), description = document.createElement('small');
+      label.textContent = hazard.label; description.textContent = hazard.description;
+      text.append(label, description); item.append(icon, text); byId('hazard-legend').append(item);
+      drawHazardIcon(icon.getContext('2d'), id, 128);
+    }
+  }
   quiz.hidden = true;
   byId('arcade-hud').hidden = true;
   canvas.setAttribute('aria-label', `${game.title} arena. Select Start to play. ${game.help}`);

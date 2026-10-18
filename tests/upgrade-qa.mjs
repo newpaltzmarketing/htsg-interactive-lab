@@ -112,10 +112,6 @@ async function contextFor(viewport, { fallback = false } = {}) {
             let result;
             try { result = originalRender.call(renderer, ctx, state, options); }
             finally { ctx.drawImage = drawImage; ctx.fillText = fillText; }
-            if (state?.kind === 'invaders' && source.hazardLabelLayout) {
-              window.__qaRenderOptions = JSON.parse(JSON.stringify(options));
-              window.__qaLabels = source.hazardLabelLayout(ctx, state.enemies, state.world, options);
-            }
             if (state && JSON.stringify(state) !== before) console.error('Renderer mutated game state');
             return result;
           },
@@ -329,40 +325,28 @@ try {
     }
   });
 
-  await check('named hazards stay readable in the arena and identify damage versus shield protection', async () => {
+  await check('hazard guide identifies six agency objects and feedback names damage versus shield protection', async () => {
     await open(page, 'invaders');
     await page.locator('#overlay-action').tap();
     await page.waitForTimeout(1800);
     const visibleHazards = (await snapshot(page)).enemies.filter(enemy => enemy.y > 0);
     const drawnNames = await page.evaluate(() => window.__qaTexts.map(item => item.text));
     assert.ok(visibleHazards.length > 0);
-    assert.ok(drawnNames.includes('Scope creep'), 'The actual game renderer paints the first named hazard after it enters');
-    await capture(page, 'invaders-named-hazards-390');
-    const labels = await page.evaluate(async () => {
-      const { hazardLabelLayout } = await import(new URL('game-renderer.js?qa-original=1', location.href));
-      const { arenaFor, INVADER_HAZARDS } = await import(new URL('game-engine.js', location.href));
-      const scene = window.__qaScene;
-      const arena = arenaFor(scene);
-      const canvas = document.getElementById('canvas');
-      const canvasRect = canvas.getBoundingClientRect();
-      const hud = ['status', 'mission-detail'].map(id => document.getElementById(id).getBoundingClientRect());
-      const enemies = INVADER_HAZARDS.map((hazard, index) => ({ x: index % 2 ? arena.width - 10 : 10, y: 160 + index * 130, hazard, label: hazard.label }));
-      return hazardLabelLayout(canvas.getContext('2d'), enemies, arena, { cssWidth: canvas.clientWidth, cssHeight: canvas.clientHeight, reservedRects: window.__qaRenderOptions.reservedRects }).map(label => {
-        const left = canvasRect.x + label.x * canvasRect.width / arena.width;
-        const right = left + label.width * canvasRect.width / arena.width;
-        const top = canvasRect.y + label.y * canvasRect.height / arena.height;
-        const bottom = top + label.height * canvasRect.height / arena.height;
-        return { ...label, cssFontSize: label.fontSize * canvas.clientHeight / arena.height, arenaWidth: arena.width, arenaHeight: arena.height,
-          overlapsHud: hud.some(rect => left < rect.right && right > rect.left && top < rect.bottom && bottom > rect.top) };
-      });
-    });
-    assert.equal(labels.length, INVADER_HAZARDS.length);
-    assert.deepEqual(labels.map(label => label.text).sort(), INVADER_HAZARDS.map(hazard => hazard.label).sort());
-    for (const label of labels) {
-      assert.ok(label.cssFontSize >= 13 - 1e-9, 'Hazard names stay at least 13 CSS pixels');
-      assert.ok(label.x >= 0 && label.y >= 0 && label.x + label.width <= label.arenaWidth && label.y + label.height <= label.arenaHeight, 'Edge labels remain inside the arena');
-      assert.equal(label.overlapsHud, false, `${label.text} cannot hide behind the score or wave text`);
+    assert.equal(INVADER_HAZARDS.some(hazard => drawnNames.includes(hazard.label)), false, 'Falling objects use their silhouettes rather than floating name labels');
+    await capture(page, 'invaders-agency-objects-390');
+    await page.locator('#help-toggle').tap();
+    const entries = page.locator('#hazard-legend li');
+    assert.equal(await entries.count(), INVADER_HAZARDS.length);
+    assert.deepEqual((await entries.locator('strong').allTextContents()).sort(), INVADER_HAZARDS.map(hazard => hazard.label).sort());
+    for (const entry of await entries.all()) {
+      assert.match((await entry.locator('small').innerText()).trim(), /\S+\s+\S+/, 'Each object has a specific visual explanation');
+      const icon = entry.locator('canvas');
+      assert.equal(await icon.isVisible(), true);
+      assert.ok(await icon.evaluate(canvas => canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.some((value, index) => index % 4 === 3 && value > 0)), 'Guide draws a real sprite');
     }
+    await capture(page, 'invaders-hazard-guide-390');
+    await page.locator('#help-close').tap();
+    await page.locator('#pause').tap();
     await page.waitForFunction(() => window.__qaState?.lastHazardTime > 0 && !window.__qaState.lastHazardBlocked, undefined, { timeout: 15000 });
     assert.equal(await page.locator('#impact-feedback').isVisible(), true);
     assert.match(await page.locator('#impact-feedback').textContent(), /1 life lost/);
@@ -370,19 +354,11 @@ try {
     assert.ok(INVADER_HAZARDS.some(hazard => hazard.label === hit.lastHazard));
     assert.match(await page.locator('#impact-feedback').textContent(), new RegExp(hit.lastHazard));
     assert.equal(hit.lives, 2);
-    const obscured = await page.evaluate(() => {
-      const canvas = document.getElementById('canvas').getBoundingClientRect();
-      const world = window.__qaState.world;
-      const boxes = ['status', 'mission-detail', 'impact-feedback'].map(id => document.getElementById(id)).filter(node => node.getClientRects().length).map(node => node.getBoundingClientRect());
-      return window.__qaLabels.filter(label => {
-        const left = canvas.x + label.x * canvas.width / world.width;
-        const top = canvas.y + label.y * canvas.height / world.height;
-        const right = left + label.width * canvas.width / world.width;
-        const bottom = top + label.height * canvas.height / world.height;
-        return boxes.some(box => left < box.right && right > box.left && top < box.bottom && bottom > box.top);
-      }).map(label => label.text);
+    const feedbackFits = await page.locator('#impact-feedback').evaluate(node => {
+      const box = node.getBoundingClientRect();
+      return box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight;
     });
-    assert.deepEqual(obscured, [], 'Real gameplay hazard names cannot hide behind HUD or impact feedback');
+    assert.equal(feedbackFits, true, 'The named life-loss feedback remains inside the phone viewport');
     await capture(page, 'invaders-natural-impact-390');
     // Only shield protection uses deterministic client-only setup. Normal engine
     // collision, damage, feedback, shield consumption and drawing still execute.
