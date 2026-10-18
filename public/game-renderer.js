@@ -88,7 +88,7 @@ function thruster(ctx, x, y, length, time, reducedMotion, width = 9) {
   ctx.fillStyle = '#fff8dc'; ellipse(ctx, x, y + 2, width * 0.7, 3); ctx.fill();
 }
 
-function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown = 0, weaponLevel = 1) {
+function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown = 0, weaponLevel = 1, weaponFamily = 'spread') {
   ctx.save(); ctx.translate(x, y); ctx.rotate(bank * 0.16);
   glow(ctx, 0, 17, 85, paint, 0.14);
   const pulse = reducedMotion ? 0 : Math.sin(time * 4) * 4;
@@ -124,7 +124,7 @@ function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown
   ctx.fillStyle = '#fff2cf'; ctx.fillRect(-5, 18, 2, 9); ctx.fillRect(3, 18, 2, 9); ctx.fillRect(-3, 21, 6, 2);
   ctx.fillStyle = '#213543'; for (const dx of [-12, 12]) { circle(ctx, dx, 14, 1.4); ctx.fill(); }
   if (weaponLevel > 1) {
-    for (const shot of invaderWeapon({ weaponLevel }).pattern) {
+    for (const shot of invaderWeapon({ weaponLevel, weaponFamily }).pattern) {
       ctx.fillStyle = '#9dabb0'; rounded(ctx, shot.offset - 3.5, -36, 7, 15, 2); ctx.fill();
       ctx.fillStyle = beamCore; rounded(ctx, shot.offset - 2.5, -39, 5, 5, 2); ctx.fill();
       glow(ctx, shot.offset, -37, 8, paint, 0.35);
@@ -197,8 +197,11 @@ function bossThreat(ctx, scene, arena, options) {
   if (boss.phase === 'windup') {
     ctx.save(); ctx.strokeStyle = '#ffbc78b3'; ctx.fillStyle = '#e6532420'; ctx.lineWidth = 2 * unit;
     ctx.setLineDash([8 * unit, 8 * unit]);
-    ctx.beginPath(); ctx.moveTo(boss.x, boss.y + shape.halfHeight); ctx.lineTo(boss.aimX, boss.aimY); ctx.stroke();
-    ctx.setLineDash([]); circle(ctx, boss.aimX, boss.aimY, 21 * unit); ctx.fill(); ctx.stroke();
+    for (const offset of boss.warningOffsets || [0]) {
+      ctx.beginPath(); ctx.moveTo(boss.x, boss.y + shape.halfHeight); ctx.lineTo(boss.aimX + offset, boss.aimY); ctx.stroke();
+      circle(ctx, boss.aimX + offset, boss.aimY, 21 * unit); ctx.fill(); ctx.stroke();
+    }
+    ctx.setLineDash([]);
     ctx.fillStyle = '#ffe3bd'; ctx.textAlign = 'center'; ctx.font = `700 ${12 * unit}px system-ui, sans-serif`;
     ctx.fillText('Incoming', clamp(boss.aimX, 50 * unit, arena.width - 50 * unit), Math.max(18 * unit, boss.aimY - 29 * unit));
     ctx.restore();
@@ -240,8 +243,15 @@ function hostileProjectile(ctx, shot) {
 function projectile(ctx, bullet, reducedMotion) {
   const tail = reducedMotion ? 22 : 43;
   ctx.save(); ctx.translate(bullet.x, bullet.y); ctx.rotate(Math.atan2(bullet.vx || 0, 620));
-  ctx.fillStyle = gradient(ctx, 0, -8, 0, tail, [[0, beamCore], [0.25, paint], [1, 'transparent']]);
-  rounded(ctx, -3, -9, 6, tail, 3); ctx.fill();
+  const lance = bullet.kind === 'lance', missile = bullet.kind === 'missile';
+  if (missile) {
+    ctx.fillStyle = '#b6cad0'; rounded(ctx, -5, -15, 10, 23, 4); ctx.fill();
+    ctx.fillStyle = paint; ctx.beginPath(); ctx.moveTo(-8, 9); ctx.lineTo(0, 3); ctx.lineTo(8, 9); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff0bd'; ellipse(ctx, 0, 12, 3, reducedMotion ? 6 : 12); ctx.fill();
+  } else {
+    ctx.fillStyle = gradient(ctx, 0, -8, 0, lance ? tail * 1.6 : tail, [[0, beamCore], [0.25, lance ? '#9eeaff' : paint], [1, 'transparent']]);
+    rounded(ctx, lance ? -2 : -3, -9, lance ? 4 : 6, lance ? tail * 1.6 : tail, 2); ctx.fill();
+  }
   glow(ctx, 0, 0, 13, paint, 0.4); ctx.restore();
 }
 
@@ -323,6 +333,13 @@ function hazardImpact(ctx, scene, arena, reducedMotion) {
 function shieldPickup(ctx, item, time, reducedMotion) {
   const bob = reducedMotion ? 0 : Math.sin(time * 3 + item.x) * 3;
   ctx.save(); ctx.translate(item.x, item.y + bob);
+  if (item.kind === 'missiles') {
+    glow(ctx, 0, 0, 38, '#f78c1a', 0.22);
+    ctx.fillStyle = '#243e50'; ctx.strokeStyle = '#ffcc8a'; ctx.lineWidth = 2;
+    rounded(ctx, -22, -24, 44, 48, 9); ctx.fill(); ctx.stroke();
+    for (const x of [-9, 9]) { ctx.fillStyle = '#e9f6f3'; rounded(ctx, x - 3, -15, 6, 26, 3); ctx.fill(); ctx.fillStyle = paint; ctx.fillRect(x - 5, 8, 10, 5); }
+    ctx.restore(); return;
+  }
   glow(ctx, 0, 0, 35, '#83defc60');
   ctx.fillStyle = gradient(ctx, -15, -18, 15, 18, [[0, '#aee7e6'], [0.45, '#397891'], [1, '#092a46']]);
   ctx.strokeStyle = '#b9f2f4'; ctx.lineWidth = 2;
@@ -589,8 +606,14 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
       bossThreat(ctx, scene, arena, options);
       for (const shot of scene.hostileShots || []) hostileProjectile(ctx, shot);
       for (const bullet of scene.bullets || []) projectile(ctx, bullet, reducedMotion);
+      for (const missile of scene.missiles || []) projectile(ctx, missile, reducedMotion);
       for (const item of scene.pickups || []) shieldPickup(ctx, item, time, reducedMotion);
-      spacecraft(ctx, scene.player, arena.playerY, scene.bank || 0, time, reducedMotion, scene.shield, scene.damageCooldown, scene.weaponLevel);
+      spacecraft(ctx, scene.player, arena.playerY, scene.bank || 0, time, reducedMotion, scene.shield, scene.damageCooldown, scene.weaponLevel, scene.weaponFamily);
+      if (scene.missilePairs > 0) {
+        ctx.save(); ctx.fillStyle = '#bfd2d4'; ctx.strokeStyle = paint; ctx.lineWidth = 2;
+        for (const side of [-1, 1]) { rounded(ctx, scene.player + side * 40 - 5, arena.playerY - 15, 10, 25, 4); ctx.fill(); ctx.stroke(); }
+        ctx.restore();
+      }
     }
     if (mode !== 'runner') effects(ctx, scene.effects, reducedMotion);
     vignette(ctx, width, height);

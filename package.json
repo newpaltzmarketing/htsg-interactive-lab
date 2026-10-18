@@ -1,8 +1,8 @@
 {
   "name": "htsg-interactive-lab",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
-  "description": "Three HTSG browser games for public demonstrations. Static files only.",
+  "description": "Three free HTSG browser games with optional first-party community challenges.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -16,6 +16,7 @@
     "test:upgrade": "node tests/upgrade-qa.mjs",
     "test:gamification": "node tests/gamification-qa.mjs",
     "test:share": "node tests/share-preview-qa.mjs",
+    "test:community": "node tests/community-qa.mjs",
     "artwork:share": "node scripts/generate-share-card.mjs",
     "metadata:sync": "node scripts/sync-share-metadata.mjs",
     "build": "node scripts/build.mjs",

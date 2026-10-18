@@ -40,11 +40,13 @@ async function fits(page) {
     const rect = node => { const box=node.getBoundingClientRect(); return {x:box.x,y:box.y,right:box.right,bottom:box.bottom,width:box.width,height:box.height}; };
     return { viewport:{width:innerWidth,height:innerHeight}, overflow:document.documentElement.scrollWidth>innerWidth+1,
       canvas:rect(document.getElementById('canvas')), hud:rect(document.getElementById('mission-detail')),
+      dashboard:document.getElementById('weapon-dashboard')?.getClientRects().length ? rect(document.getElementById('weapon-dashboard')) : null,
       controls:[...document.querySelectorAll('#controls button')].filter(node=>node.getClientRects().length).map(rect) };
   });
   assert.equal(geometry.overflow,false);
   assert.ok(geometry.hud.x>=0 && geometry.hud.right<=geometry.viewport.width+1 && geometry.hud.bottom<=geometry.canvas.bottom);
   for(const box of [geometry.canvas,...geometry.controls]) assert.ok(box.x>=-1 && box.y>=-1 && box.right<=geometry.viewport.width+1 && box.bottom<=geometry.viewport.height+1,'Canvas and controls fit together');
+  if(geometry.dashboard) assert.ok(geometry.dashboard.x>=0 && geometry.dashboard.right<=geometry.viewport.width && geometry.dashboard.bottom<=geometry.viewport.height,'Weapon and missile readouts fit in the compact dashboard');
   return geometry;
 }
 async function bossBarFits(page) {
@@ -75,26 +77,36 @@ export function createRenderer(...args){const renderer=original.createRenderer(.
 if(state){window.__qaState=JSON.parse(JSON.stringify(state));window.__qaScene=state;window.__qaRenderOptions=JSON.parse(JSON.stringify(options));window.__qaMaxBullets=Math.max(window.__qaMaxBullets||0,state.bullets?.length||0);const key=state.weaponLevel+':'+state.wave+':'+state.phase;if(key!==window.__qaLast){(window.__qaTrace||=[]).push({level:state.weaponLevel,wave:state.wave,phase:state.phase,kills:state.kills,elapsed:state.elapsed});window.__qaLast=key;}
 const drone=state.enemies?.find(enemy=>enemy.type==='drone'&&enemy.age>.05);if(drone){const scale=Math.min(4.5,Math.max(.65,state.world.height/540));(window.__qaPace||={})[state.wave]={quota:state.waveQuota,descent:(drone.y+58)/drone.age/scale};}
 if(state.boss){const boss=window.__qaBoss||={maxHealth:state.boss.maxHealth,minimumHealth:state.boss.health,phases:[],maxHostileShots:0};boss.minimumHealth=Math.min(boss.minimumHealth,state.boss.health);if(!boss.phases.includes(state.boss.phase))boss.phases.push(state.boss.phase);boss.maxHostileShots=Math.max(boss.maxHostileShots,state.hostileShots?.length||0);boss.lastSeen=state.elapsed;}else if(window.__qaBoss&&state.phase==='intermission')window.__qaBoss.defeated=true;}
+if(state){window.__qaMissiles||={maximumPairs:0,maximumActive:0,launched:false};window.__qaMissileIds||=new Set();for(const shot of state.missiles||[])window.__qaMissileIds.add(shot.id);window.__qaMissiles.launchedPairs=window.__qaMissileIds.size/2;window.__qaMissiles.maximumPairs=Math.max(window.__qaMissiles.maximumPairs,state.missilePairs||0);window.__qaMissiles.maximumActive=Math.max(window.__qaMissiles.maximumActive,state.missiles?.length||0);if(state.missiles?.length>=2)window.__qaMissiles.launched=true;if(window.__qaMissiles.maximumPairs>0&&state.missilePairs===0)window.__qaMissiles.depleted=true;}
 return renderer.render(ctx,state,options);}};}`});
     });
     const page=await context.newPage();
     activePage=page;
     page.on('pageerror',error=>errors.push(error.message));
-    await check(`${viewport.width}px earned progression${viewport.width===1280?', compounding waves and boss':''}, bounded volleys and restart`,async()=>{
+    const name=args.includes('--choice-only') ? `${viewport.width}px earned untimed weapon choice and background-input isolation` : `${viewport.width}px earned ${viewport.width<600?'focused':'spread'} choice, finite missiles${viewport.width===1280?', compounding waves and boss':''}, pause and restart`;
+    await check(name,async()=>{
       await page.goto(`${base}/play.html?game=invaders`);
       await page.waitForFunction(()=>document.documentElement.dataset.artwork==='ready');
       await page.locator('#overlay-action').click();
       assert.match(await page.title(),/Agency Invaders/);
-      assert.match(await page.locator('#mission-detail').textContent(),/Weapon 1/);
+      assert.equal(await page.locator('#weapon-readout').textContent(),'Single shot');
       await page.keyboard.down('Space');
       let aiming=true, heldDirection;
       const aimTask=(async()=>{
         while(aiming&&!page.isClosed()){
-          const input=await page.evaluate(()=>({state:window.__qaState,left:document.getElementById('left').getAttribute('aria-pressed')==='true',right:document.getElementById('right').getAttribute('aria-pressed')==='true',action:document.getElementById('action').getAttribute('aria-pressed')==='true'}));
+          const input=await page.evaluate(()=>({state:window.__qaState,ammoSeen:window.__qaMissiles?.maximumPairs>0,left:document.getElementById('left').getAttribute('aria-pressed')==='true',right:document.getElementById('right').getAttribute('aria-pressed')==='true',action:document.getElementById('action').getAttribute('aria-pressed')==='true'}));
           const state=input.state;
           if(state?.ended) break;
+          if(state?.phase==='choice'){
+            if(heldDirection)await page.keyboard.up(heldDirection);
+            heldDirection=undefined;
+            await page.keyboard.up('Space');
+            await page.waitForTimeout(80);
+            continue;
+          }
           if(!input.action){await page.keyboard.up('Space');await page.keyboard.down('Space');}
-          const target=state?.boss || state?.enemies.filter(enemy=>enemy.y>0 && enemy.y<state.playerY-75).sort((a,b)=>b.y-a.y)[0];
+          const supply=!input.ammoSeen && state?.pickups?.find(pickup=>pickup.kind==='missiles' && pickup.y>state.playerY-state.world.height*.35);
+          const target=state?.boss || supply || state?.enemies.filter(enemy=>enemy.y>0 && enemy.y<state.playerY-75).sort((a,b)=>b.y-a.y)[0];
           const direction=target && Math.abs(target.x-state.player)>18 ? (target.x>state.player?'ArrowRight':'ArrowLeft') : undefined;
           const released=direction && !input[direction==='ArrowLeft'?'left':'right'];
           if(direction!==heldDirection||released){if(heldDirection)await page.keyboard.up(heldDirection);if(direction)await page.keyboard.down(direction);heldDirection=direction;}
@@ -105,7 +117,7 @@ return renderer.render(ctx,state,options);}};}`});
       await page.waitForFunction(()=>window.__qaState?.weaponLevel===2 && window.__qaState.bullets.filter(shot=>shot.weaponLevel===2).length>=2,undefined,{timeout:45000});
       const twin=await page.evaluate(()=>window.__qaState.bullets.filter(shot=>shot.weaponLevel===2).slice(-2));
       assert.equal(twin.length,2); assert.ok(twin[0].x!==twin[1].x && twin.every(shot=>shot.vx===0));
-      assert.match(await page.locator('#mission-detail').textContent(),/Weapon 2.*Twin streams/);
+      assert.equal(await page.locator('#weapon-readout').textContent(),'Twin streams');
       await page.waitForFunction(()=>window.__qaState?.weaponLevel===3 && window.__qaState.bullets.filter(shot=>shot.weaponLevel===3).length>=4,undefined,{timeout:45000});
       await page.waitForTimeout(230);
       const state=await page.evaluate(()=>window.__qaState);
@@ -113,7 +125,7 @@ return renderer.render(ctx,state,options);}};}`});
       assert.equal(quad.length,4);
       assert.ok(quad.some(shot=>shot.vx<0)&&quad.some(shot=>shot.vx>0));
       assert.ok(Math.max(...quad.map(shot=>shot.x))-Math.min(...quad.map(shot=>shot.x))>50);
-      assert.match(await page.locator('#mission-detail').textContent(),/Weapon 3.*Quad spread/);
+      assert.equal(await page.locator('#weapon-readout').textContent(),'Quad spread');
       const trace=await page.evaluate(()=>window.__qaTrace);
       assert.deepEqual([...new Set(trace.map(item=>item.level))],[1,2,3]);
       const breath=trace.find(item=>item.phase==='intermission');
@@ -125,6 +137,43 @@ return renderer.render(ctx,state,options);}};}`});
       assert.equal(await page.locator('#steering-pad').count(),0);
       if(viewport.width===390) assert.ok(geometry.canvas.height>=666,'The phone arena gains at least60px over the former606px stage');
       await page.screenshot({path:resolve(output,`invaders-quad-${viewport.width}.png`)});
+      await page.waitForFunction(()=>window.__qaState?.phase==='choice',undefined,{timeout:30000});
+      await page.locator('#weapon-choice').waitFor({state:'visible'});
+      assert.equal(await page.locator('#weapon-choice-title').evaluate(node=>node===document.activeElement),true,'The untimed choice is announced and receives focus');
+      const choiceBefore=await page.evaluate(()=>window.__qaState);
+      await page.waitForTimeout(220);
+      assert.equal((await page.evaluate(()=>window.__qaState)).elapsed,choiceBefore.elapsed,'Taking time to choose does not advance hazards or the challenge clock');
+      assert.equal(await page.locator('#controls').evaluate(node=>node.inert),true,'The choice makes background controls unavailable');
+      const choiceState=await page.evaluate(()=>JSON.stringify(window.__qaScene));
+      await page.keyboard.down('ArrowRight');
+      await page.keyboard.down('Space');
+      await page.waitForTimeout(80);
+      await page.keyboard.up('ArrowRight');
+      await page.keyboard.up('Space');
+      assert.equal(await page.evaluate(()=>JSON.stringify(window.__qaScene)),choiceState,'Movement and Fire cannot alter the untimed choice state');
+      await page.screenshot({path:resolve(output,`invaders-choice-${viewport.width}.png`)});
+      const family=viewport.width<600?'focused':'spread';
+      if(viewport.width<600)await page.locator(`#weapon-${family}`).tap();
+      else await page.locator(`#weapon-${family}`).click();
+      assert.equal(await page.locator('#weapon-choice').isVisible(),false);
+      assert.equal(await page.locator('#canvas').evaluate(node=>node===document.activeElement),true);
+      await page.waitForFunction(selected=>window.__qaState?.weaponFamily===selected && window.__qaState.bullets.filter(shot=>selected==='focused'?shot.kind==='lance':shot.weaponLevel===3).length>=2,family);
+      const selected=await page.evaluate(()=>window.__qaState);
+      assert.equal(selected.weaponLevel,3,'Choosing a family preserves the earned upgrade');
+      assert.equal(await page.locator('#weapon-readout').textContent(),family==='focused'?'Twin lances':'Quad spread');
+      if(family==='focused')assert.ok(selected.bullets.filter(shot=>shot.kind==='lance').slice(-2).every(shot=>shot.damage===3&&shot.vx===0),'Focused fire supplies stronger straight beams instead of a renamed spread');
+      assert.equal(await page.locator('#controls').evaluate(node=>node.inert),false,'Selecting a weapon restores ordinary controls');
+      if(args.includes('--choice-only')){aiming=false;await aimTask;observations.push({viewport,family,choiceElapsed:choiceBefore.elapsed,scope:'Earned wave-two choice; background keyboard isolation and selection only.'});return;}
+      await page.waitForFunction(()=>window.__qaMissiles?.launched && window.__qaState.missiles.length>=2,undefined,{timeout:30000});
+      const missiles=await page.evaluate(()=>({observed:window.__qaMissiles,state:window.__qaState,readout:document.getElementById('missile-readout').textContent}));
+      assert.ok(missiles.observed.maximumPairs>0&&missiles.observed.maximumPairs<=4,'A real collected capsule loads a bounded missile supply');
+      assert.ok(missiles.observed.maximumActive>=2&&missiles.observed.maximumActive<=8,'Side missiles launch as bounded pairs alongside primary fire');
+      assert.match(missiles.readout,/^[0-4] missile pairs?$/);
+      await fits(page);
+      await page.screenshot({path:resolve(output,`invaders-${family}-missiles-${viewport.width}.png`)});
+      await page.waitForFunction(()=>window.__qaMissiles?.depleted&&window.__qaMissiles.launchedPairs>=4,undefined,{timeout:10000});
+      const ammunition=await page.evaluate(()=>window.__qaMissiles);
+      const expansion={family,choiceElapsed:choiceBefore.elapsed,missilePairs:ammunition.maximumPairs,maximumMissiles:ammunition.maximumActive,launchedPairs:ammunition.launchedPairs,depleted:ammunition.depleted};
       let bossObservation;
       if(viewport.width===1280){
         await page.waitForFunction(()=>window.__qaState?.boss?.phase==='windup',undefined,{timeout:75000});
@@ -185,6 +234,15 @@ return renderer.render(ctx,state,options);}};}`});
       const frozen=await page.locator('#canvas').screenshot();
       await page.waitForTimeout(200);
       assert.deepEqual(await page.locator('#canvas').screenshot(),frozen);
+      if(viewport.width<600){
+        await page.locator('#help-toggle').click();
+        assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'),'false','Original sound effects are off until explicitly enabled');
+        await page.locator('#sound-toggle').click();
+        assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'),'true');
+        await page.locator('#sound-toggle').click();
+        assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'),'false');
+        await page.locator('#help-close').click();
+      }
       let personalBest;
       if(viewport.width===1280){
         await page.locator('#pause').click();
@@ -200,7 +258,7 @@ return renderer.render(ctx,state,options);}};}`});
       await page.locator('#start').click();
       const restarted=await page.evaluate(()=>window.__qaState);
       assert.equal(restarted.weaponLevel,1);assert.equal(restarted.kills,0);assert.equal(restarted.score,0);
-      observations.push({viewport,trace,maximumBullets:maximum,quadVelocity:quad.map(shot=>shot.vx),earnedKills:state.kills,elapsed:state.elapsed,geometry,...(bossObservation?{bossObservation}:{}),...(personalBest?{personalBest}: {})});
+      observations.push({viewport,trace,maximumBullets:maximum,quadVelocity:quad.map(shot=>shot.vx),earnedKills:state.kills,elapsed:state.elapsed,geometry,expansion,...(bossObservation?{bossObservation}:{}),...(personalBest?{personalBest}: {})});
     });
     await context.close();
   }
@@ -209,6 +267,6 @@ return renderer.render(ctx,state,options);}};}`});
   const browserVersion=browser.version();
   await browser.close();
   if(server) await new Promise(done=>server.close(done));
-  await writeFile(resolve(output,'results.json'),JSON.stringify({generatedAt:new Date().toISOString(),baseURL:base,browserVersion,results,observations,errors,scope:'Seeded lane jitter and keyboard aiming for repeatability. Earned kills, upgrades, later waves and boss use the unmodified simulation with actual held Fire and direct arena gestures. Only the personal-best controller/storage check marks the earned run ended, without changing its score. Mobile Chromium emulation; no physical-device/Safari claim.'},null,2));
+  await writeFile(resolve(output,'results.json'),JSON.stringify({generatedAt:new Date().toISOString(),baseURL:base,browserVersion,results,observations,errors,scope:'Seeded lane jitter and keyboard aiming for repeatability. Earned kills, upgrades, wave-two weapon choice, missile collection/expenditure, later waves and boss use the unmodified simulation with actual held Fire and direct arena gestures. Sound checks verify the explicit default-off/toggle controls, not physical audio output. Only the personal-best controller/storage check marks the earned run ended, without changing its score. Mobile Chromium emulation; no physical-device/Safari claim.'},null,2));
 }
 if(results.some(result=>!result.passed))process.exitCode=1;

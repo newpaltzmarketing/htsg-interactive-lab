@@ -22,7 +22,7 @@
     },
     "invaders": {
       "title": "Agency Invaders | HTSG Gamification Labs",
-      "description": "Dodge scope creep, missed deadlines, and budget overruns. Drag to fly, upgrade your weapons, and take on agency bosses in Agency Invaders.",
+      "description": "Turn project chaos into target practice. Choose spread or focused fire, collect side missiles, and outfly agency bosses with touch or keyboard controls.",
       "path": "play.html?game=invaders"
     },
     "runner": {

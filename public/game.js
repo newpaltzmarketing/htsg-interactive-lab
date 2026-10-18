@@ -5,15 +5,17 @@ import {
   ARENA, arenaFor, createInputState, setInput, getInput, clearInput,
   createInvadersState, stepInvaders, fireInvaders, invaderWeapon,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer, resizeGame,
+  chooseInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA, INVADER_RULES_VERSION,
 } from './game-engine.js';
 import { createRenderer } from './game-renderer.js';
+import { createGameAudio } from './game-audio.js';
 
 const games = {
   invaders: {
     title: 'Agency Invaders', headline: 'Clear the orbit.',
     instructions: 'Scope creep, missed deadlines, budget overruns. Clear the project chaos before it costs you a life.',
     help: 'Drag anywhere in the game to fly and fire. The ship follows your movement without jumping under your finger. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
-    depth: 'Defeat 3 hazards for Twin streams and 7 for Quad spread. Later waves bring weaving and armored threats; every fifth wave is a boss. Watch the warning marks and move before its shots arrive. Your weapon stays upgraded after a hit. Shields block one impact. Your personal best stays on this device.',
+    depth: 'Earn upgrades at 3 and 7 defeated hazards. After wave 2, keep wide spread or choose stronger focused beams. Collect missile capsules from wave 3: up to four pairs launch automatically while you fire. Shields block one impact. Every fifth wave brings a boss with locked warning marks. Upgrades survive hits. Your personal best stays on this device.',
     hint: 'Drag anywhere to fly and fire.', action: 'Fire',
   },
   runner: {
@@ -49,6 +51,7 @@ const picker = byId('game-picker');
 const helpPanel = byId('help-panel');
 const impactFeedback = byId('impact-feedback');
 const renderer = createRenderer();
+const audio = createGameAudio();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const input = createInputState();
 const arenaPointers = new Map();
@@ -67,6 +70,12 @@ let targetY;
 let personalBest = mode === 'invaders' ? readPersonalBest() : 0;
 let newPersonalBest = false;
 let fullscreenBusy = false;
+let challengeSettings = null;
+let resultEmitted = false;
+let choiceVisible = false;
+let lastPickup = 0;
+let lastVolley = 0;
+let lastBossPhase = '';
 
 document.body.dataset.game = mode;
 byId('title').textContent = game.title;
@@ -99,9 +108,18 @@ function syncStatus() {
   const message = state ? scoreText() : 'Ready to play';
   setStatus(paused ? `Paused · ${message}` : state?.ended ? `Game over · ${message}` : message);
   const detail = !state ? '' : mode === 'invaders'
-    ? `Wave ${state.wave || 1} · Weapon ${state.weaponLevel || 1}: ${invaderWeapon(state).name}${state.weaponUpgradeTime > 0 ? ' · Upgraded!' : ''}${state.boss ? ` · ${state.boss.label}` : state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
+    ? `Wave ${state.wave || 1}${state.boss ? ` · ${state.boss.label}` : state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
     : `${state.boost > 0 ? `Boost · ${state.boost.toFixed(1)}s` : `Energy ${state.energy || 0}/5`}${state.bonus ? ` · +${state.bonus} bonus` : ''}`;
   if (byId('mission-detail').textContent !== detail) byId('mission-detail').textContent = detail;
+  if (mode === 'invaders' && state) {
+    byId('weapon-readout').textContent = invaderWeapon(state).name;
+    const missilePairs = state.missilePairs || 0;
+    byId('missile-readout').textContent = `${missilePairs} missile ${missilePairs === 1 ? 'pair' : 'pairs'}`;
+    if (state.volleys !== lastVolley) { lastVolley = state.volleys; if (lastVolley % 2) audio.play('fire'); }
+    const bossPhase = state.boss?.phase || '';
+    if (bossPhase === 'windup' && lastBossPhase !== bossPhase) audio.play('warning');
+    lastBossPhase = bossPhase;
+  }
   const impact = mode === 'invaders' && state?.lastHazardTime > 0;
   impactFeedback.hidden = !impact;
   if (impact) {
@@ -112,11 +130,17 @@ function syncStatus() {
   const notices = [];
   if (state && mode === 'invaders' && state.lives !== lastLives) {
     lastLives = state.lives;
+    audio.play('impact');
     if (!state.ended) notices.push(`${state.lastHazard ? `${state.lastHazard} cost a life. ` : ''}${state.lives} ${state.lives === 1 ? 'life' : 'lives'} remaining.`);
   }
   if (state && mode === 'invaders' && state.weaponLevel > lastWeaponLevel) {
     lastWeaponLevel = state.weaponLevel;
+    audio.play('upgrade');
     if (!state.ended) notices.push(`Weapon upgraded to ${invaderWeapon(state).name}. This upgrade stays with you for the rest of this run.`);
+  }
+  if (state && mode === 'invaders' && state.pickupSerial !== lastPickup) {
+    lastPickup = state.pickupSerial; audio.play('pickup');
+    notices.push(state.lastPickup === 'missiles' ? 'Missiles loaded. Up to four pairs fire automatically.' : 'Shield collected. One impact protected.');
   }
   if (notices.length) announce(notices.join(' '));
 }
@@ -155,12 +179,18 @@ function stopFrame() {
   lastFrame = 0;
   accumulator = 0;
 }
-function scheduleFrame() { if (playing && !paused && frameId === null) frameId = requestAnimationFrame(frame); }
+function scheduleFrame() { if (playing && !paused && state?.phase !== 'choice' && frameId === null) frameId = requestAnimationFrame(frame); }
 function resizeCanvas() {
   if (mode === 'trivia') return;
+  const view = byId('arena-view').getBoundingClientRect();
+  if (challengeSettings) {
+    const scale = Math.min(view.width / CHALLENGE_ARENA.width, view.height / CHALLENGE_ARENA.height);
+    Object.assign(canvas.style, { width: `${CHALLENGE_ARENA.width * scale}px`, height: `${CHALLENGE_ARENA.height * scale}px`,
+      left: `${(view.width - CHALLENGE_ARENA.width * scale) / 2}px`, top: `${(view.height - CHALLENGE_ARENA.height * scale) / 2}px`, right: 'auto', bottom: 'auto' });
+  } else canvas.removeAttribute('style');
   const rect = canvas.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
-  const next = { width: ARENA.width, height: ARENA.width * rect.height / rect.width };
+  const next = challengeSettings ? { ...CHALLENGE_ARENA } : { width: ARENA.width, height: ARENA.width * rect.height / rect.width };
   if (state && (next.width !== world.width || Math.abs(next.height - world.height) > .1)) resizeGame(state, next.width, next.height);
   world = next;
   const ratio = Math.min(devicePixelRatio || 1, 2);
@@ -183,19 +213,27 @@ function render() {
   renderer.render(context, state, { ...world, cssWidth: rect.width, cssHeight: rect.height, reservedRects, mode, time: state?.elapsed || 0, reducedMotion: reducedMotion.matches });
 }
 function syncOverlay() {
-  overlay.hidden = !!state && !paused && !state.ended;
+  const choice = mode === 'invaders' && state?.phase === 'choice';
+  controls.inert = !!choice;
+  byId('weapon-choice').hidden = !choice;
+  overlay.hidden = choice || !!state && !paused && !state.ended;
+  if (mode === 'invaders' && state) { start.hidden = !paused; byId('pause-actions').hidden = !paused; }
+  byId('free-play').hidden = !challengeSettings;
+  if (challengeSettings) byId('pause-actions').hidden = !paused && !state?.ended;
   if (overlay.hidden) return;
   const ended = state?.ended;
-  byId('overlay-title').textContent = ended ? (mode === 'runner' ? 'One more launch?' : 'Flight complete.') : paused ? 'Take a breath.' : game.headline;
+  byId('overlay-title').textContent = ended ? (state.endReason === 'time' ? 'Challenge complete.' : mode === 'runner' ? 'One more launch?' : 'Flight complete.') : paused ? 'Take a breath.' : game.headline;
   byId('instructions').textContent = ended
-    ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.lastHazard ? `${state.lastHazard} broke through. ` : ''}${state.score} points. Wave ${state.wave || 1} reached. Ready to clear the project chaos?`)
+    ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.endReason === 'time' ? 'Challenge time complete. ' : state.lastHazard ? `${state.lastHazard} broke through. ` : ''}${state.score} points. Wave ${state.wave || 1} reached. Ready to clear the project chaos?`)
     : paused ? 'Your run is right where you left it.' : game.instructions;
-  byId('overlay-action').textContent = ended ? 'Play again →' : paused ? 'Resume →' : 'Start game →';
+  byId('overlay-action').textContent = ended ? challengeSettings ? 'New challenge run →' : 'Play again →' : paused ? 'Resume →' : 'Start game →';
   byId('overlay-hint').textContent = mode === 'invaders'
     ? `${personalBest > 0 ? `${newPersonalBest && ended ? 'New personal best' : 'Best on this device'}: ${personalBest} points. ` : ''}${game.hint}`
     : ended ? 'Try a different game with the arrows above.' : game.hint;
 }
 function finish() {
+  audio.setPaused(true);
+  emitResult();
   if (mode === 'invaders') {
     newPersonalBest = state.score > personalBest;
     personalBest = Math.max(personalBest, savePersonalBest(state.score));
@@ -211,7 +249,7 @@ function finish() {
   syncStatus();
   syncOverlay();
   canvas.setAttribute('aria-label', `${game.title}. Game over. ${scoreText()}. Select Play again for another run.`);
-  announce(`Game over. ${scoreText()}.${newPersonalBest && mode === 'invaders' ? ' New personal best.' : ''} Select Play again to restart.`);
+  announce(`${state.endReason === 'time' ? 'Challenge complete.' : 'Game over.'} ${scoreText()}.${newPersonalBest && mode === 'invaders' ? ' New personal best.' : ''} ${challengeSettings ? 'Choose a new challenge run or play free.' : 'Select Play again to restart.'}`);
   render();
 }
 function frame(now) {
@@ -225,21 +263,39 @@ function frame(now) {
     if (mode === 'invaders') stepInvaders(state, { ...getInput(input), targetX, targetY }, step);
     else stepRunner(state, step);
     accumulator -= step;
+    if (state.phase === 'choice') break;
   }
   syncStatus();
+  if (state.phase === 'choice') {
+    clearControls(); stopFrame(); audio.setPaused(true); syncOverlay(); render();
+    if (!choiceVisible) { choiceVisible = true; byId('weapon-choice-title').focus({ preventScroll: true }); announce('Wave 2 clear. Choose spread or focused fire to continue.'); }
+    return;
+  }
   if (state.ended) { finish(); return; }
   render();
   scheduleFrame();
 }
-function resetGame() {
+function emitResult(reason) {
+  if (mode !== 'invaders' || !state || resultEmitted) return;
+  resultEmitted = true;
+  document.dispatchEvent(new CustomEvent('htsg:run-result', { detail: { ...invadersResult(state), ...(reason ? { reason } : {}) } }));
+}
+function resetGame(options = {}) {
+  if (challengeSettings && !options.freshChallenge) {
+    document.dispatchEvent(new CustomEvent('htsg:challenge-retry', { detail: { ...challengeSettings } }));
+    return;
+  }
   stopFrame();
   clearControls();
-  state = mode === 'invaders' ? createInvadersState(world) : createRunnerState(world);
+  state = mode === 'invaders' ? challengeSettings ? createInvadersChallenge(challengeSettings) : createInvadersState(world) : createRunnerState(world);
+  if (mode === 'invaders') { byId('pause-actions').append(start); byId('weapon-dashboard').hidden = false; }
+  resultEmitted = false; choiceVisible = false; lastPickup = 0; lastVolley = 0; lastBossPhase = '';
   lastLives = 3;
   lastWeaponLevel = 1;
   newPersonalBest = false;
   playing = true;
   paused = false;
+  audio.setPaused(false);
   start.textContent = 'Restart';
   start.setAttribute('aria-label', 'Restart game');
   pause.disabled = false;
@@ -254,10 +310,13 @@ function resetGame() {
   render();
   canvas.focus({ preventScroll: true });
   scheduleFrame();
+  if (mode === 'invaders') document.dispatchEvent(new CustomEvent('htsg:run-start', { detail: { ...state.challenge, rulesVersion: INVADER_RULES_VERSION, challengeId: state.challenge?.challengeId || null } }));
 }
 function setPaused(nextPaused, automatic = false) {
+  if (state?.phase === 'choice') return;
   if (!playing || paused === nextPaused) return;
   paused = nextPaused;
+  audio.setPaused(paused);
   clearControls();
   stopFrame();
   pause.textContent = paused ? 'Resume' : 'Pause';
@@ -269,7 +328,7 @@ function setPaused(nextPaused, automatic = false) {
   if (!paused) { closeHelp(false); picker.open = false; canvas.focus({ preventScroll: true }); scheduleFrame(); }
 }
 function press(action, source, pressed) {
-  if (!playing || paused) return;
+  if (!playing || paused || state?.phase === 'choice') return;
   setInput(input, action, source, pressed);
   if (action === 'action' && pressed && mode === 'runner') jumpRunner(state);
   syncInputButtons();
@@ -423,6 +482,7 @@ document.addEventListener('keydown', event => {
 });
 
 function setupArcade() {
+  byId('sound-toggle').hidden = mode !== 'invaders';
   quiz.hidden = true;
   byId('arcade-hud').hidden = true;
   canvas.setAttribute('aria-label', `${game.title} arena. Select Start to play. ${game.help}`);
@@ -433,6 +493,28 @@ function setupArcade() {
   start.addEventListener('click', resetGame);
   byId('overlay-action').addEventListener('click', () => { if (paused && playing) setPaused(false); else resetGame(); });
   pause.addEventListener('click', () => setPaused(!paused));
+  for (const family of ['spread', 'focused']) byId(`weapon-${family}`).addEventListener('click', () => {
+    if (!chooseInvaderWeapon(state, family)) return;
+    choiceVisible = false; clearControls(); stopFrame(); closeHelp(false); paused = false;
+    audio.setPaused(false); syncStatus(); syncOverlay(); render();
+    announce(`${family === 'focused' ? 'Focused fire' : 'Spread array'} selected. Wave 3 begins next.`);
+    canvas.focus({ preventScroll: true }); scheduleFrame();
+  });
+  byId('sound-toggle').addEventListener('click', async () => {
+    const enabled = await audio.toggle();
+    byId('sound-toggle').textContent = enabled ? 'Sound on' : 'Sound off';
+    byId('sound-toggle').setAttribute('aria-pressed', String(enabled));
+  });
+  byId('free-play').addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('htsg:challenge-abandon'));
+    challengeSettings = null; resizeCanvas(); resetGame({ freshChallenge: true });
+  });
+  document.addEventListener('htsg:challenge-start', event => {
+    const config = event.detail;
+    if (mode !== 'invaders' || !config || config.rulesVersion !== INVADER_RULES_VERSION || config.seed == null || !config.challengeId) return;
+    challengeSettings = { seed: String(config.seed), challengeId: config.challengeId, durationSeconds: Math.min(300, Math.max(1, Number(config.durationSeconds) || 300)) };
+    resizeCanvas(); resetGame({ freshChallenge: true });
+  });
   const keyActions = mode === 'invaders'
     ? { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'action' }
     : { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'action', Space: 'action', KeyW: 'action' };

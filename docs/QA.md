@@ -1,6 +1,30 @@
 # Demonstration QA
 
-## Agency Invaders arena and bosses — 1.3.0 live
+## Weapon families, missiles and challenge hooks — 1.4.0 live
+
+Version **1.4.0 is installed**. The release adds an untimed spread/focused choice after wave two, finite paired side missiles, distinct boss patterns, a compact dashboard and default-off optional synthesized sound. All three games remain available without an account. The optional community plugin and Google configuration have separate acceptance; game installation alone does not establish a public sign-in or challenge service.
+
+Final source verification passed **59 Node checks**: **51 engine**, **three personal-best storage** and **five sharing-gate**. The final engine choice guard rejects direct firing during the untimed decision. New rules tests cover focused damage/patterns, finite four-pair inventory and projectile lifetime, fan/stagger boss patterns and queued-shot resize, and reproducible seeded fixed-tick challenges. Source syntax/assets/metadata passed for all 18 JavaScript files and both HTML entry points. The final build/package and separate **4/4 community-client fixtures** also passed; those fixtures include optional-network failure without blocking free play.
+
+The complete core browser run passed 19 checks before the new challenge-controller case; a targeted challenge run passed two checks including the shared error check, for **20 distinct core checks** across those source runs. Final focused gameplay passed **3/3** with earned Focused phone and Spread desktop progression, natural missile collection and expenditure of all four pairs, first-boss completion, pause, replay, sound controls and personal-best storage. Earned-choice isolation passed **2/2**; compact 320-pixel label/layout passed **2/2**; targeted Invaders/Runner phone layouts passed **5/5**. No fresh full 30-case upgrade run is claimed for 1.4. The 390 × 844 canvas remains 678 CSS pixels high.
+
+The focused harness uses fixed lane jitter and actual input events, not score, weapon, enemy or timer injection. Only the disclosed personal-best controller/storage fixture marks an earned run ended without changing its score. Sound checks verify default-off and explicit toggle controls, not physical audio output. Browser coverage uses installed Chrome and mobile emulation; physical iOS/Android and Safari were not tested.
+
+PHP lint and **125/125 adapter checks** passed. Independent Python ZIP validation decompressed and matched all **34 entries** of the installed 3,518,808-byte installer to the final entry point and `dist/`; SHA-256 is `ce1a3f5403572381589de72704467f1d3085b47d438ae7d5194d04cb6438961a`.
+
+Anonymous production focused gameplay passed **3/3** at 01:41:27 UTC on October 18 (9:41 p.m. EDT on October 17). Actual inputs earned Focused fire on the 390-pixel phone and Spread on desktop, naturally collected and expended four missile pairs, defeated the first boss, retained readable boss health during phone/landscape rotation, and exercised touch, pause, replay, sound controls and local-best persistence. The same disclosed lane-jitter, real-input and isolated storage-fixture scope applies. Evidence is `evidence/game-live/results.json` with phone, choice, missile and boss screenshots.
+
+Anonymous production smoke passed all **18 functional core checks** across desktop and mobile, including all three games, touch controls, repeat restart, focus and the challenge-controller boundary. All **28 public non-HTML assets** matched final local build bytes at their ordinary URLs. Initial console-clean checks found `/community/session/` returning a JSON 404, including after community 1.0 was installed with all features off. Stable and uncached probes both had `no-store, private` and cache `MISS`, identifying disabled-state routing rather than stale cache. The separate backend's 1.0.1 correction returns HTTP 200 with a disabled, redacted session. The affected production rerun then passed **3/3**, including clean console/resources and repeated-restart checks: **19 distinct live core checks** across the original functional run and overlapping correction run. No failure was suppressed; earlier reports remain preserved.
+
+The full public sharing rerun passed **14/14** after that correction: raw gallery/index and all three game cards for anonymous/Facebook/Twitter requests, correct canonicals, image GET/HEAD, actual 1200 × 630 JPEG bytes, small-card review and phone flows with no resource or browser errors. Accepted evidence is `evidence/share-live-accepted/results.json`; the resolved core follow-up is `evidence/core-live/resolved-results.json`.
+
+The owner subsequently enabled the separate community's public features and Google configuration. An actual existing-member acceptance run passed through the normal UI: fresh weekly attempt, keyboard aiming/held Fire, 10 earned points, natural hazard losses to zero lives, saved-result confirmation, score 10 on the unverified weekly board, and week 2026-10-12/wave 1/score 10 in member history. The update preference remained Not subscribed and no profile form was submitted. This was the owner's already-authenticated member/admin session; no game state, clock, score or live DOM was injected, and the session was not logged out. Fresh Google OAuth/onboarding and a separate non-admin identity were not tested here. Evidence and screenshots are in `evidence/member-live/ACCEPTANCE.md`.
+
+The actual Facebook Sharing Debugger was separately refreshed for the exact Invaders URL. Its new scrape returned **HTTP 200**, the current spread/focused-fire and missile description, and the reviewed dated JPEG cover. The only reported warning was the existing missing `fb:app_id` identity property; no app identity was invented and no social post was published. The main agent completed this in its available authenticated session after the gameplay agent's separate browser lacked access. The screenshot is `evidence/facebook-live/invaders-refreshed.png` and was independently viewed. This actual platform result is distinct from simulated crawler requests and does not promise future cache or crop behavior.
+
+Evidence is in the parent workspace's `output/agency-invaders-community-2026-10-17/`: `GAMEPLAY-VERIFICATION.md` and `evidence/{gameplay-engine,game-final,choice-boundary-final,compact-label-final,layout-source,game-live,core-live,asset-live,share-live,share-live-accepted,facebook-live,member-live,archive-final}/`.
+
+## Historical Agency Invaders arena and bosses — 1.3.0
 
 Final local verification on October 17, 2026, approximately 8:55 p.m. EDT. Version **1.3.0 is installed and active**, confirmed at 00:55:49 UTC on October 18 (8:55:49 p.m. EDT on October 17). The release removes the separate steering pad, enlarges the playable area, retains relative two-axis arena dragging and keyboard controls, and saves one personal best only in the current browser. It adds capped pressure after two approachable waves, weaving and armored hazards, and a signaled boss encounter every fifth wave. Launch Runner and Trivia retain their game rules and the reviewed three-game sharing cover remains relevant.
 
@@ -63,6 +87,7 @@ npm run test:upgrade
 npm run test:gamification
 npm run build
 npm run test:share
+npm run test:community
 ```
 
 The browser script starts its own temporary local server, applies the production response headers, uses headless Chromium or installed Chrome, and closes the server after testing. Set `CHROME_PATH` to choose an installed compatible browser or `BASE_URL` to test a deployed preview. `PLAYWRIGHT_MODULE_PATH` can point to an existing Playwright `index.mjs` when using a managed development runtime.
@@ -89,23 +114,25 @@ Browser screenshots and the machine-readable report are saved in `artifacts/qa/`
 
 ## Automated coverage
 
-The current 46 gameplay rules tests cover:
+The current 51 gameplay rules tests cover:
 
 - Keyboard and touch sources held at the same time, individual release, repeated keydown, and clearing held controls.
 - Agency Invaders two-axis movement, simultaneous directions, relative drag and thumb-stick input with per-axis keyboard priority, portrait thumb clearance and proportional travel time, delayed-frame caps, firing and collisions at the moved ship position, six named hazards, life loss, shield protection, wave transitions, combo scoring, game over, and clean restart state.
 - Earned single/twin/quad progression, upgrade persistence after damage, symmetric spread and swept collisions, bounded firing/pruning, larger threat bounds, and gentler capped pacing.
 - Later-wave capped pressure, weaving and armored health, earned boss entry, telegraphed fixed-aim shots, swept projectile collisions, shield absorption, boss rewards/breathers, and safe resize/restart state.
+- Untimed spread/focused choice with background-input isolation, focused beam damage/cadence, finite paired missiles and supply/reset bounds, locked fan/stagger boss patterns, and seeded 120 Hz challenge timing, fixed course and result contract.
 - Launch Runner two-jump limit and landing reset, safe obstacle clearance, collision, energy pickups and boost protection, distance scoring, game over, and clean restart state. Portrait collision and collection areas match the enlarged artwork; camera framing preserves the full astronaut without changing jump physics.
 - Resize preserves arcade progress and relative positions; Runner retains its physical jump height and velocity.
 - Every trivia question, correct and incorrect scoring, invalid answer indices, perfect and zero scores, and three distinct replay rounds containing 15 questions.
 
-Three separate personal-best storage tests cover persistence through a fresh read, retaining a better score, rejecting malformed records, and denied storage. Five sharing-gate tests cover the required source/build metadata and actual declared cover. These make 54 Node tests in total.
+Three separate personal-best storage tests cover persistence through a fresh read, retaining a better score, rejecting malformed records, and denied storage. Five sharing-gate tests cover the required source/build metadata and actual declared cover. These make 59 Node tests in total.
 
 The browser suite covers:
 
 - All four routes at desktop 1280 × 900, mobile portrait 390 × 844, 360 × 800, 320 × 740, and mobile landscape 844 × 390.
 - Horizontal overflow, game route availability, start, pause, resume, restart, and frozen canvas while paused.
 - Repeated restart without accumulating animation loops, keyboard movement and release, automatic pause on window blur, and native Space activation on session buttons.
+- Fixed challenge course, exactly one timed result, a fresh replay-ticket request and an explicit return to responsive free play. Separate community-client fixtures cover optional network failure without blocking the phone game.
 - Chromium touch emulation: hold movement and Fire together, cancel touches, release a captured pointer outside a button, jump by button or arena tap, and trivia answer/continuation taps.
 - Trivia results at 5/5 and 0/5, disabled answered choices, keyboard continuation, and focus after answering and restarting.
 - Invalid game query fallback and browser errors.

@@ -31,6 +31,7 @@
   <link rel="icon" href="assets/favicon.png" type="image/png">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="play.css">
+  <link rel="stylesheet" href="community.css">
 </head>
 <body class="play-body">
   <a class="skip-link" href="#canvas">Skip to game</a>
@@ -65,17 +66,26 @@
             <p id="instructions">Drag to steer. Keep the incoming drones away from your launch.</p>
             <button id="overlay-action" type="button">Start game <span aria-hidden="true">→</span></button>
             <p id="overlay-hint" class="overlay-hint">Drag the arena to steer and fire.</p>
+            <div id="pause-actions" class="pause-actions" hidden><button id="free-play" type="button" hidden>Play free</button></div>
+            <div id="community-mount" class="community-mount" hidden></div>
           </div></div>
+          <section id="weapon-choice" class="weapon-choice" aria-labelledby="weapon-choice-title" hidden>
+            <div><h2 id="weapon-choice-title" tabindex="-1">Choose your firepower</h2><p>Your earned upgrades stay with you. Pick a style for the rest of this run.</p>
+            <button id="weapon-spread" type="button">Keep spread<span>Wide coverage for weaving groups.</span></button>
+            <button id="weapon-focused" type="button">Choose focused fire<span>Narrow, stronger beams for armor and bosses.</span></button></div>
+          </section>
           <div id="quiz" hidden></div>
           <aside id="help-panel" class="help-panel" aria-labelledby="help-title" hidden>
             <div class="help-heading"><h2 id="help-title">How to play</h2><button id="help-close" class="icon-control" type="button" aria-label="Close instructions">×</button></div>
             <p id="game-help">Use the on-screen buttons or your keyboard.</p>
             <p id="game-depth" class="help-depth"></p>
             <p class="help-navigation">Use the arrows beside the game name to switch games. The expand button fills your screen.</p>
+            <button id="sound-toggle" type="button" aria-pressed="false" hidden>Sound off</button>
           </aside>
         </div>
         <div id="controls" class="game-controls">
           <div class="direction-controls"><button id="left" class="control-button secondary" type="button" aria-label="Move left"><span aria-hidden="true">←</span></button><button id="right" class="control-button secondary" type="button" aria-label="Move right"><span aria-hidden="true">→</span></button></div>
+          <div id="weapon-dashboard" class="weapon-dashboard" aria-live="off" hidden><strong id="weapon-readout">Single shot</strong><span id="missile-readout">0 missile pairs</span></div>
           <p id="touch-hint" class="touch-hint">Drag to steer &amp; fire</p>
           <button id="action" class="control-button action-control" type="button">Fire</button>
           <div class="session-controls"><button id="start" class="secondary" type="button">Start</button><button id="pause" class="secondary" type="button" disabled>Pause</button></div>
@@ -86,5 +96,6 @@
     </section>
   </main>
   <script type="module" src="game.js"></script>
+  <script type="module" src="community-client.js"></script>
 </body>
 </html>

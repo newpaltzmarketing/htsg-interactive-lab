@@ -27,7 +27,8 @@
 .arcade-hud { position: absolute; z-index: 2; top: 20px; left: 24px; right: 24px; display: flex; align-items: start; justify-content: space-between; gap: 12px; pointer-events: none; text-shadow: 0 2px 8px #000; }
 .game-status { color: #fff; font-size: 14px; white-space: normal; font-weight: 600; letter-spacing: .01em; padding: 7px 11px; border-radius: 8px; background: #050b1480; backdrop-filter: blur(12px); }
 .mission-detail { font-size: 13px; line-height: 1.4; text-align: right; color: #f6bf73; padding: 8px 0; font-variant-numeric: tabular-nums; }
-.arena-overlay { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 50px 28px 28px; background: linear-gradient(90deg, #020811a8, #02081140 55%, #02081160); }
+.arena-overlay { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; padding: 50px 28px 28px; background: linear-gradient(90deg, #020811a8, #02081140 55%, #02081160); overflow-y: auto; }
+.overlay-content { flex: 0 0 auto; margin-block: auto; }
 .overlay-content { max-width: 520px; width: 100%; text-align: center; }
 .overlay-context { color: #f6bd75; font-size: 13px; letter-spacing: .05em; margin-bottom: 16px; }
 .overlay-content h2 { font-size: clamp(36px, 4.8vw, 68px); line-height: 1.03; letter-spacing: -.05em; font-weight: 600; margin: 0 0 22px; text-wrap: balance; text-shadow: 0 3px 32px #0008; }
@@ -47,6 +48,21 @@
 .session-controls { display: flex; gap: 8px; margin-left: auto; }
 .play-body .session-controls button { font-size: 13px; font-weight: 600; min-width: 76px; padding-inline: 14px; touch-action: manipulation; }
 .play-body button:disabled { opacity: .42; }
+.weapon-dashboard { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 1.2; color: #b9cbdc; }
+.weapon-dashboard strong { color: #ffe0ac; font-size: 13px; font-weight: 600; }
+.play-body[data-game="invaders"] .game-controls { gap: 8px; }
+.play-body[data-game="invaders"] .session-controls { margin-left: 0; }
+.play-body[data-game="invaders"] .touch-hint { display: none; }
+.pause-actions { display: flex; justify-content: center; gap: 12px; margin-top: 14px; }
+.pause-actions button, #sound-toggle { min-height: 44px; padding: 10px 18px; color: #f5e6d1; background: #26384a; border: 1px solid #667b91; border-radius: 10px; }
+.weapon-choice { position: absolute; z-index: 7; inset: 0; display: flex; flex-direction: column; align-items: center; padding: 24px; background: #06101bed; overflow-y: auto; }
+.weapon-choice > div { flex: 0 0 auto; max-width: 430px; width: 100%; margin-block: auto; }
+.weapon-choice h2 { font-size: 30px; line-height: 1.1; margin-bottom: 15px; }
+.weapon-choice p { color: #c3d0df; font-size: 15px; line-height: 1.5; margin-bottom: 20px; }
+.weapon-choice button { display: block; width: 100%; min-height: 65px; padding: 14px 16px; margin: 12px 0; border: 1px solid #aa987e; border-radius: 12px; color: #fff0d2; background: #263b50; text-align: left; font-size: 17px; }
+.weapon-choice button span { display: block; margin-top: 6px; font-size: 13px; font-weight: 400; color: #bfd0e2; }
+.play-body .help-panel { z-index: 9; }
+.community-mount:empty { display: none; }
 .play-body a:focus-visible, .play-body button:focus-visible, .play-body summary:focus-visible, .play-body [tabindex="0"]:focus-visible, .play-body [tabindex="-1"]:focus-visible { outline: 2px solid var(--play-focus); outline-offset: 3px; }
 .play-body canvas:focus-visible { outline: 2px solid var(--play-focus); outline-offset: -3px; }
 .help-panel { position: absolute; z-index: 6; inset: 20px 20px auto auto; width: min(420px, calc(100% - 40px)); max-height: calc(100% - 40px); overflow-y: auto; padding: 24px; background: #101c2bf5; border: 1px solid #506078; border-radius: 16px; box-shadow: 0 18px 70px #000a; backdrop-filter: blur(20px); }
@@ -126,6 +142,9 @@
   .quiz-results { margin-top: 16px; }
 }
 @media (max-width: 350px) {
+  .play-body[data-game="invaders"] .game-controls { gap: 6px; }
+  .weapon-dashboard strong { font-size: 12px; }
+  .weapon-dashboard { font-size: 11px; }
   .game-controls { gap: 6px; padding-inline: 9px; }
   .direction-controls, .session-controls { gap: 5px; }
   .play-body .session-controls button { min-width: 49px; padding-inline: 6px; }

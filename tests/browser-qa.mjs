@@ -186,6 +186,7 @@ try {
       // Read reset state in the same task as activation: wall-clock delay on a
       // busy host legitimately advances a running distance counter before a
       // separate browser round trip can inspect it.
+      if (mode === 'invaders') await page.locator('#pause').click();
       const resetStatus = await page.locator('#start').evaluate(button => {
         button.click();
         return document.querySelector('#status').textContent;
@@ -197,7 +198,10 @@ try {
     });
     await check(`${mode}: repeated restart has only one animation loop`, async () => {
       await openGame(page, mode);
-      for (let repeat = 0; repeat < 8; repeat += 1) await page.locator('#start').click();
+      for (let repeat = 0; repeat < 8; repeat += 1) {
+        if (!await page.locator('#start').isVisible()) await page.locator('#pause').click();
+        await page.locator('#start').click();
+      }
       await page.waitForTimeout(80);
       assert.ok(await page.evaluate(() => window.__qaFrames.pending.size <= 1));
       await page.locator('#pause').click();
@@ -231,6 +235,30 @@ try {
     await page.keyboard.press('Space');
     assert.equal(await page.locator('#start').textContent(), 'Restart');
     assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'false');
+  });
+
+  await check('challenge controller fixes the course, emits one result and requests a fresh replay ticket', async () => {
+    await openGame(page, 'invaders');
+    await page.evaluate(() => {
+      window.__challengeQA = { results: [], starts: [], retries: 0 };
+      document.addEventListener('htsg:run-result', event => window.__challengeQA.results.push(event.detail));
+      document.addEventListener('htsg:run-start', event => window.__challengeQA.starts.push(event.detail));
+      document.addEventListener('htsg:challenge-retry', () => { window.__challengeQA.retries += 1; });
+      document.dispatchEvent(new CustomEvent('htsg:challenge-start', { detail: { seed: 'controller-fixture', challengeId: 'fixture', rulesVersion: '1.4.0', durationSeconds: 1 } }));
+    });
+    const geometry = await page.locator('#canvas').boundingBox();
+    assert.ok(Math.abs(geometry.width / geometry.height - 960 / 1669) < 0.001);
+    await page.waitForFunction(() => window.__challengeQA.results.length === 1, null, { timeout: 15000 });
+    const result = await page.evaluate(() => window.__challengeQA.results[0]);
+    assert.equal(result.elapsed, 1);
+    assert.equal(result.reason, 'time');
+    assert.equal(result.rulesVersion, '1.4.0');
+    await page.locator('#overlay-action').click();
+    assert.equal(await page.evaluate(() => window.__challengeQA.retries), 1);
+    assert.equal(await page.evaluate(() => window.__challengeQA.starts.length), 1, 'replay cannot reuse the previous ticket locally');
+    await page.locator('#free-play').click();
+    assert.equal(await page.evaluate(() => window.__challengeQA.starts.at(-1).challengeId), null);
+    assert.equal(await page.evaluate(() => window.__challengeQA.results.length), 1);
   });
 
   await check('trivia: all correct, no double scoring, result and restart', async () => {

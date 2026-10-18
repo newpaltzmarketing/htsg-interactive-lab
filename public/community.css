@@ -1,0 +1,9 @@
+#community-mount { margin: 16px auto 0; max-width: 42rem; border-top: 1px solid rgb(255 255 255 / .2); padding-top: 12px; }
+#community-mount[hidden] { display: none; }
+#community-mount .community-note { margin: 0 0 8px; font-size: .88rem; line-height: 1.45; }
+.community-actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.community-actions .community-action { min-height: 44px; padding: 10px 16px; font-size: .88rem; }
+.community-link { display: inline-flex; min-height: 44px; align-items: center; color: #ffd09c; text-decoration: underline; text-underline-offset: 3px; font-size: .88rem; }
+.community-link:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+#community-mount .community-disclosure { margin: 8px 0 0; color: #bac6d5; font-size: .75rem; line-height: 1.4; }
+@media (max-height: 500px) { #community-mount { margin-top: 8px; padding-top: 8px; } #community-mount .community-note { font-size: .8rem; } }

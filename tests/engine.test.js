@@ -4,6 +4,7 @@ import {
   ARENA, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon, invaderPace, bossGeometry, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
   createInvadersState, fireInvaders, steerInvaders, stepInvaders,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer,
+  chooseInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA,
 } from '../public/game-engine.js';
 import { questions, questionsForRound } from '../public/questions.js';
 import { runnerCameraOffset, bossHealthBarLayout } from '../public/game-renderer.js';
@@ -728,6 +729,107 @@ test('all five questions have one valid correct answer and reject invalid select
   }
   assert.equal(perfectScore, 5);
   assert.equal(wrongScore, 0);
+});
+
+test('wave two offers an untimed family choice while retaining earned progression', () => {
+  const state = createInvadersState();
+  Object.assign(state, { wave: 2, waveSpawned: 6, weaponLevel: 3, kills: 14 });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.phase, 'choice');
+  const frozen = structuredClone(state);
+  frames(300, dt => stepInvaders(state, { action: true, right: true }, dt, fixedRandom));
+  assert.equal(fireInvaders(state), false, 'Direct fire cannot mutate the untimed choice');
+  assert.deepEqual(state, frozen);
+  assert.equal(chooseInvaderWeapon(state, 'unavailable'), false);
+  assert.equal(chooseInvaderWeapon(state, 'focused'), true);
+  assert.equal(state.weaponFamily, 'focused');
+  assert.equal(state.phase, 'intermission');
+  assert.equal(state.weaponLevel, 3);
+  assert.equal(state.kills, 14);
+  assert.equal(chooseInvaderWeapon(state, 'spread'), false);
+  assert.equal(createInvadersState().weaponFamily, 'spread');
+});
+
+test('focused beams trade width and cadence for actual armor damage at each stage', () => {
+  for (const [level, beams, damage] of [[1, 1, 2], [2, 1, 3], [3, 2, 3]]) {
+    const state = createInvadersState();
+    Object.assign(state, { weaponFamily: 'focused', weaponLevel: level });
+    fireInvaders(state);
+    assert.equal(state.bullets.length, beams);
+    assert.ok(state.bullets.every(bullet => bullet.damage === damage && bullet.kind === 'lance' && bullet.vx === 0));
+    assert.equal(state.cooldown, 0.32);
+  }
+  const state = createInvadersState();
+  state.enemies.push({ x: 300, y: 100, health: 3, type: 'heavy' });
+  state.bullets.push({ x: 300, y: 110, damage: 3 });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.enemies.length, 0);
+  assert.equal(state.kills, 1);
+});
+
+test('one supply per wave loads four limited missile pairs that auto-fire and expire', () => {
+  const state = createInvadersState();
+  state.wave = 3; state.spawnIn = 100;
+  for (let index = 0; index < 2; index += 1) {
+    state.enemies.push({ x: 300, y: 100 }); state.bullets.push({ x: 300, y: 110 });
+    stepInvaders(state, idle, 1 / 120, fixedRandom);
+  }
+  assert.equal(state.pickups.filter(item => item.kind === 'missiles').length, 1);
+  Object.assign(state.pickups.find(item => item.kind === 'missiles'), { x: state.player, y: state.playerY });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.missilePairs, 4);
+  frames(500, dt => stepInvaders(state, { action: true }, dt, fixedRandom));
+  assert.equal(state.missilePairs, 0);
+  assert.ok(state.missiles.length <= 8);
+  assert.ok(state.bullets.length <= 64);
+  frames(300, dt => stepInvaders(state, idle, dt, fixedRandom));
+  assert.equal(state.missiles.length, 0);
+  assert.equal(createInvadersState().missilePairs, 0);
+});
+
+test('Scope Creep expands its warned fan and Change Request staggers a locked pair', () => {
+  const scope = enterInvadersWave(5);
+  Object.assign(scope.boss, { health: 30, phase: 'recover', attackIn: 0 });
+  stepInvaders(scope, idle, 1 / 120, fixedRandom);
+  assert.deepEqual(scope.boss.warningOffsets, [-120, 0, 120]);
+  const change = enterInvadersWave(10);
+  Object.assign(change.boss, { attackCount: 1, phase: 'recover', attackIn: 0 });
+  stepInvaders(change, idle, 1 / 120, fixedRandom);
+  assert.deepEqual(change.boss.warningOffsets, [-60, 60]);
+  const aim = change.boss.aimX;
+  change.player = 100; change.boss.attackIn = 0;
+  stepInvaders(change, idle, 1 / 120, fixedRandom);
+  assert.equal(change.hostileShots.length, 1);
+  assert.equal(change.boss.pendingShots.length, 1);
+  assert.equal(change.boss.aimX, aim);
+  const queuedY = change.boss.pendingShots[0].y;
+  resizeGame(change, 960, 1080);
+  assert.equal(change.boss.pendingShots[0].y, queuedY * 2, 'a delayed shot rotates with its locked warning');
+  frames(32, dt => stepInvaders(change, idle, dt, fixedRandom));
+  assert.equal(change.hostileShots.length, 2);
+  assert.equal(change.boss.pendingShots.length, 0);
+});
+
+test('challenge seed and fixed ticks reproduce state; geometry and timer survive resize', () => {
+  const a = createInvadersChallenge({ seed: 'week-42', challengeId: '42', durationSeconds: 300 });
+  const b = createInvadersChallenge({ seed: 'week-42', challengeId: '42', durationSeconds: 300 });
+  a.lives = b.lives = 99;
+  for (let index = 0; index < 1200; index += 1) {
+    const input = { targetX: 480 + Math.sin(index / 40) * 300, action: true };
+    stepInvaders(a, input, 1 / 60, () => 0);
+    stepInvaders(b, input, 1 / 120, () => 1);
+  }
+  assert.deepEqual(a, b, 'challenge ignores external randomness and variable caller deltas');
+  const frozen = structuredClone(a);
+  resizeGame(a, 720, 320);
+  assert.deepEqual(a, frozen);
+  assert.deepEqual(a.world, CHALLENGE_ARENA);
+  const timed = createInvadersChallenge({ seed: 'timer', durationSeconds: 1 });
+  frames(120, dt => stepInvaders(timed, idle, dt));
+  assert.equal(timed.ended, true);
+  assert.equal(invadersResult(timed).elapsed, 1);
+  assert.equal(invadersResult(timed).reason, 'time');
+  assert.equal(invadersResult(timed).rulesVersion, '1.4.0');
 });
 
 test('replay cycles through three distinct valid five-question rounds before repeating', () => {

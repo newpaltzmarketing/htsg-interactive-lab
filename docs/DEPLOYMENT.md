@@ -1,10 +1,26 @@
 # HTSG Gamification Labs deployment
 
-The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. On October 16, 2026, the owner authorized publication and integration with the existing Demos area and navigation. The static games use the existing HTSG WordPress host. No new game backend, external API, database tables, account system, paid dependency, or DNS change is required.
+The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. The static games use the existing HTSG WordPress host. Free play requires no account, game backend, paid dependency or DNS change. The optional first-party community service is maintained and accepted separately.
 
-## Release 1.3.0 live — October 17, 2026
+## Release 1.4.0 live — October 17, 2026
 
-Version **1.3.0 is installed and active**, confirmed through the WordPress plugin installer at 00:55:49 UTC on October 18 (8:55:49 p.m. EDT on October 17). The update provides direct thumb steering and a larger playfield, escalating Invaders pressure and signaled bosses, and a personal best stored only in the current browser. All three game routes, Gamification Labs identity, hosting, and administration permissions remain stable. Headquarters 2.16.6 and native Demos content required no further change.
+Version **1.4.0 is installed**, following replacement through the WordPress plugin installer. Agency Invaders adds an untimed spread/focused choice after wave two, finite side-missile pairs, distinct signaled boss patterns, a compact dashboard and optional default-off sound. All three games remain freely playable. The responsive phone canvas remains 678 CSS pixels high at 390 × 844. Public routes and game-host permissions are unchanged.
+
+Installed archive: `release/htsg-interactive-lab-wordpress-1.4.0.zip`, **3,518,808 bytes**, SHA-256 **`ce1a3f5403572381589de72704467f1d3085b47d438ae7d5194d04cb6438961a`**. Independent Python ZIP decompression matched all **34 entries** to the final scoped PHP entry point and `dist/`; CRC, duplicate/path checks and the hash sidecar passed. PHP lint and **125/125 adapter checks** passed. Evidence is in the parent workspace's `output/agency-invaders-community-2026-10-17/`. See [QA.md](QA.md) for current public results and remaining acceptance limits.
+
+Challenge hooks use a seeded fixed 960 × 1669 logical course, 120 Hz simulation and a maximum five-minute active clock; weapon-choice time is excluded. A new attempt needs a fresh server run ticket. The game-hosting plugin creates no accounts, score tables or challenge API. The separate community plugin owns those services. Failed community requests never block free play.
+
+The separate community 1.0.1 plugin is installed. Its corrected disabled-session response was verified as HTTP 200 and redacted, then the owner enabled public features and Google configuration. Production game verification passes 19 distinct core checks, 14 sharing checks and all three focused gameplay scenarios; all 28 public non-HTML assets match the final build. Earlier transitional 404 results and the successful affected rerun are both preserved.
+
+Actual existing-member acceptance also passed: a fresh UI-issued weekly attempt earned 10 points through normal input and ended through natural hazard damage. The saved result appeared in member history and the public unverified board. The browser was already signed in as the owner; that session was preserved, so a fresh Google OAuth/signup flow was not exercised. No subscription or profile change was made. See `evidence/member-live/ACCEPTANCE.md` in the parent release folder and [QA.md](QA.md) for the exact boundary. Google configuration being enabled is not a claim that fresh onboarding was independently tested.
+
+The actual Facebook Sharing Debugger was refreshed for Invaders after publication. It returned HTTP 200 with the current weapon/missile description and reviewed dated JPEG cover. The existing missing `fb:app_id` warning remained; no social post was published. Actual preview evidence is `evidence/facebook-live/invaders-refreshed.png` in the parent release folder, separate from anonymous crawler simulations.
+
+The immediate game rollback is the immutable **1.3.0** archive, `release/htsg-interactive-lab-wordpress-1.3.0.zip` (3,510,741 bytes, SHA-256 `6e53b8c3b0c61be5a7cd1fd093e6669c1f600c52ef6e882cb580afc40830a93e`). Restore only the game companion, verify its version, purge SiteGround cache and recheck all three routes and sharing. Headquarters and the separate community service have their own recovery procedures.
+
+## Historical release 1.3.0 — October 17, 2026
+
+Version **1.3.0 was installed and active**, confirmed through the WordPress plugin installer at 00:55:49 UTC on October 18 (8:55:49 p.m. EDT on October 17). The update provided direct thumb steering and a larger playfield, escalating pressure and signaled bosses, and a browser-local personal best. Headquarters 2.16.6 and native Demos content required no further change.
 
 The installed archive is `release/htsg-interactive-lab-wordpress-1.3.0.zip`: 3,510,741 bytes, SHA-256 `6e53b8c3b0c61be5a7cd1fd093e6669c1f600c52ef6e882cb580afc40830a93e`. Its 31 entries were independently decompressed and matched to the reviewed scoped build and entry point. PHP lint and all 122 adapter checks passed. Source QA and current actual public results are recorded in [QA.md](QA.md).
 
@@ -24,7 +40,7 @@ The preserved 1.1.2 installer was the immediate rollback for that release. Anony
 
 ## Existing HTSG WordPress host
 
-Run `npm run package:wordpress` to build `release/htsg-interactive-lab-wordpress-1.3.0.zip` and its SHA-256 file. The filename follows the companion's version metadata, which must match `package.json`. This command sets the approved `SITE_URL`, makes social metadata absolute, and adjusts the missing-page stylesheet, favicon, and gallery link to `/demos/interactive-lab/`. Ordinary game links and modules remain relative. The ZIP contains one companion entry point and the built static site; no tests, credentials, dependencies, artwork originals, or source history are installed.
+Run `npm run package:wordpress` to build `release/htsg-interactive-lab-wordpress-1.4.0.zip` and its SHA-256 file. The filename follows the companion's version metadata, which must match `package.json`. This command sets the approved `SITE_URL`, makes social metadata absolute, and adjusts the missing-page stylesheet, favicon, and gallery link to `/demos/interactive-lab/`. Ordinary game links and modules remain relative. The ZIP contains one companion entry point and the built static site; no tests, credentials, dependencies, artwork originals, or source history are installed.
 
 Use the established authenticated **Plugins → Add New → Upload Plugin** route, upload the reviewed ZIP, and activate **HTSG Gamification Labs**. For later releases, replace this companion in place. Activation requires an HTSG administrator, the expected HTSG host, a complete static package, and no native page already owning `demos/interactive-lab`. It creates or overwrites no pages, options, roles, or game records; it only purges existing SiteGround cache when that function is available. A direct administration link appears under Headquarters.
 
@@ -98,7 +114,7 @@ Choose a Direct Upload Pages project for this procedure. Cloudflare documents li
 
 ## GitHub Actions
 
-`Validate static demo` runs on pushes and pull requests. It installs the pinned free testing dependency, runs the game, browser, upgrade touch/fullscreen/layout checks and mandatory `test:share` raw-HTML/image checks, uploads the standalone static build, then builds and checks the WordPress companion and uploads that ZIP as a separate artifact. It does not publish a website. There is no GitHub Pages deployment workflow.
+`Validate static demo` runs on pushes and pull requests. It installs the pinned free testing dependency, runs the game, browser, upgrade touch/fullscreen/layout checks, optional community-client fixtures and mandatory `test:share` raw-HTML/image checks, uploads the standalone static build, then builds and checks the WordPress companion and uploads that ZIP as a separate artifact. It does not publish a website. There is no GitHub Pages deployment workflow.
 
 `Deploy demonstration preview` runs only when manually dispatched after a future deployment request. It validates the selected source and deploys the fixed `demo-preview` branch of the separate `htsg-interactive-lab` Pages project. There is no automatic deployment or production deployment workflow.
 
@@ -139,7 +155,7 @@ Re-run checks and deploy the same `demo-preview` branch with the command above. 
 
 ## Current publish status
 
-**Gamification Labs 1.3.0 is installed and active.** The exact tested installer and initial public integration/sharing checks are recorded above. All three focused public progression/boss checks also passed; the preserved 1.2.0 package is the immediate rollback. Older installed states below are historical evidence.
+**Gamification Labs 1.4.0 is installed.** The 34-entry installer, independent hash validation and 125 adapter checks are recorded above. Current public smoke and community acceptance status are in [QA.md](QA.md). The immutable 1.3.0 installer is the immediate game rollback. Google sign-in and community acceptance remain separate from game installation. Older installed states below are historical evidence.
 
 The preceding October 17 **Gamification Labs 1.2.0** installed ZIP has SHA-256 `890f30b2334f6e8ad647237a48208c6723dedc099fcb8efe3e26ad574e10dd19`. Exact packages, native snapshots, publication and actual public evidence are maintained in `output/gamification-labs-2026-10-17/` in the parent workspace. The older state and hashes below are preserved historical evidence. Source validation and game publication are separate operations; the Cloudflare preview workflow remains manual.
 

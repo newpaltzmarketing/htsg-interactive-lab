@@ -4,13 +4,13 @@ Three browser games for Holistic Tech Solutions Group demonstrations:
 
 | Game | Play |
 | --- | --- |
-| [Agency Invaders](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=invaders) | Fly in two dimensions, clear named business hazards, and collect shields. |
+| [Agency Invaders](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=invaders) | Choose spread or focused fire, collect side missiles, and outfly named agency bosses. |
 | [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Take the actual Halo character past barriers with double jumps and energy boosts. |
 | [Trivia Challenge](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=trivia) | Explore three sets of five questions, with streaks and explanations. |
 
-Release **1.3.0 is installed**. Agency Invaders now has more room to play, direct thumb steering, escalating pressure and bosses, and a personal best saved in the current browser. The public URL and all three games remain stable. Public checks passed: 19 integration, 14 sharing, and all three focused progression/boss scenarios. See [deployment status](docs/DEPLOYMENT.md#current-publish-status), [QA evidence](docs/QA.md), and the proposed [game direction](docs/GAME-DIRECTION.md).
+Release **1.4.0 is installed**. Agency Invaders adds an untimed spread/focused choice after wave two, limited paired side missiles, distinct boss patterns, a compact weapon dashboard and optional sound that starts muted. The 390 × 844 phone playfield remains 678 CSS pixels high. All three games and their public URLs remain stable. See [deployment status](docs/DEPLOYMENT.md#current-publish-status), [QA evidence](docs/QA.md), and [implemented versus future game direction](docs/GAME-DIRECTION.md).
 
-The games use static HTML, CSS, local artwork, and JavaScript. There is no game backend, account system, advertising, analytics, payment service, or paid dependency. Games run locally in the browser. The WordPress companion serves the reviewed static files through the existing HTSG site and adds a direct administration link. It creates no game records or API. Playwright is a free development dependency used only for browser checks.
+The three games run locally using static HTML, CSS, local artwork and JavaScript. Free play needs no account or backend and remains usable when the optional community connection fails. There is no advertising, analytics, payment service or paid runtime dependency. The game-hosting WordPress companion serves the reviewed files and adds a direct administration link; it creates no game records or API. A separate first-party community plugin supplies the optional challenge service. The owner has enabled its public features and Google configuration; actual existing-member challenge submission, history and the unverified board passed, while fresh Google onboarding has separate acceptance limits in [QA.md](docs/QA.md). Playwright is a free development dependency used only for browser checks.
 
 ## Run locally
 
@@ -31,8 +31,10 @@ npm run check
 npm test
 npm run test:browser
 npm run test:upgrade
+npm run test:gamification
 npm run build
 npm run test:share
+npm run test:community
 npm run preview
 ```
 
@@ -44,7 +46,9 @@ The validation workflow runs syntax and asset checks, game logic tests, browser 
 
 ## Controls
 
-Drag anywhere in the Invaders arena to fly and fire. The ship moves relative to your finger without jumping under it; lift to stop firing. Direction and Fire buttons remain available, and keyboard controls use arrows or W/A/S/D and Space. Weapons upgrade automatically after three and seven defeated hazards and stay upgraded after a hit. Later waves add weaving and armored hazards, with a boss every fifth wave; watch its warning before moving clear. Named hazards cost a life when they collide with the ship or pass its defenses, with the cause shown after impact. Invaders keeps a personal best only in this browser. Tap the Runner arena, swipe up, or use Jump; a second jump in the air gives extra height. The game player provides instructions, pause/resume, replay, previous/next game links, and a game selector. The expand control uses native full screen where available and an expanded browser layout otherwise. Games pause when the page loses visibility. Trivia uses ordinary answer buttons and supports keyboard navigation.
+Drag anywhere in the Invaders arena to fly and fire. The ship follows relative finger movement; lift to stop firing. Direction and Fire buttons remain available, and keyboard controls use arrows or W/A/S/D and Space. Weapons upgrade after three and seven defeated hazards and stay upgraded after a hit. After wave two, choose wide spread or stronger, narrower focused fire without a timer. Missile capsules load up to four pairs that launch automatically alongside primary fire. The dashboard shows the weapon and remaining pairs. Bosses arrive every fifth wave: watch the locked warning marks and move clear. Named hazards show the cause of each lost life; shields absorb one impact. Sound starts off and can be enabled in Help. Pause reveals Restart. Invaders keeps a personal best only in this browser.
+
+Tap the Runner arena, swipe up, or use Jump; a second jump in the air gives extra height. The player provides instructions, pause/resume, replay, previous/next links and a game selector. Full screen uses the native feature where available and an expanded browser layout otherwise. Games pause when the page loses visibility. Trivia uses ordinary answer buttons and supports keyboard navigation.
 
 ## Project structure
 
@@ -53,6 +57,8 @@ Drag anywhere in the Invaders arena to fly and fire. The ship moves relative to 
 | `public/` | All files served to players. |
 | `public/game-engine.js` | Game rules and state, separate from browser events and drawing. |
 | `public/game-renderer.js` | Procedural spacecraft/effects, simulation-timed Halo frames, readable labels, and environment drawing. |
+| `public/game-audio.js` | Original synthesized effects, default off and stopped while paused. |
+| `public/community-client.js`, `public/community.css` | Optional same-origin challenge connection and overlay; independent of free play. |
 | `public/brand.css`, `public/play.css` | Shared brand tokens and the responsive game player. |
 | `artwork/` | Selected world originals/prompts, approved Halo source frames, extraction recipe, and file provenance. |
 | `scripts/` | Dependency-free static build, checks, and local server. |

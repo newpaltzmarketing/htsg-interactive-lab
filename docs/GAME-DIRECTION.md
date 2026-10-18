@@ -1,30 +1,30 @@
 # Agency Invaders game direction
 
-Planning draft, October 17, 2026. This document describes a proposed free game and community direction, not a set of available features. The public name remains **Gamification Labs**, and the game keeps its existing URL.
+Updated October 17, 2026. This document separates implemented gameplay from later ideas. The public name remains **Gamification Labs**, and the three free games keep their existing URLs.
 
 ## Release boundary
 
-Version **1.3.0 is installed**. It provides direct arena steering, more playfield space, a browser-local personal best, and pressure that grows after the first two approachable waves. Weaving and armored hazards are joined by a boss every five waves, alternating Scope Creep and Change Request. Boss attacks are signaled before firing; defeating one gives a reward and a breather. Existing weapon upgrades persist through damage. Source QA passed; actual public integration, sharing, and all three focused progression/boss scenarios passed as recorded in [QA.md](QA.md).
+Version **1.4.0 is installed**. It retains relative arena steering, a browser-local personal best and capped pressure after two approachable waves. The untimed choice after wave two selects wide spread or stronger, narrower focused fire while retaining earned upgrades. Missile capsules from wave three load up to four pairs that launch alongside primary fire. The compact dashboard preserves the 678-pixel phone canvas at 390 × 844; optional original synthesized sound starts muted. Launch Runner and Trivia retain their rules. Actual source and public verification are recorded in [QA.md](QA.md).
 
-The release has no shared leaderboard, challenge service, account, community feed, or new game backend. Personal best means this browser on this device; it is neither verified nor synchronized. Blocked or cleared storage leaves the game playable. Directions below are proposals rather than available modes or community services.
+The installed game also has a seeded challenge contract: fixed 960 × 1669 logical course, 120 Hz simulation and a maximum five-minute active clock. Weapon-choice time is excluded. A separate same-origin client handles server-issued attempts, results and fresh replay tickets. Free play never waits for this connection. The community plugin has its own security, identity configuration and data lifecycle. The owner has enabled public features and Google configuration, and an actual existing-member weekly run reached saved history and the board. Fresh Google onboarding was not tested from the already-authenticated owner session; see [QA.md](QA.md). Casual submitted scores are explicitly unverified. The browser-local personal best remains unsynchronized, and blocked storage leaves the games playable. Ideas below are future work except where implementation is explicitly stated.
 
 ## Five directions worth testing
 
 1. **Make agency frustration the identity.** Keep names people recognize: Scope Creep, Missed Deadlines, Budget Overruns, Tech Debt, Bottlenecks, and Broken Handoffs. Give each a distinct behavior and silhouette: a weaving deadline, a slow armored tech-debt block, or a handoff pair that separates. Teach the behavior through play and a brief help line. Avoid making the player read jokes while dodging.
 
-2. **Make bosses feel like familiar bad meetings.** Build on the release's Scope Creep and Change Request bosses. Scope Creep could gradually add attack lanes; Change Request could announce and then change its pattern. Every dangerous move needs a readable windup, a fair escape lane, and a recovery window. A boss victory should feel like finishing a difficult project, with a clear reward and a quiet moment before the next wave.
+2. **Make bosses feel like familiar bad meetings.** Version 1.4 implements Scope Creep's expanded warned fan at half health and Change Request's alternating single/staggered attack. Keep future patterns equally readable: a windup, a fair escape lane and a recovery window. Preserve the victory reward and breather.
 
-3. **Add one meaningful tradeoff at a time.** A future between-wave choice could offer a wider shot with lower damage, a stronger shield with slower recharge, or more points for accepting an extra hazard. Keep choices understandable on a phone and make each change the next wave. This would require fresh balance and accessibility testing; it is not in 1.3.0.
+3. **Add one meaningful tradeoff at a time.** The spread/focused choice is implemented. Test whether people use both families before adding another tradeoff, upgrade tree or selector. Later shield or risk/reward choices need fresh balance and accessibility testing; they are not available features.
 
 4. **Give each session a clear shape.** Retain a quick restart. Later, test a short five-wave “One More Revision” run alongside an endless “Deadline Mode.” A fixed run gives friends a comparable finish; endless play suits personal records. Build one mode well before adding another selector or progression system.
 
-5. **Let people compare the same challenge without an account.** Later, a shared seed in a link could reproduce the same hazard schedule. A local end-of-run scorecard could show score, wave, boss wins, and the seed, with an optional downloaded image or native share action. Treat shared scores as friendly and unverified. Do not imply a global ranking or build a fake leaderboard.
+5. **Make comparisons honest.** Deterministic challenge hooks are implemented; the separate community service needs its own acceptance. A later local result card or native share action could show score, wave and boss wins without requiring an account. Treat casual shared scores as unverified and never fabricate rankings or leaderboard entries.
 
 ## A small free-community rollout
 
 1. Finish the readable, fair phone game first. Have a few people play three runs without coaching; ask where their thumb blocks the action, what caused each loss, and whether they chose to restart. Record feedback manually rather than adding tracking now.
 2. Publish the working free link with a short actual-game clip and a specific invitation for feedback. Keep play immediate: no account, paywall, lead-form gate, or unavailable community panel. Any outreach or posting needs the owner's separate approval.
-3. After the game earns repeat play, prototype a fixed shared-seed challenge and an honest local scorecard. Verify deterministic play and sharing metadata before inviting comparisons. Use an existing owner-approved community channel rather than creating a game service prematurely.
-4. Review voluntary feedback and repeat-play observations, then choose the next improvement. Moderate any owner-run challenge manually at first. Consider verified scores or accounts only after a separate scope, cost, privacy, and moderation decision.
+3. Accept the separate challenge service only after its permission, privacy, replay-ticket and score-disclosure checks pass. Configure and confirm Google sign-in separately. Keep the three free games immediate and available when the service is absent or unavailable.
+4. Review voluntary feedback and repeat-play observations, then choose one next improvement. Moderate owner-run challenges deliberately. Verified scores, community feeds and other expanded features require a separate scope, cost, privacy and moderation decision.
 
-The strongest near-term sequence is recognizable hazards, fair boss beats, and a satisfying restart. Shared challenges and community tools should follow demonstrated enjoyment of that core.
+Keep the current recognizable hazards, fair boss beats and satisfying restart. Future changes must preserve the phone arena and repeat actual input, choice, ammunition, boss, pause, resize and sharing checks. Roadmap ideas stay in this document until they work.
