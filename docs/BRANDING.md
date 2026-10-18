@@ -4,6 +4,16 @@ Use **Gamification Labs** for the public name, including page titles, navigation
 
 The gallery keeps HTSG's white page, black text, fire orange headings, amber actions, and approved wordmark. The game player uses a dark navy surface with silver text and warm orange highlights so the environment artwork, moving objects, and controls read clearly. All fonts and assets are local; no font service or image service is called during play.
 
+## Agency Invaders tone and imagery
+
+Approved direction from Dean, October 18, 2026: warm, playful office comedy. Help agency owners and colleagues recognize a familiar situation, smile and feel a little lighter. Keep the arcade shooting, accumulating upgrades and competition enjoyable and welcoming.
+
+Use expressive office props, toy-like ships, helpful wingmates, warm light and crisp colorful effects. Keep the orbital office and its quiet dark flight area for contrast. Characters use surprise, determination and relief; finished encounters can file papers, untangle cables or pop open a completed tray. Keep the finger-wagging client theatrical and familiar rather than intimidating.
+
+Exclude horror or occult themes, sinister expressions, jump scares, gore, revenge framing and humiliating portrayals of clients or colleagues. Apply this to imagery, sound, marketing copy and community prompts. The shared situation is the joke.
+
+New feature vocabulary includes **Wingmates**, **Relay Pulse**, **Inbox Zero**, **Power up** and **Clear the backlog**. Invite people to **Suggest a character or challenge** in the Agency Break Room. Keep useful arcade terms such as weapons, missiles, waves and bosses when they explain a working control or mechanic. This is an art and voice direction, not a change to game rules or installed assets.
+
 ## Shared visual system
 
 Edit `public/brand.css` for the reusable palette and typography. `public/style.css` styles the gallery and shared controls; `public/play.css` lays out the game player. Keep those page and player responsibilities separate when creating another edition.

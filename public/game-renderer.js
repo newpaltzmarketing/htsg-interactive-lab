@@ -1,5 +1,6 @@
 import { arenaFor, bossGeometry, createInvadersState, createRunnerState, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon } from './game-engine.js';
 import { brand } from './brand.js';
+import { SHIP_PALETTES, normalizeShipAppearance } from './ship-customization.js';
 
 const TAU = Math.PI * 2;
 const paint = brand.canvas?.player || '#f78c1a';
@@ -135,50 +136,149 @@ function thruster(ctx, x, y, length, time, reducedMotion, width = 9) {
   ctx.fillStyle = '#fff8dc'; ellipse(ctx, x, y + 2, width * 0.7, 3); ctx.fill();
 }
 
-function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown = 0, weaponLevel = 1, weaponFamily = 'spread', recoil = 0) {
-  ctx.save(); ctx.translate(x, y + recoil); ctx.rotate(bank * 0.16);
-  glow(ctx, 0, 17, 85, paint, 0.14);
+function shipMaterials(appearance) {
+  const normalized = normalizeShipAppearance(appearance);
+  return { ...normalized, palette: SHIP_PALETTES.find(item => item.id === normalized.color) || SHIP_PALETTES[0] };
+}
+
+// All hulls are decorative around the same gameplay center. Cannons, missile
+// mounts, collision rules and steering never depend on the selected appearance.
+function shipHull(ctx, appearance) {
+  const { style, palette } = shipMaterials(appearance);
+  const hullPaint = () => gradient(ctx, -42, -30, 43, 32, [[0, palette.dark], [.24, palette.body], [.48, palette.light], [.68, palette.body], [1, palette.dark]]);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = '#0b2232'; ctx.lineWidth = 2;
+  ctx.fillStyle = hullPaint();
+  if (style === 'relay') {
+    // Twin booms and visible negative space make Relay recognizable in silhouette.
+    rounded(ctx, -44, -1, 88, 23, 10); ctx.fill(); ctx.stroke();
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = hullPaint(); rounded(ctx, side < 0 ? -47 : 22, -48, 25, 86, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = palette.light; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(side * 34, -39); ctx.lineTo(side * 34, -18); ctx.stroke();
+      ctx.fillStyle = '#112c40'; rounded(ctx, side < 0 ? -41 : 28, -29, 13, 16, 5); ctx.fill();
+      ctx.fillStyle = '#c8eff5'; rounded(ctx, side < 0 ? -39 : 30, -27, 9, 5, 2); ctx.fill();
+      ctx.strokeStyle = '#0b2232'; ctx.lineWidth = 2;
+    }
+    ctx.fillStyle = hullPaint(); rounded(ctx, -16, -33, 32, 67, 15); ctx.fill(); ctx.stroke();
+  } else if (style === 'fixer') {
+    // A soft utility tug: broad rounded cabin, service pods and a sturdy bumper.
+    for (const side of [-1, 1]) { rounded(ctx, side < 0 ? -49 : 33, -3, 16, 32, 7); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = hullPaint(); rounded(ctx, -38, -45, 76, 84, 25); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = palette.dark; rounded(ctx, -31, 24, 62, 12, 5); ctx.fill();
+    ctx.strokeStyle = palette.light; ctx.lineWidth = 2; rounded(ctx, -27, 4, 54, 13, 4); ctx.stroke();
+    for (const side of [-1, 1]) { ctx.fillStyle = '#deece7'; circle(ctx, side * 27, -4, 3); ctx.fill(); ctx.fillStyle = '#274458'; ctx.fillRect(side * 27 - 1, -6, 2, 4); }
+  } else {
+    // Studio is a welcoming broad-wing glider with a compact central canopy.
+    ctx.beginPath(); ctx.moveTo(0, -47); ctx.bezierCurveTo(-14, -34, -24, -2, -47, 16);
+    ctx.quadraticCurveTo(-52, 22, -45, 32); ctx.quadraticCurveTo(-32, 34, -14, 22);
+    ctx.lineTo(-9, 37); ctx.lineTo(9, 37); ctx.lineTo(14, 22);
+    ctx.quadraticCurveTo(32, 34, 45, 32); ctx.quadraticCurveTo(52, 22, 47, 16);
+    ctx.bezierCurveTo(24, -2, 14, -34, 0, -47); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = palette.light; ctx.lineWidth = 2.2;
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(side * 39, 23); ctx.quadraticCurveTo(side * 23, 10, side * 13, -12); ctx.stroke(); }
+    ctx.fillStyle = hullPaint(); rounded(ctx, -17, -39, 34, 73, 16); ctx.fill(); ctx.strokeStyle = '#0b2232'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  // Consistent bright cabin glass and trim keep every reviewed paint readable.
+  const window = style === 'fixer' ? { x: -20, y: -29, w: 40, h: 27 } : { x: -10, y: -28, w: 20, h: 31 };
+  ctx.fillStyle = gradient(ctx, 0, window.y, 0, window.y + window.h, [[0, '#dcf9fa'], [.3, '#72b9cd'], [1, '#173d58']]);
+  ctx.strokeStyle = '#123145'; ctx.lineWidth = 2; rounded(ctx, window.x, window.y, window.w, window.h, 9); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#f0ffff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(window.x + 5, window.y + 7); ctx.lineTo(window.x + 5, window.y + window.h * .5); ctx.stroke();
+  ctx.fillStyle = '#fff5dc'; ctx.fillRect(-5, 15, 2.5, 9); ctx.fillRect(2.5, 15, 2.5, 9); ctx.fillRect(-3, 18, 6, 2.5);
+}
+
+function spacecraft(ctx, x, y, bank, time, reducedMotion, shield, damageCooldown = 0, weaponLevel = 1, weaponFamily = 'spread', recoil = 0, appearance) {
+  ctx.save(); ctx.translate(x, y + recoil); ctx.rotate(bank * .16);
+  glow(ctx, 0, 17, 74, shipMaterials(appearance).palette.body, .12);
   const pulse = reducedMotion ? 0 : Math.sin(time * 4) * 4;
   if (shield > 0) {
     glow(ctx, 0, -3, 80, '#6bd8ed20');
     ctx.strokeStyle = '#92eaff98'; ctx.lineWidth = 2.5; ellipse(ctx, 0, -5, 54 + pulse, 68 + pulse); ctx.stroke();
     ctx.strokeStyle = '#d8faff35'; ctx.lineWidth = 1; ellipse(ctx, 0, -5, 61 + pulse, 75 + pulse); ctx.stroke();
   }
-  thruster(ctx, -24, 31, 49, time, reducedMotion, 7);
-  thruster(ctx, 24, 31, 49, time + 0.7, reducedMotion, 7);
-  // Swept wings with a machined leading edge and shadowed underside.
-  ctx.fillStyle = gradient(ctx, -48, -12, 45, 36, [[0, '#596e7d'], [0.26, '#aab8be'], [0.5, '#334553'], [0.74, '#c6d0cd'], [1, '#172936']]);
-  ctx.strokeStyle = '#0c1822'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, -27); ctx.bezierCurveTo(-12, -18, -29, 7, -49, 26); ctx.lineTo(-43, 39); ctx.lineTo(-10, 26); ctx.lineTo(0, 15); ctx.lineTo(10, 26); ctx.lineTo(43, 39); ctx.lineTo(49, 26); ctx.bezierCurveTo(29, 7, 12, -18, 0, -27); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = '#e6d7b999'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(-42, 27); ctx.lineTo(-12, -8); ctx.moveTo(42, 27); ctx.lineTo(12, -8); ctx.stroke();
-  ctx.fillStyle = paint;
-  for (const direction of [-1, 1]) {
-    ctx.beginPath(); ctx.moveTo(direction * 16, -2); ctx.lineTo(direction * 40, 27); ctx.lineTo(direction * 29, 24); ctx.lineTo(direction * 13, 8); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = gradient(ctx, direction * 24 - 8, 0, direction * 24 + 8, 0, [[0, '#152b3a'], [0.5, '#8c9da3'], [1, '#243a48']]);
-    rounded(ctx, direction * 24 - 8, -9, 16, 43, 7); ctx.fill();
-    ctx.fillStyle = paint;
-  }
-  const hull = gradient(ctx, -19, 0, 20, 0, [[0, '#6e2b15'], [0.18, paint], [0.43, '#ffb84f'], [0.55, '#ffd79a'], [0.7, paint], [1, '#8b3719']]);
-  ctx.fillStyle = hull; ctx.strokeStyle = '#301a15'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(0, -55); ctx.bezierCurveTo(10, -43, 21, -3, 17, 26); ctx.lineTo(8, 38); ctx.lineTo(-8, 38); ctx.lineTo(-17, 26); ctx.bezierCurveTo(-21, -3, -10, -43, 0, -55); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = '#ffe4ad9c'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-2, -45); ctx.quadraticCurveTo(-12, -17, -13, 17); ctx.stroke();
-  ctx.fillStyle = gradient(ctx, -7, -28, 10, 8, [[0, '#9fd8ec'], [0.34, '#295970'], [1, '#061828']]);
-  ctx.strokeStyle = '#3c2620'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, -29); ctx.bezierCurveTo(9, -21, 11, -6, 7, 7); ctx.quadraticCurveTo(0, 12, -7, 7); ctx.bezierCurveTo(-11, -6, -9, -21, 0, -29); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = '#ddf8ffaf'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-2, -23); ctx.quadraticCurveTo(-6, -9, -5, 1); ctx.stroke();
-  ctx.fillStyle = '#fff2cf'; ctx.fillRect(-5, 18, 2, 9); ctx.fillRect(3, 18, 2, 9); ctx.fillRect(-3, 21, 6, 2);
-  ctx.fillStyle = '#213543'; for (const dx of [-12, 12]) { circle(ctx, dx, 14, 1.4); ctx.fill(); }
-  if (weaponLevel > 1) {
-    for (const shot of invaderWeapon({ weaponLevel, weaponFamily }).pattern) {
-      ctx.fillStyle = '#9dabb0'; rounded(ctx, shot.offset - 3.5, -36, 7, 15, 2); ctx.fill();
-      ctx.fillStyle = beamCore; rounded(ctx, shot.offset - 2.5, -39, 5, 5, 2); ctx.fill();
-      glow(ctx, shot.offset, -37, 8, paint, 0.35);
-    }
+  thruster(ctx, -24, 31, 45, time, reducedMotion, 6);
+  thruster(ctx, 24, 31, 45, time + .7, reducedMotion, 6);
+  shipHull(ctx, appearance);
+  for (const shot of invaderWeapon({ weaponLevel, weaponFamily }).pattern) {
+    ctx.fillStyle = '#b6cbd0'; rounded(ctx, shot.offset - 3.5, -36, 7, 15, 2); ctx.fill();
+    ctx.fillStyle = beamCore; rounded(ctx, shot.offset - 2.5, -39, 5, 5, 2); ctx.fill();
   }
   if (damageCooldown > 0) { ctx.strokeStyle = '#ffc58e99'; ctx.lineWidth = 2; ellipse(ctx, 0, -3, 58, 65); ctx.stroke(); }
   ctx.restore();
+}
+
+export function drawShipPreview(ctx, appearance) {
+  const { width, height } = ctx.canvas;
+  const scale = Math.min(width / 130, height / 160);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, width, height);
+  ctx.translate(width / 2, height / 2 - 10 * scale); ctx.scale(scale, scale);
+  spacecraft(ctx, 0, 0, 0, 0, true, 0, 0, 1, 'spread', 0, appearance);
+  ctx.restore();
+}
+
+export function wingmateVisualGeometry(scene) {
+  const arena = arenaFor(scene);
+  if (!(scene.supportLevel > 0) || scene.supportFamily !== 'wingmates' && !(scene.inboxTime > 0)) return [];
+  return [-1, 1].map(side => ({ side, x: clamp(scene.player + side * 70, 8, arena.width - 8), y: arena.playerY - 6 }));
+}
+
+function supportCraft(ctx, scene, arena, time, reducedMotion, appearance) {
+  const { palette } = shipMaterials(appearance);
+  for (const mount of wingmateVisualGeometry(scene)) {
+    const bob = reducedMotion ? 0 : Math.sin(time * 3 + mount.side) * 1.3;
+    ctx.save(); ctx.translate(mount.x, mount.y + 14 + bob);
+    glow(ctx, 0, 7, 29, '#7be4cf', .12);
+    ctx.fillStyle = palette.dark; ctx.strokeStyle = '#102d3a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -16); ctx.quadraticCurveTo(-9, -13, -14, 7); ctx.quadraticCurveTo(-12, 17, 0, 18); ctx.quadraticCurveTo(12, 17, 14, 7); ctx.quadraticCurveTo(9, -13, 0, -16); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = palette.body; rounded(ctx, -9, -9, 18, 22, 8); ctx.fill();
+    ctx.fillStyle = '#d1fff4'; rounded(ctx, -6, -7, 12, 8, 4); ctx.fill();
+    ctx.fillStyle = '#254e60'; for (const x of [-2.5, 2.5]) { circle(ctx, x, -3, 1); ctx.fill(); }
+    ctx.fillStyle = '#9ce8cf'; rounded(ctx, -2, -19, 4, 8, 2); ctx.fill();
+    if (scene.supportLevel > 1) { ctx.strokeStyle = '#e4fff2'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-6, 7); ctx.lineTo(-1, 11); ctx.lineTo(6, 4); ctx.stroke(); }
+    ctx.fillStyle = '#ffe1a1'; ellipse(ctx, 0, 19, 3, reducedMotion ? 5 : 6 + Math.sin(time * 14) * 1.2); ctx.fill();
+    ctx.restore();
+  }
+  if (scene.inboxTime > 0) {
+    ctx.save(); ctx.strokeStyle = '#aaf2d4aa'; ctx.lineWidth = 2;
+    const radius = reducedMotion ? 66 : 66 + Math.sin(time * 4) * 1.5;
+    ctx.beginPath(); ctx.arc(scene.player, arena.playerY, radius, .18, Math.PI - .18); ctx.stroke();
+    checkmark(ctx, scene.player - 55, arena.playerY + 30, 9, '#d3fff0');
+    checkmark(ctx, scene.player + 55, arena.playerY + 30, 9, '#d3fff0');
+    ctx.restore();
+  }
+}
+
+export function enemyTelegraphGeometry(enemy, arena) {
+  if (enemy.attackPhase !== 'warning' || !Number.isFinite(enemy.aimX)) return null;
+  if (enemy.behavior === 'deadline') {
+    const halfWidth = hazardVisualGeometry(enemy).collision.halfWidth + 21;
+    return { kind: 'lane', x: enemy.aimX, top: clamp(enemy.y + 25 * (enemy.scale || INVADER_THREAT_SCALE), 0, arena.height), bottom: arena.height,
+      left: Math.max(0, enemy.aimX - halfWidth), right: Math.min(arena.width, enemy.aimX + halfWidth) };
+  }
+  if (enemy.behavior === 'client' && Number.isFinite(enemy.aimY)) return { kind: 'target', x: enemy.aimX, y: enemy.aimY, fromX: enemy.x, fromY: enemy.y };
+  return null;
+}
+
+function enemyTelegraphs(ctx, scene, arena, options) {
+  const unit = arena.height / Math.max(1, options.cssHeight || arena.height);
+  for (const enemy of scene.enemies || []) {
+    const mark = enemyTelegraphGeometry(enemy, arena);
+    if (!mark) continue;
+    ctx.save(); ctx.strokeStyle = '#ffcf83'; ctx.fillStyle = '#f9b85712'; ctx.lineWidth = 1.5 * unit;
+    ctx.setLineDash([5 * unit, 5 * unit]);
+    if (mark.kind === 'lane') {
+      ctx.fillRect(mark.left, mark.top, mark.right - mark.left, mark.bottom - mark.top);
+      for (const x of [mark.left, mark.right]) { ctx.beginPath(); ctx.moveTo(x, mark.top); ctx.lineTo(x, mark.bottom); ctx.stroke(); }
+      ctx.setLineDash([]); ctx.lineWidth = 2 * unit;
+      const y = Math.min(mark.bottom - 16 * unit, mark.top + 25 * unit);
+      ctx.beginPath(); ctx.moveTo(mark.x - 7 * unit, y - 4 * unit); ctx.lineTo(mark.x, y + 3 * unit); ctx.lineTo(mark.x + 7 * unit, y - 4 * unit); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.moveTo(mark.fromX, mark.fromY); ctx.lineTo(mark.x, mark.y); ctx.stroke();
+      ctx.setLineDash([]); circle(ctx, mark.x, mark.y, 20 * unit); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#fff0c8'; ctx.lineWidth = 2 * unit;
+      for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(mark.x + side * 15 * unit, mark.y); ctx.lineTo(mark.x + side * 24 * unit, mark.y); ctx.stroke(); }
+      paper(ctx, mark.fromX - 15 * unit, mark.fromY + 18 * unit, 10 * unit, 13 * unit, -.1);
+    }
+    ctx.restore();
+  }
 }
 
 function hazardId(enemy) {
@@ -201,7 +301,7 @@ function eyes(ctx, x, y, spacing = 7, expression = 0) {
   for (const side of [-1, 1]) { ellipse(ctx, x + side * spacing + 0.6, y + 1, 2.2, 3); ctx.fill(); }
   if (expression) {
     ctx.strokeStyle = '#283343'; ctx.lineWidth = 2.3; ctx.lineCap = 'round';
-    for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + side * (spacing - 4), y - 5 + expression); ctx.lineTo(x + side * (spacing + 4), y - 7); ctx.stroke(); }
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + side * spacing - 4, y - 7); ctx.quadraticCurveTo(x + side * spacing, y - 10 - expression, x + side * spacing + 4, y - 7); ctx.stroke(); }
   }
 }
 
@@ -250,9 +350,9 @@ function hazardModel(ctx, id, time = 0, damaged = false) {
     for (const x of [-12, -2]) { ellipse(ctx, x, -7, 3.7, 3.2); ctx.fill(); }
     ctx.fillStyle = '#203040'; for (const x of [-11.5, -1.5]) { ellipse(ctx, x, -6.5, 1.8, 2.5); ctx.fill(); }
     ctx.strokeStyle = '#3c3030'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(-16, -12); ctx.lineTo(-8, -10); ctx.moveTo(-5, -10); ctx.lineTo(3, -13); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-16, -12); ctx.quadraticCurveTo(-12, -16, -8, -12); ctx.moveTo(-5, -12); ctx.quadraticCurveTo(-1, -16, 3, -12); ctx.stroke();
     ctx.strokeStyle = '#a86a47'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-7, -6); ctx.lineTo(-9, -1); ctx.lineTo(-5, -1); ctx.stroke();
-    ctx.strokeStyle = '#6e332a'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-12, 2); ctx.quadraticCurveTo(-7, -2, -2, 2); ctx.stroke();
+    ctx.strokeStyle = '#6e332a'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-12, 2); ctx.quadraticCurveTo(-7, 6, -2, 2); ctx.stroke();
     ctx.save(); ctx.translate(-23, 14); ctx.rotate(-.12);
     ctx.fillStyle = '#996233'; ctx.strokeStyle = '#342e28'; ctx.lineWidth = 1.5; rounded(ctx, -6, -8, 13, 17, 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff0ca'; rounded(ctx, -4, -6, 9, 13, 1); ctx.fill(); ctx.fillStyle = paint; rounded(ctx, -2, -9, 5, 4, 1); ctx.fill();
@@ -367,7 +467,7 @@ function paperworkBoss(ctx, pose) {
   ctx.fillStyle=gradient(ctx,-62,-33,62,-24,[[0,'#9f3d25'],[.45,droneAccent],[1,'#ffb56b']]);rounded(ctx,-63,-32,113,9,2);ctx.fill();
   for(const side of [-1,1]) {ctx.fillStyle=paint;rounded(ctx,side<0?-91:80,-21,12,15,2);ctx.fill();}
   ctx.save();ctx.translate(0,-7);ctx.scale(2,2);eyes(ctx,0,0,15,pose.windup?2:1);ctx.restore();
-  ctx.strokeStyle='#514338';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-17,21);ctx.quadraticCurveTo(0,pose.windup?12:29,17,21);ctx.stroke();
+  ctx.strokeStyle='#514338';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-17,21);ctx.quadraticCurveTo(0,pose.windup?28:31,17,21);ctx.stroke();
   ctx.strokeStyle='#82969b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-63,-29);ctx.lineTo(-63,-41);ctx.quadraticCurveTo(-63,-49,-53,-45);ctx.lineTo(-53,-32);ctx.stroke();
   if(pose.lowHealth) {
     ctx.fillStyle='#192d39';ctx.beginPath();ctx.moveTo(39,44);ctx.lineTo(45,29);ctx.lineTo(51,42);ctx.lineTo(60,31);ctx.lineTo(68,44);ctx.closePath();ctx.fill();
@@ -435,6 +535,13 @@ function bossThreat(ctx, scene, arena, options) {
 function hostileProjectile(ctx, shot) {
   ctx.save(); ctx.translate(shot.x, shot.y);
   const angle = Math.atan2(shot.vy, shot.vx);
+  if (shot.kind === 'paper') {
+    ctx.rotate(angle - Math.PI / 2);
+    const radius = shot.radius || 10;
+    paper(ctx, 0, 0, radius * 1.6, radius * 2, 0, '#fff0bf');
+    ctx.fillStyle = '#f2a64f'; rounded(ctx, -radius * .55, -radius * .85, radius * .9, radius * .35, 1); ctx.fill();
+    ctx.restore(); return;
+  }
   ctx.strokeStyle = '#ffb15f99'; ctx.lineWidth = shot.radius * 1.2;
   ctx.beginPath(); ctx.moveTo(-Math.cos(angle) * 24, -Math.sin(angle) * 24); ctx.lineTo(0, 0); ctx.stroke();
   glow(ctx, 0, 0, shot.radius * 2.3, '#ff7542', 0.6);
@@ -442,7 +549,7 @@ function hostileProjectile(ctx, shot) {
 }
 
 function projectile(ctx, bullet, reducedMotion) {
-  const lance = bullet.kind === 'lance', missile = bullet.kind === 'missile';
+  const lance = bullet.kind === 'lance', missile = bullet.kind === 'missile', wingmate = bullet.kind === 'wingmate';
   if (missile && !reducedMotion) {
     const trail = (bullet.trail || []).slice(0, 8);
     ctx.save(); ctx.lineCap = 'round';
@@ -464,10 +571,10 @@ function projectile(ctx, bullet, reducedMotion) {
     ctx.beginPath();ctx.moveTo(-4,13);ctx.lineTo(0,reducedMotion?29:37);ctx.lineTo(4,13);ctx.closePath();ctx.fill();
     ctx.fillStyle='#fffbe4';ellipse(ctx,0,14,2.5,5);ctx.fill();
   } else {
-    const tail=lance?76:43, color=lance?'#8be8ff':paint;
-    glow(ctx,0,-3,lance?19:14,color,.32);
+    const tail=wingmate?25:lance?76:43, color=wingmate?'#a8f2d5':lance?'#8be8ff':paint;
+    glow(ctx,0,-3,wingmate?9:lance?19:14,color,wingmate?.18:.32);
     ctx.fillStyle=gradient(ctx,0,-12,0,tail,[[0,beamCore],[.2,color],[1,'transparent']]);
-    rounded(ctx,lance?-2.5:-4,-12,lance?5:8,tail,3);ctx.fill();
+    rounded(ctx,wingmate?-2:lance?-2.5:-4,-12,wingmate?4:lance?5:8,tail,3);ctx.fill();
     ctx.fillStyle=beamCore;rounded(ctx,-1.4,-13,2.8,lance?35:15,1.3);ctx.fill();
     if(lance){ctx.strokeStyle='#b7f1ff70';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-6,4);ctx.lineTo(-6,36);ctx.moveTo(6,4);ctx.lineTo(6,36);ctx.stroke();}
   }
@@ -484,7 +591,7 @@ function muzzleGlow(ctx,scene,arena,pose) {
   if(!pose.flare)return;
   ctx.save();ctx.globalAlpha*=pose.flare;
   for(const shot of pose.weapon.pattern){
-    const x=scene.player+shot.offset,y=arena.playerY+(pose.weapon.level===1?-56:-41)+pose.recoil;
+    const x=scene.player+shot.offset,y=arena.playerY-39+pose.recoil;
     glow(ctx,x,y,17,pose.color,.32);
     ctx.fillStyle=beamCore;ctx.beginPath();ctx.moveTo(x-4,y+3);ctx.lineTo(x,y-10);ctx.lineTo(x+4,y+3);ctx.closePath();ctx.fill();
   }
@@ -637,9 +744,48 @@ function effects(ctx, list, reducedMotion) {
   }
 }
 
+function checkmark(ctx, x, y, size, color = '#b5f1d8') {
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x - size * .6, y); ctx.lineTo(x - size * .12, y + size * .42); ctx.lineTo(x + size * .7, y - size * .55);
+  ctx.strokeStyle = '#153744'; ctx.lineWidth = Math.max(3, size * .28); ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.5, size * .16); ctx.stroke(); ctx.restore();
+}
+
+function completedPaperwork(ctx, item, reducedMotion) {
+  const t = clamp(item.age / item.life, 0, 1), fade = (1 - t) ** 1.3;
+  const boss = item.life >= .9, reach = boss ? 105 : 42, seed = item.seed || 0;
+  ctx.save(); ctx.globalAlpha *= fade;
+  glow(ctx, item.x, item.y, boss ? 65 : 28, '#9bddca', .18);
+  if (!reducedMotion) for (let index = 0; index < (boss ? 7 : 4); index += 1) {
+    const angle = noise(index + seed * 7) * TAU, distance = (.4 + noise(index + 43) * .6) * reach * t;
+    const x = item.x + Math.cos(angle) * distance, y = item.y + Math.sin(angle) * distance - t * 12;
+    paper(ctx, x, y, boss ? 11 : 7, boss ? 14 : 9, Math.sin(angle) * .35, ['#fff3cc', '#dbf7ec', '#e1f0ff'][index % 3]);
+  }
+  checkmark(ctx, item.x, item.y - (reducedMotion ? 0 : t * 10), boss ? 29 : 15);
+  ctx.restore();
+}
+
 function invaderEffects(ctx, list, reducedMotion) {
   // Rendering is bounded independently of the simulation's transient list.
   for(const item of (list||[]).slice(-24)){
+    if (item.kind === 'relay') {
+      if (![item.x, item.y, item.toX, item.toY].every(Number.isFinite)) continue;
+      const fade = 1 - clamp(item.age / item.life, 0, 1);
+      ctx.save(); ctx.globalAlpha *= fade; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(item.x, item.y); ctx.lineTo(item.toX, item.toY);
+      ctx.strokeStyle = '#133947'; ctx.lineWidth = 7; ctx.stroke();
+      ctx.strokeStyle = '#b5f4dc'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#f2fff5'; circle(ctx, item.toX, item.toY, 4); ctx.fill();
+      ctx.restore(); continue;
+    }
+    if (item.kind === 'support-upgrade' || item.kind === 'inbox-zero') {
+      const t = clamp(item.age / item.life, 0, 1), fade = 1 - t;
+      ctx.save(); ctx.globalAlpha *= fade;
+      ctx.strokeStyle = '#b8f2d6'; ctx.lineWidth = 2;
+      ellipse(ctx, item.x, item.y, reducedMotion ? 54 : 35 + t * 35, reducedMotion ? 34 : 22 + t * 25); ctx.stroke();
+      checkmark(ctx, item.x, item.y - 60, 13); ctx.restore(); continue;
+    }
+    if (item.kind === 'explosion') { completedPaperwork(ctx, item, reducedMotion); continue; }
     if (['missile-launch', 'missile-impact', 'missile-load'].includes(item.kind)) {
       const t = clamp(item.age / item.life, 0, 1), fade = (1 - t) ** 1.5;
       const launch = item.kind === 'missile-launch', load = item.kind === 'missile-load';
@@ -909,7 +1055,8 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
       for (const missile of scene.missiles || []) projectile(ctx, missile, reducedMotion);
       for (const item of scene.pickups || []) shieldPickup(ctx, item, time, reducedMotion);
       const volley=volleyVisualPose(scene,{reducedMotion});
-      spacecraft(ctx, scene.player, arena.playerY, scene.bank || 0, time, reducedMotion, scene.shield, scene.damageCooldown, scene.weaponLevel, scene.weaponFamily,volley.recoil);
+      supportCraft(ctx, scene, arena, time, reducedMotion, options.shipAppearance);
+      spacecraft(ctx, scene.player, arena.playerY, scene.bank || 0, time, reducedMotion, scene.shield, scene.damageCooldown, scene.weaponLevel, scene.weaponFamily,volley.recoil, options.shipAppearance);
       muzzleGlow(ctx,scene,arena,volley);
       if (scene.missilePairs > 0) {
         ctx.save(); ctx.fillStyle = '#bfd2d4'; ctx.strokeStyle = paint; ctx.lineWidth = 2;
@@ -921,12 +1068,14 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
     else if (mode !== 'runner') effects(ctx, scene.effects, reducedMotion);
     vignette(ctx, width, height);
     if (mode === 'invaders') {
+      // Warnings remain above friendly volleys and decorative completion paper.
+      enemyTelegraphs(ctx, scene, arena, options);
       hazardImpact(ctx, scene, arena, reducedMotion);
     }
     if (scene.phase === 'intermission') {
       ctx.fillStyle = '#f6dbad'; ctx.textAlign = 'center'; ctx.font = '700 24px system-ui, sans-serif';
-      ctx.fillText(`WAVE ${scene.wave} CLEAR`, width / 2, height * 0.32);
-      if (scene.lastBoss) { ctx.font = '600 18px system-ui, sans-serif'; ctx.fillText(`${scene.lastBoss} defeated · +${scene.bossBonus}`, width / 2, height * 0.32 + 29); }
+      ctx.fillText(`NICE WORK · WAVE ${scene.wave} CLEAR`, width / 2, height * 0.32);
+      if (scene.lastBoss) { ctx.font = '600 18px system-ui, sans-serif'; ctx.fillText(`Backlog cleared · +${scene.bossBonus}`, width / 2, height * 0.32 + 29); }
     }
     ctx.restore();
   }

@@ -1020,7 +1020,7 @@ test('challenge seed and fixed ticks reproduce state; geometry and timer survive
   assert.equal(timed.ended, true);
   assert.equal(invadersResult(timed).elapsed, 1);
   assert.equal(invadersResult(timed).reason, 'time');
-  assert.equal(invadersResult(timed).rulesVersion, '1.5.0');
+  assert.equal(invadersResult(timed).rulesVersion, '1.6.0');
 });
 
 test('replay cycles through three distinct valid five-question rounds before repeating', () => {

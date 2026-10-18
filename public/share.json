@@ -17,12 +17,12 @@
     },
     "play": {
       "title": "Play three games | HTSG Gamification Labs",
-      "description": "Defend against project chaos, double-jump with Halo, or test your digital know-how. Choose from three games in the HTSG Gamification Labs.",
+      "description": "Take a playful agency flight, double-jump with Halo, or test your digital know-how. Choose from three free browser games in HTSG Gamification Labs.",
       "path": "play.html"
     },
     "invaders": {
       "title": "Agency Invaders | HTSG Gamification Labs",
-      "description": "Fly through an orbital agency office and turn project chaos into target practice. Power up your weapons and outfly agency bosses with touch or keyboard controls.",
+      "description": "Pick your ship and paint, power up with Wingmates or Relay Pulse, and enjoy the funny side of agency life. Free play with touch or keyboard controls.",
       "path": "play.html?game=invaders"
     },
     "runner": {

@@ -1,6 +1,16 @@
 # Release changes
 
-## 1.5.3 — live, October 17, 2026
+## 1.6.1 — live, October 18, 2026
+
+The live review caught a CSS specificity override in ship/paint selection borders. Raise only those selectors and assert the actual rendered border in the browser acceptance suite. The final 37-file package differs from 1.6.0 only in CSS, release version and derived manifest. Rules remain 1.6.0; Community remains 1.0.6.
+
+## 1.6.0 — expansion, October 18, 2026
+
+Choose Studio, Relay or Fixer in six paints from the start/pause hangar. Cosmetics stay on the device and never affect movement or scoring. Wingmates or Relay Pulse join after wave two and evolve after the first boss; switching preserves all earned power. Clearing hazards charges six combat seconds of Inbox Zero, combining both supports and adding two missile pairs once, within existing caps. Client paper throws and clock dives use locked warnings and safe dodge windows. Paper/checkmark effects and friendly office expressions keep the tone upbeat.
+
+The compact dock and all three games are retained. Rules 1.6.0 require coordinated Community 1.0.6; explicit historical ID formats retain 1.4/1.5 tickets until their original expiry and keep history intact. No new backend, paid dependency, account change, community comments or team roster is included. The existing reviewed three-game cover remains relevant; initial-HTML game copy now describes the delivered features.
+
+## 1.5.3 — historical, October 17, 2026
 
 Give Agency Invaders an orbital agency office backdrop and update the game-gallery preview and three-game sharing cover. Preserve readable moving hazards, HUD and phone crops. Artwork, fallback/crop checks, installer verification and actual public asset/sharing checks passed. The required-world readiness guard names the selected office asset; prior dated covers and the old world remain available. Engine rules remain 1.5.0 and Community remains 1.0.5; no mechanics, backend or account change is included.
 

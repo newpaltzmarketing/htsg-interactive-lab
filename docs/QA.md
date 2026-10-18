@@ -1,6 +1,18 @@
 # Demonstration QA
 
-## Orbital agency office imagery — 1.5.3 installed
+## Personal ships and layered support — 1.6.1 installed
+
+Game 1.6.1, rules 1.6.0 and Community 1.0.6 are installed. Source syntax/metadata checks passed, with **93 Node tests** (including seven renderer checks), **20 core browser**, **eight controls**, **six presentation**, **six expansion UI** and **five Community-client** scenarios. The broader upgrade run passed 29 of 30; the lost final-life cause was restored and its focused case/error gate passed 2/2. Earned phone play passed; the desktop earned run caught a boss name hidden by Inbox Zero, which was corrected and passed the desktop run/error gate 2/2. The final integrated busy/HUD/paused/reduced fixtures passed 4/4 at 320/390/844. The 390×844 canvas stays 390×678 CSS pixels.
+
+The live review caught the ship-selection border still losing to a generic button rule; the final 1.6.1 CSS selector and a rendered-border assertion passed all six local expansion checks. No engine or service change was needed. Source/public fixtures are labeled separately from actual earned gameplay. No physical iOS/Android or Safari test is claimed.
+
+PHP lint and **130 adapter checks** passed. Both candidate and final installers were independently decompressed and compared; final **37 entries**, **3,808,755 bytes**, SHA-256 `efe59cc6cc7105af59156ba69637a1bc7417ec567e1eb92e2b298e1f5ec16c1c`. The initial sharing harness was incorrectly pointed at raw public files without a build manifest and correctly returned 503; the packaged adapter passed **14/14**, as did actual public sharing. This setup error did not affect production. The existing reviewed dated cover remains relevant and unchanged.
+
+WordPress showed both final versions active and SiteGround cache was purged. The fresh Community audit passed **14/14** at **2026-10-18T13:14:56Z**; public descriptor/board/privacy/card checks passed **4/4**. Seven ordinary anonymous asset GETs matched the frozen release exactly. Actual public expansion controls passed 6/6 before the CSS patch; the strengthened final 1.6.1 pass also passed 6/6, including rendered ship/paint border checks at all four viewports. Facebook Sharing Debugger was refreshed successfully (HTTP 200), showing the current copy and October 18 cover; its existing nonblocking fb:app_id warning remains. No social post, new account or synthetic production score was created.
+
+Evidence: parent workspace `output/agency-invaders-expansion-2026-10-18/evidence/`. Ship appearance is device-local. Community comments, company rosters, server-saved appearance and fresh Google onboarding remain outside this release.
+
+## Historical orbital agency office imagery — 1.5.3
 
 The installed release uses the approved orbital agency office in the game player, gallery and sharing cover. Source checks passed **18 JavaScript files**, both HTML/social blocks and the reviewed cover; Node checks passed **70/70**. Presentation passed **6/6**, unavailable-bitmap fallback **4/4**, and final gallery image/decode/link checks **3/3** at 1280/390/320 after the approved 24% crop refinement. Compact 320/390 covers were reviewed. Fixture/real-input scope and unavailable-image limits are indexed in the parent `evidence/QA-SOURCE.md`; no new earned combat or server challenge is claimed.
 

@@ -1,22 +1,18 @@
 # HTSG Gamification Labs
 
-**1.5.3 is installed** with an orbital agency office backdrop, a matching game-gallery preview and a newly versioned three-game sharing cover. Desktop/phone artwork and public image/metadata checks passed. Engine rules remain 1.5.0 and Community remains 1.0.5; the separate WordPress homepage/Community presentation is unchanged.
-
-The retained **1.5.2 character artwork** makes the falling Scope Creep hazard an animated finger-wagging client, with the same movement and hitbox. Its Help icon uses the same artwork. Rules remain 1.5.0 and Community remains 1.0.5; all three games and their URLs are preserved.
-
-Retained features include a compact pause panel, weapon-family switching while paused and more generous, gently guided missiles. Challenges use separate versioned weekly scores; existing history and unexpired prior attempts are preserved by the coordinated Community 1.0.5 update. The phone dashboard also keeps the arena height fixed when a fallback font wraps a weapon label. Challenge rules remain 1.5.0 and Community remains 1.0.5. All three games retain their public URLs.
+**1.6.1 is installed** with three personal ships, six paint choices, Wingmates or Relay Pulse, an earned Inbox Zero burst and playful client/clock attack patterns. Support layers onto the existing guns and missiles, unlocks after wave two and evolves after the first boss. The coordinated Community 1.0.6 update preserves older history and unexpired tickets while new challenges use rules 1.6.0.
 
 Three browser games for Holistic Tech Solutions Group demonstrations:
 
 | Game | Play |
 | --- | --- |
-| [Agency Invaders](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=invaders) | Choose spread or focused fire, collect side missiles, and outfly named agency bosses. |
+| [Agency Invaders](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=invaders) | Choose a ship and paint, layer support onto your guns and missiles, and clear playful office challenges. |
 | [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Take the actual Halo character past barriers with double jumps and energy boosts. |
 | [Trivia Challenge](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=trivia) | Explore three sets of five questions, with streaks and explanations. |
 
-The recognizable agency-object enemies, paper/printer bosses and reviewed sharing cover are retained. See the [change notes](docs/CHANGELOG.md) for the current pause and missile mechanics.
+The recognizable agency-object enemies, paper/printer bosses and reviewed sharing cover are retained. See the [change notes](docs/CHANGELOG.md) for the current progression and customization.
 
-The installed game lets you choose Spread/Focused from one pause panel, retain earned upgrades when switching, and collect up to eight guided missile pairs. The first upgrade supplies four pairs; capsules add six. Optional sound starts muted and its volume is saved only on this browser. The 390 × 844 phone playfield remains 678 CSS pixels high. All three games and their public URLs remain stable. See [deployment status](docs/DEPLOYMENT.md#current-publish-status), [QA evidence](docs/QA.md), and [implemented versus future game direction](docs/GAME-DIRECTION.md).
+The installed game lets you choose Spread/Focused and Wingmates/Relay Pulse from one pause panel, retain earned upgrades when switching, and collect up to eight guided missile pairs. The first upgrade supplies four pairs; capsules add six. Optional sound starts muted and its volume is saved only on this browser. The 390 × 844 phone playfield remains 678 CSS pixels high. All three games and their public URLs remain stable. See [deployment status](docs/DEPLOYMENT.md#current-publish-status), [QA evidence](docs/QA.md), and [implemented versus future game direction](docs/GAME-DIRECTION.md).
 
 The three games run locally using static HTML, CSS, local artwork and JavaScript. Free play needs no account or backend and remains usable when the optional community connection fails. There is no advertising, analytics, payment service or paid runtime dependency. The game-hosting WordPress companion serves the reviewed files and adds a direct administration link; it creates no game records or API. A separate first-party community plugin supplies the optional challenge service. The owner has enabled its public features and Google configuration; actual existing-member challenge submission, history and the unverified board passed, while fresh Google onboarding has separate acceptance limits in [QA.md](docs/QA.md). Playwright is a free development dependency used only for browser checks.
 
@@ -40,6 +36,7 @@ npm test
 npm run test:browser
 npm run test:polish
 npm run test:controls
+npm run test:expansion
 npm run test:upgrade
 npm run test:gamification
 npm run build
@@ -56,7 +53,7 @@ The validation workflow runs syntax and asset checks, game logic tests, browser 
 
 ## Controls
 
-Drag anywhere in the Invaders arena to fly and fire. The ship follows relative finger movement; lift to stop firing. Direction and Fire buttons remain available, and keyboard controls use arrows or W/A/S/D and Space. Weapons upgrade after three and seven defeated hazards and stay upgraded after a hit. After wave two, choose wide spread or stronger, narrower focused fire without a timer. Missile capsules load up to four pairs that launch automatically alongside primary fire. The dashboard shows the weapon and remaining pairs. Bosses arrive every fifth wave: watch the locked warning marks and move clear. Named hazards show the cause of each lost life; shields absorb one impact. Sound starts off and can be enabled in Help. Pause reveals Restart. Invaders keeps a personal best only in this browser.
+Drag anywhere in the Invaders arena to fly and fire. The ship follows relative finger movement; lift to stop firing. Direction and Fire buttons remain available, and keyboard controls use arrows or W/A/S/D and Space. Weapons upgrade after three and seven defeated hazards and stay upgraded after a hit. After wave two, choose wide spread or stronger, narrower focused fire without a timer. Missile capsules add six pairs, up to eight; missiles launch automatically alongside primary fire. The dashboard shows the weapon and remaining pairs. Bosses arrive every fifth wave: watch the locked warning marks and move clear. Named hazards show the cause of each lost life; shields absorb one impact. Sound starts off and can be enabled in the pause panel or Help. Pause reveals Restart. Invaders keeps a personal best only in this browser.
 
 Tap the Runner arena, swipe up, or use Jump; a second jump in the air gives extra height. The player provides instructions, pause/resume, replay, previous/next links and a game selector. Full screen uses the native feature where available and an expanded browser layout otherwise. Games pause when the page loses visibility. Trivia uses ordinary answer buttons and supports keyboard navigation.
 

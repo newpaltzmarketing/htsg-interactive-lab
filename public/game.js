@@ -5,17 +5,18 @@ import {
   ARENA, arenaFor, createInputState, setInput, getInput, clearInput,
   createInvadersState, stepInvaders, fireInvaders, invaderWeapon,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer, resizeGame,
-  equipInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA, INVADER_RULES_VERSION,
+  equipInvaderWeapon, equipInvaderSupport, createInvadersChallenge, invadersResult, CHALLENGE_ARENA, INVADER_RULES_VERSION,
 } from './game-engine.js';
-import { createRenderer, HAZARD_VISUALS, drawHazardIcon, drawPickupIcon } from './game-renderer.js';
+import { createRenderer, HAZARD_VISUALS, drawHazardIcon, drawPickupIcon, drawShipPreview } from './game-renderer.js';
+import { SHIP_STYLES, SHIP_PALETTES, readShipAppearance, saveShipAppearance } from './ship-customization.js';
 import { createGameAudio } from './game-audio.js';
 
 const games = {
   invaders: {
-    title: 'Agency Invaders', headline: 'Your inbox fights back.',
-    instructions: 'Deadlines are ticking. Budgets are bursting. Clear the agency chaos, power up, and take on the big brief.',
+    title: 'Agency Invaders', headline: 'Make room for a little fun.',
+    instructions: 'Pick your ship, bring your wingmates, and turn a busy agency day into a playful flight.',
     help: 'Drag anywhere in the game to fly and fire. The ship follows your movement without jumping under your finger. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
-    depth: 'Earn upgrades at 3 and 7 defeated hazards. Pause to switch between wide spread and focused beams without losing upgrades. Your first upgrade loads four missile pairs. Rocket pickups add six pairs, up to eight, and missiles seek targets automatically while you fire. Shields block one impact. Every fifth wave brings a boss with locked warning marks. Your personal best stays on this device.',
+    depth: 'Earn gun upgrades at 3 and 7 cleared hazards. Pause to change guns or support without losing upgrades. Wingmates or Relay Pulse join after wave 2 and improve after your first boss. Clear hazards to charge Inbox Zero; big briefs add bonus charge. When full, firing starts six combat seconds with both supports working together. Rockets refill your automatic missiles; shields block one impact. A pointing client marks a paper’s destination before throwing it. A clock marks its lane before diving; let it pass safely. Every fifth wave brings a big brief. Your personal best and ship appearance stay on this device.',
     hint: 'Drag anywhere to fly and fire.', action: 'Fire',
   },
   runner: {
@@ -73,6 +74,8 @@ let accumulator = 0;
 let world = { width: ARENA.width, height: ARENA.height };
 let lastLives = 3;
 let lastWeaponLevel = 1;
+let lastSupportLevel = 0;
+let lastInboxBursts = 0;
 let steeringPointer = null;
 let targetX;
 let targetY;
@@ -90,6 +93,9 @@ let lastBossesDefeated = 0;
 let lastMissileId = 0;
 let lastWavePhase = '';
 let panelOpen = false;
+let hangarPreflight = false;
+let shipAppearance = readShipAppearance();
+let shipStorageAvailable = null;
 
 document.body.dataset.game = mode;
 byId('title').textContent = game.title;
@@ -115,6 +121,21 @@ document.querySelectorAll('.game-option').forEach(link => {
 function announce(message) { announcement.textContent = message; }
 function savePreferences() { try { localStorage.setItem(preferencesKey, JSON.stringify(preferences)); } catch { /* Private browsing may block storage. */ } }
 function calmEffects() { return reducedMotion.matches || (mode === 'invaders' && preferences.reducedEffects); }
+function syncShipAppearance() {
+  const style = SHIP_STYLES.find(item => item.id === shipAppearance.style);
+  const paint = SHIP_PALETTES.find(item => item.id === shipAppearance.color);
+  byId('ship-summary').textContent = `${style.name} · ${paint.name}`;
+  byId('ship-description').textContent = style.description;
+  byId('ship-preview').setAttribute('aria-label', `${paint.name} ${style.name} ship preview`);
+  for (const item of SHIP_STYLES) byId(`ship-${item.id}`).setAttribute('aria-pressed', String(item.id === style.id));
+  for (const item of SHIP_PALETTES) byId(`paint-${item.id}`).setAttribute('aria-pressed', String(item.id === paint.id));
+  byId('ship-storage-note').textContent = shipStorageAvailable === null ? 'Your choice stays on this device when storage is available. All ships fly and score equally.' : shipStorageAvailable ? 'Saved on this device. All ships fly and score equally.' : 'Selected for this visit. Device storage is unavailable. All ships fly and score equally.';
+  drawShipPreview(byId('ship-preview').getContext('2d'), shipAppearance);
+}
+function closeHangar() {
+  hangarPreflight = false; panelOpen = false; byId('ship-hangar').open = false;
+  syncOverlay(); render(); byId('open-hangar').focus({ preventScroll: true });
+}
 function syncSettings() {
   for (const id of ['sound-toggle', 'panel-sound-toggle']) {
     byId(id).textContent = audio.enabled ? 'Sound on' : 'Sound off';
@@ -129,7 +150,7 @@ function syncSettings() {
   byId('device-effects-note').hidden = !reducedMotion.matches;
 }
 function syncControlPanel() {
-  const visible = mode === 'invaders' && playing && paused && panelOpen && !state?.ended;
+  const visible = mode === 'invaders' && panelOpen && (hangarPreflight || playing && paused && !state?.ended);
   controlPanel.hidden = !visible;
   controlPanel.inert = visible && !helpPanel.hidden;
   if (visible && helpPanel.hidden) controlPanel.setAttribute('aria-modal', 'true'); else controlPanel.removeAttribute('aria-modal');
@@ -138,6 +159,17 @@ function syncControlPanel() {
   controls.inert = locked || state?.phase === 'choice';
   canvas.inert = locked;
   if (!visible) return;
+  byId('control-panel-title').textContent = hangarPreflight ? 'Your ship' : 'Game controls';
+  for (const id of ['weapon-choice', 'support-choice', 'panel-settings', 'panel-tools']) byId(id).hidden = hangarPreflight;
+  byId('panel-resume').textContent = hangarPreflight ? 'Back to game' : 'Resume game';
+  byId('ship-hangar').querySelector('summary').hidden = hangarPreflight;
+  syncShipAppearance();
+  if (hangarPreflight) {
+    byId('panel-run-status').textContent = 'Make it yours. All ships fly and score equally.';
+    byId('panel-resume').disabled = false;
+    byId('restart-confirm').hidden = true;
+    return;
+  }
   byId('panel-run-status').textContent = `Paused${challengeSettings ? ' · Weekly challenge' : ''} · Wave ${state.wave} · ${state.score} points`;
   byId('panel-free-play').hidden = !challengeSettings;
   byId('panel-weapon-note').textContent = state.phase === 'choice' ? 'Wave 2 clear. Choose your style, then resume.' : 'Switch styles here. Your earned upgrades stay with you.';
@@ -147,6 +179,9 @@ function syncControlPanel() {
   }
   const pairs = state.missilePairs || 0;
   byId('panel-ammo').textContent = `${pairs} missile ${pairs === 1 ? 'pair' : 'pairs'} loaded · Fires automatically with your guns.`;
+  for (const family of ['wingmates', 'relay']) byId(`support-${family}`).setAttribute('aria-pressed', String(state.supportFamily === family));
+  byId('panel-support-note').textContent = state.supportLevel > 1 ? 'Support evolved. Switch freely; your earned power stays.' : state.supportLevel ? 'Support is online. Clear your first big brief to evolve it.' : 'Choose now. Your support joins after wave 2 and improves after the first big brief.';
+  byId('panel-boost-note').textContent = state.inboxTime > 0 ? `Inbox Zero · ${state.inboxTime.toFixed(1)} seconds of both supports together.` : `Inbox Zero · ${state.inboxCharge || 0}/20 charge. Clear hazards to charge; big briefs add bonus charge. Firing at full charge starts six seconds with both supports.`;
   byId('panel-resume').disabled = state.phase === 'choice';
   byId('panel-fullscreen').textContent = document.fullscreenElement || shell.classList.contains('is-expanded') ? 'Exit full screen' : 'Full screen';
   syncSettings();
@@ -160,7 +195,7 @@ function syncStatus() {
   const message = state ? scoreText() : 'Ready to play';
   setStatus(paused ? `Paused · ${message}` : state?.ended ? `Game over · ${message}` : message);
   const detail = !state ? '' : mode === 'invaders'
-    ? `Wave ${state.wave || 1}${state.boss ? ` · ${state.boss.label}` : state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
+    ? `Wave ${state.wave || 1}${state.boss ? ` · ${state.boss.label}${state.inboxTime > 0 ? ' · Inbox Zero' : ''}` : state.inboxTime > 0 ? ` · Inbox Zero ${state.inboxTime.toFixed(1)}s` : state.supportUpgradeTime > 0 ? ' · Support online' : state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
     : `${state.boost > 0 ? `Boost · ${state.boost.toFixed(1)}s` : `Energy ${state.energy || 0}/5`}${state.bonus ? ` · +${state.bonus} bonus` : ''}`;
   if (byId('mission-detail').textContent !== detail) byId('mission-detail').textContent = detail;
   if (mode === 'invaders' && state) {
@@ -191,6 +226,13 @@ function syncStatus() {
     impactFeedback.dataset.kind = state.lastHazardBlocked ? 'shield' : 'damage';
   }
   const notices = [];
+  if (mode === 'invaders' && state?.supportLevel > lastSupportLevel) {
+    lastSupportLevel = state.supportLevel; audio.play('upgrade');
+    notices.push(state.supportLevel > 1 ? 'Support evolved. Your crew is more powerful.' : 'Support online. Pause to choose Wingmates or Relay Pulse.');
+  }
+  if (mode === 'invaders' && state?.inboxBursts > lastInboxBursts) {
+    lastInboxBursts = state.inboxBursts; audio.play('upgrade'); notices.push('Inbox Zero! Both supports are active for six combat seconds.');
+  }
   if (state && mode === 'invaders' && state.lives !== lastLives) {
     lastLives = state.lives;
     audio.play('impact');
@@ -273,12 +315,13 @@ function render() {
       return { x: (box.left - rect.left - 4) * world.width / rect.width, y: (box.top - rect.top - 4) * world.height / rect.height,
         width: (box.width + 8) * world.width / rect.width, height: (box.height + 8) * world.height / rect.height };
     }) : [];
-  renderer.render(context, state, { ...world, cssWidth: rect.width, cssHeight: rect.height, reservedRects, mode, time: state?.elapsed || 0, reducedMotion: calmEffects() });
+  renderer.render(context, state, { ...world, cssWidth: rect.width, cssHeight: rect.height, reservedRects, mode, time: state?.elapsed || 0, reducedMotion: calmEffects(), shipAppearance });
 }
 function syncOverlay() {
   const choice = mode === 'invaders' && state?.phase === 'choice';
   syncControlPanel();
   overlay.hidden = !controlPanel.hidden || choice || !!state && !paused && !state.ended;
+  byId('open-hangar').hidden = mode !== 'invaders' || playing;
   if (mode === 'invaders' && state) { start.hidden = !paused; byId('pause-actions').hidden = !paused; }
   byId('free-play').hidden = !challengeSettings;
   if (challengeSettings) byId('pause-actions').hidden = playing && !paused && !state?.ended;
@@ -286,7 +329,7 @@ function syncOverlay() {
   const ended = state?.ended;
   byId('overlay-title').textContent = ended ? (state.endReason === 'time' ? 'Challenge complete.' : mode === 'runner' ? 'One more launch?' : 'Flight complete.') : paused ? 'Take a breath.' : game.headline;
   byId('instructions').textContent = ended
-    ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.endReason === 'time' ? 'Challenge time complete. ' : state.lastHazard ? `${state.lastHazard} broke through. ` : ''}${state.score} points. Wave ${state.wave || 1} reached. Ready to clear the project chaos?`)
+    ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.endReason === 'time' ? 'Challenge time complete. ' : state.lastHazard ? `${state.lastHazard} caught up. ` : ''}${state.score} points. Wave ${state.wave || 1} reached. Ready for another flight?`)
     : paused ? 'Your run is right where you left it.' : game.instructions;
   byId('overlay-action').textContent = ended ? challengeSettings ? 'New challenge run →' : 'Play again →' : paused ? 'Resume →' : 'Start game →';
   byId('overlay-hint').textContent = mode === 'invaders'
@@ -344,6 +387,7 @@ function emitResult(reason) {
   document.dispatchEvent(new CustomEvent('htsg:run-result', { detail: { ...invadersResult(state), ...(reason ? { reason } : {}) } }));
 }
 function resetGame(options = {}) {
+  hangarPreflight = false; byId('ship-hangar').open = false;
   if (challengeSettings && !options.freshChallenge) {
     // A confirmed restart leaves the old run, including when the next ticket fails.
     stopFrame(); clearControls(); audio.setPaused(true);
@@ -364,6 +408,7 @@ function resetGame(options = {}) {
   lastKills = 0; lastBossesDefeated = 0; lastMissileId = 0; lastWavePhase = '';
   lastLives = 3;
   lastWeaponLevel = 1;
+  lastSupportLevel = 0; lastInboxBursts = 0;
   newPersonalBest = false;
   playing = true;
   paused = false;
@@ -563,7 +608,10 @@ document.addEventListener('fullscreenchange', syncFullscreen);
 document.addEventListener('keydown', event => {
   const dialog = !helpPanel.hidden ? helpPanel : !controlPanel.hidden ? controlPanel : null;
   if (event.code === 'Tab' && dialog) {
-    const targets = [...dialog.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]')].filter(node => node.getClientRects().length && !node.closest('[hidden], [inert]'));
+    const targets = [...dialog.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), summary, [tabindex="0"]')].filter(node => {
+      const closed = node.closest('details:not([open])');
+      return node.getClientRects().length && !node.closest('[hidden], [inert]') && (!closed || node === closed.querySelector('summary'));
+    });
     const index = targets.indexOf(document.activeElement);
     if (targets.length && (index < 0 || !event.shiftKey && index === targets.length - 1 || event.shiftKey && index === 0)) {
       event.preventDefault(); targets[event.shiftKey ? targets.length - 1 : 0].focus();
@@ -573,7 +621,7 @@ document.addEventListener('keydown', event => {
   if (event.code !== 'Escape') return;
   if (!helpPanel.hidden) { event.preventDefault(); closeHelp(); }
   else if (!controlPanel.hidden && !byId('restart-confirm').hidden) { event.preventDefault(); byId('restart-confirm').hidden = true; byId('panel-restart').focus(); }
-  else if (!controlPanel.hidden) { event.preventDefault(); setPaused(false); }
+  else if (!controlPanel.hidden) { event.preventDefault(); if (hangarPreflight) closeHangar(); else setPaused(false); }
   else if (picker.open) { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); }
   else if (shell.classList.contains('is-expanded')) { event.preventDefault(); void exitFullscreen(); }
   else if (mode !== 'trivia' && playing && !event.repeat) { event.preventDefault(); setPaused(!paused); }
@@ -582,6 +630,24 @@ document.addEventListener('keydown', event => {
 function setupArcade() {
   byId('sound-toggle').hidden = mode !== 'invaders';
   if (mode === 'invaders') {
+    for (const [items, parent, prefix, property] of [[SHIP_STYLES, 'ship-styles', 'ship', 'style'], [SHIP_PALETTES, 'ship-colors', 'paint', 'color']]) {
+      for (const item of items) {
+        const button = document.createElement('button'); button.type = 'button'; button.id = `${prefix}-${item.id}`;
+        if (property === 'color') { const swatch = document.createElement('span'); swatch.className = 'paint-swatch'; swatch.style.backgroundColor = item.body; swatch.setAttribute('aria-hidden', 'true'); button.append(swatch); }
+        button.append(document.createTextNode(item.name)); button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('click', () => {
+          shipAppearance = { ...shipAppearance, [property]: item.id };
+          shipStorageAvailable = saveShipAppearance(shipAppearance); syncShipAppearance(); render();
+          announce(`${byId('ship-summary').textContent} selected. Your flight and score stay the same.`);
+        });
+        byId(parent).append(button);
+      }
+    }
+    byId('open-hangar').addEventListener('click', () => {
+      if (playing) return;
+      hangarPreflight = true; panelOpen = true; byId('ship-hangar').open = true;
+      syncOverlay(); byId('control-panel-title').focus({ preventScroll: true });
+    });
     byId('hazard-guide').hidden = false;
     byId('pickup-guide').hidden = false;
     for (const [id, hazard] of Object.entries(HAZARD_VISUALS)) {
@@ -615,12 +681,17 @@ function setupArcade() {
     choiceVisible = false; clearControls(); syncStatus(); syncControlPanel(); render();
     announce(`${invaderWeapon(state).name} equipped. Your run is still paused.`);
   });
+  for (const family of ['wingmates', 'relay']) byId(`support-${family}`).addEventListener('click', () => {
+    if (!paused || controlPanel.hidden || !equipInvaderSupport(state, family)) return;
+    clearControls(); syncControlPanel(); render();
+    announce(`${family === 'relay' ? 'Relay Pulse' : 'Wingmates'} selected. Your earned upgrades stay with you.`);
+  });
   for (const id of ['sound-toggle', 'panel-sound-toggle']) byId(id).addEventListener('click', async () => { await audio.toggle(); syncSettings(); });
   byId('sound-volume').addEventListener('input', event => {
     preferences.volume = Number(event.target.value); audio.setVolume(preferences.volume / 100); savePreferences(); syncSettings();
   });
   byId('reduced-effects').addEventListener('change', event => { preferences.reducedEffects = event.target.checked; savePreferences(); syncSettings(); render(); });
-  byId('panel-resume').addEventListener('click', () => setPaused(false));
+  byId('panel-resume').addEventListener('click', () => { if (hangarPreflight) closeHangar(); else setPaused(false); });
   byId('panel-help').addEventListener('click', openHelp);
   byId('panel-fullscreen').addEventListener('click', toggleFullscreen);
   byId('panel-restart').addEventListener('click', () => { byId('restart-confirm').hidden = false; byId('restart-confirm-no').focus(); });

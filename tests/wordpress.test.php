@@ -54,7 +54,7 @@ $state['can'] = true; $state['page'] = (object) ['ID' => 123];
 check(stopped('htsg_lab_activate', 409), 'Existing page must not be shadowed');
 $state['page'] = null;
 check(htsg_lab_ready(), 'The actual packaged dist files must verify');
-foreach (['game-renderer.js', 'score-store.js', 'play.css', 'assets/invaders-orbital-agency-20261018.webp', 'assets/runner-world.webp', 'assets/trivia-world.webp',
+foreach (['game-renderer.js', 'ship-customization.js', 'score-store.js', 'play.css', 'assets/invaders-orbital-agency-20261018.webp', 'assets/runner-world.webp', 'assets/trivia-world.webp',
     'assets/halo-runner-atlas.webp', 'assets/halo-runner-idle.png'] as $name) {
     $path = $fixture . '/site/' . $name;
     rename($path, $path . '.unavailable');

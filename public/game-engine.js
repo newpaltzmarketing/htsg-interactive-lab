@@ -1,10 +1,11 @@
 // Deterministic rules. Browser events, rendering, and clocks stay outside this module.
 export const ARENA = Object.freeze({ width: 960, height: 540, floor: 454 });
 export const INVADER_THREAT_SCALE = 1.35;
-export const INVADER_RULES_VERSION = '1.5.0';
+export const INVADER_RULES_VERSION = '1.6.0';
 export const INVADER_TICK = 1 / 120;
 export const CHALLENGE_ARENA = Object.freeze({ width: 960, height: 1669 });
 export const INVADER_MISSILES = Object.freeze({ maxPairs: 8, upgradePairs: 4, pickupPairs: 6, cadence: .7, maxActive: 8, life: 2.2, homingDelay: .18, maxLateralSpeed: 260 });
+export const INVADER_SUPPORT = Object.freeze({ wingCadence: .65, maxWingShots: 8, supportCapacity: 56, relayCadence: .4, relayRange: 220, inboxCharge: 20, inboxDuration: 6 });
 export const INVADER_WEAPONS = Object.freeze([
   { level: 1, kills: 0, name: 'Single shot', pattern: [{ offset: 0, vx: 0 }] },
   { level: 2, kills: 3, name: 'Twin streams', pattern: [{ offset: -16, vx: 0 }, { offset: 16, vx: 0 }] },
@@ -31,6 +32,11 @@ export function equipInvaderWeapon(state, family) {
   state.choiceMade = true;
   return true;
 }
+export function equipInvaderSupport(state, family) {
+  if (state?.kind !== 'invaders' || state.ended || !(state.lives > 0) || !['wingmates', 'relay'].includes(family)) return false;
+  state.supportFamily = family;
+  return true;
+}
 export function createInvadersChallenge(config = {}) {
   const seed = String(config.seed ?? 'agency-invaders');
   let randomState = 2166136261;
@@ -43,7 +49,8 @@ export function createInvadersChallenge(config = {}) {
 export function invadersResult(state) {
   return { ...state.challenge, rulesVersion: INVADER_RULES_VERSION, score: Math.floor(state.score), wave: state.wave,
     kills: state.kills, bossesDefeated: state.bossesDefeated, elapsed: state.elapsed,
-    reason: state.endReason || (state.ended ? 'lives' : 'active'), weaponFamily: state.weaponFamily };
+    reason: state.endReason || (state.ended ? 'lives' : 'active'), weaponFamily: state.weaponFamily,
+    supportFamily: state.supportFamily, supportLevel: state.supportLevel, inboxBursts: state.inboxBursts };
 }
 function seededRandom(state) {
   state.randomState = (state.randomState + 0x6D2B79F5) >>> 0;
@@ -120,6 +127,8 @@ export function resizeGame(state, width, height) {
         if (Number.isFinite(item.baseX)) item.baseX *= scaleX;
         if (Number.isFinite(item.previousY)) item.previousY *= scaleY;
         if (Number.isFinite(item.previousX)) item.previousX *= scaleX;
+        if (Number.isFinite(item.aimX)) item.aimX *= scaleX;
+        if (Number.isFinite(item.aimY)) item.aimY *= scaleY;
         if (item.hostile || item.kind === 'missile') {
           if (Number.isFinite(item.vx)) item.vx *= scaleX;
           if (Number.isFinite(item.vy)) item.vy *= scaleY;
@@ -140,7 +149,11 @@ export function resizeGame(state, width, height) {
     }
     // Jump height and velocity are physical distances, not absolute screen coordinates.
   }
-  for (const effect of state.effects || []) { effect.x *= scaleX; effect.y *= scaleY; }
+  for (const effect of state.effects || []) {
+    effect.x *= scaleX; effect.y *= scaleY;
+    if (Number.isFinite(effect.toX)) effect.toX *= scaleX;
+    if (Number.isFinite(effect.toY)) effect.toY *= scaleY;
+  }
   return state;
 }
 export const resizeGameState = resizeGame;
@@ -154,8 +167,8 @@ export function setInput(input, action, source, pressed) {
 export function getInput(input) { return Object.fromEntries(Object.entries(input).map(([key, sources]) => [key, sources.size > 0])); }
 export function clearInput(input) { Object.values(input).forEach(sources => sources.clear()); }
 
-function effect(state, kind, x, y, life = 0.65) {
-  state.effects.push({ kind, x, y, age: 0, life, seed: state.nextId++ });
+function effect(state, kind, x, y, life = 0.65, details = {}) {
+  state.effects.push({ kind, x, y, age: 0, life, seed: state.nextId++, ...details });
 }
 function tickEffects(state, dt) {
   state.effects.forEach(item => { item.age += dt; });
@@ -172,6 +185,8 @@ export function createInvadersState(options = {}) {
     combo: 0, bestCombo: 0, kills: 0, shield: 0, shieldTime: 0,
     weaponLevel: 1, weaponUpgradeTime: 0,
     weaponFamily: 'spread', choiceMade: false, missilePairs: 0, missileCooldown: 0, supplyWave: 0, pickupSerial: 0, volleys: 0,
+    supportFamily: 'wingmates', supportLevel: 0, supportCooldown: 0, relayCooldown: 0, supportVolleys: 0, supportUpgradeTime: 0,
+    inboxCharge: 0, inboxTime: 0, inboxBursts: 0,
     pressure: 0, boss: null, bossesDefeated: 0, lastBoss: '', bossBonus: 0,
     damageCooldown: 0, lastHazard: '', lastHazardTime: 0, lastHazardBlocked: false, lastHazardReason: '', nextId: 1,
   };
@@ -207,6 +222,83 @@ export function fireInvaders(state) {
   state.cooldown = weapon.cadence || 0.24;
   state.volleys += 1;
   return true;
+}
+
+function upgradeSupport(state, level) {
+  if (state.supportLevel >= level) return;
+  state.supportLevel = level;
+  state.supportUpgradeTime = 2.4;
+  effect(state, 'support-upgrade', state.player, state.playerY, .9, { level });
+}
+
+function stepSupport(state, input, arena) {
+  if (!state.supportLevel || !input.action || !['wave', 'boss'].includes(state.phase)) return;
+  const playerY = arenaFor(state).playerY;
+  const visibleThreat = state.enemies.some(enemy => enemy.y >= 0 && enemy.y < arena.height && (enemy.health ?? 1) > 0) ||
+    state.boss && state.boss.phase !== 'entering' && state.boss.health > 0;
+  if (state.inboxCharge >= INVADER_SUPPORT.inboxCharge && state.inboxTime === 0 && visibleThreat) {
+    state.inboxCharge = 0; state.inboxTime = INVADER_SUPPORT.inboxDuration; state.inboxBursts += 1;
+    state.missilePairs = Math.min(INVADER_MISSILES.maxPairs, state.missilePairs + 2);
+    effect(state, 'inbox-zero', state.player, playerY, .9);
+  }
+  if ((state.supportFamily !== 'wingmates' && !state.inboxTime) || state.supportCooldown > 0) return;
+  if (state.bullets.length + 2 > INVADER_SUPPORT.supportCapacity ||
+      state.bullets.filter(shot => shot.kind === 'wingmate').length + 2 > INVADER_SUPPORT.maxWingShots) return;
+  for (const side of [-1, 1]) {
+    const x = clamp(state.player + side * 70, 8, arena.width - 8), y = playerY - 6;
+    state.bullets.push({ x, y, previousX: x, previousY: y, vx: side * 24, damage: state.supportLevel >= 2 ? 2 : 1,
+      kind: 'wingmate', supportLevel: state.supportLevel, id: state.nextId++ });
+  }
+  state.supportCooldown = INVADER_SUPPORT.wingCadence;
+  state.supportVolleys += 1;
+}
+
+function awardInvaderKill(state, enemy) {
+  const index = state.enemies.indexOf(enemy);
+  if (index === -1) return;
+  state.enemies.splice(index, 1);
+  state.combo += 1; state.bestCombo = Math.max(state.bestCombo, state.combo); state.kills += 1;
+  const unlocked = state.kills >= 7 ? 3 : state.kills >= 3 ? 2 : 1;
+  if (unlocked > state.weaponLevel) {
+    if (state.weaponLevel < 2) state.missilePairs = Math.min(INVADER_MISSILES.maxPairs, state.missilePairs + INVADER_MISSILES.upgradePairs);
+    state.weaponLevel = unlocked; state.weaponUpgradeTime = 2.4;
+    effect(state, 'upgrade', state.player, state.playerY, .9);
+  }
+  if (state.supportLevel && !state.inboxTime) state.inboxCharge = Math.min(INVADER_SUPPORT.inboxCharge, state.inboxCharge + 1);
+  state.score += 10 + Math.min(3, Math.floor(state.combo / 4)) * 5;
+  effect(state, 'explosion', enemy.x, enemy.y);
+  if (state.kills % 5 === 0) state.pickups.push({ x: enemy.x, y: enemy.y, kind: 'shield', id: state.nextId++ });
+  if (state.wave >= 2 && (state.supplyWave !== state.wave || state.kills % 6 === 0) && state.pickups.filter(item => item.kind === 'missiles').length < 2) {
+    state.supplyWave = state.wave;
+    state.pickups.push({ x: clamp(enemy.x + (state.kills % 5 === 0 ? 65 : 0), 38, state.world.width - 38), y: enemy.y, kind: 'missiles', id: state.nextId++ });
+  }
+}
+
+function damageInvader(state, enemy, damage) {
+  enemy.health = (enemy.health ?? 1) - damage;
+  if (enemy.health <= 0) awardInvaderKill(state, enemy);
+  else effect(state, 'spark', enemy.x, enemy.y, .25);
+}
+
+function relayPulse(state, origin, projectile) {
+  if (!state.supportLevel || (state.supportFamily !== 'relay' && !state.inboxTime) || state.relayCooldown > 0 ||
+      ['wingmate', 'missile'].includes(projectile.kind)) return;
+  const arena = arenaFor(state), verticalScale = clamp(arena.height / 540, .65, 4.5);
+  const range = INVADER_SUPPORT.relayRange * arena.width / 960;
+  const visited = new Set([origin]);
+  let previous = origin, count = 0;
+  for (let hop = 0; hop < Math.min(2, state.supportLevel); hop += 1) {
+    const distance = enemy => Math.hypot(enemy.x - previous.x, (enemy.y - previous.y) / verticalScale);
+    const target = state.enemies.filter(enemy => !visited.has(enemy) && (enemy.health ?? 1) > 0 &&
+      enemy.x >= 0 && enemy.x <= arena.width && enemy.y >= 0 && enemy.y <= arena.height && distance(enemy) <= range)
+      .sort((a, b) => distance(a) - distance(b))[0];
+    if (!target) break;
+    visited.add(target);
+    effect(state, 'relay', previous.x, previous.y, .22, { toX: target.x, toY: target.y, level: state.supportLevel });
+    damageInvader(state, target, 1);
+    previous = target; count += 1;
+  }
+  if (count) state.relayCooldown = INVADER_SUPPORT.relayCadence;
 }
 
 function stepMissiles(state, arena, dt, verticalScale) {
@@ -278,6 +370,8 @@ function spawnInvader(state, random) {
   const weaver = !heavy && state.wave >= 3 && state.waveSpawned % 3 === 1;
   const health = heavy ? Math.min(4, 2 + Math.floor((state.wave - 3) / 4)) : (weaver && state.wave >= 4 || state.wave >= 7) ? 2 : 1;
   const hazard = heavy ? INVADER_HAZARDS[2] : weaver ? INVADER_HAZARDS[state.waveSpawned % 2 ? 3 : 5]
+    : state.wave >= 3 && state.waveSpawned === 0 ? INVADER_HAZARDS[0]
+    : state.wave >= 3 && state.waveSpawned === 2 ? INVADER_HAZARDS[1]
     : INVADER_HAZARDS[(state.waveSpawned + state.wave - 1) % INVADER_HAZARDS.length];
   state.enemies.push({
     id: state.nextId++, x, baseX: x, y: -58, scale: INVADER_THREAT_SCALE,
@@ -286,6 +380,9 @@ function spawnInvader(state, random) {
     health, maxHealth: health,
     phase: randomUnit(random) * Math.PI * 2,
     age: 0,
+    ...(state.wave >= 3 && ['scope-creep', 'missed-deadlines'].includes(hazard.id) ? {
+      behavior: hazard.id === 'scope-creep' ? 'client' : 'deadline', attackPhase: 'approach', attackIn: 0,
+    } : {}),
   });
   state.waveSpawned += 1;
 }
@@ -295,12 +392,17 @@ function finishInvaderWave(state, bossLabel = '') {
   state.lastBoss = bossLabel; state.bossBonus = bossLabel ? 250 + state.wave * 25 : 0;
   state.score += state.bossBonus || 25 * state.wave;
   effect(state, 'wave', state.world.width / 2, state.world.height * 0.32, state.waveIn);
-  if (state.wave === 2 && !state.choiceMade) state.phase = 'choice';
+  state.hostileShots = state.hostileShots.filter(shot => shot.kind !== 'paper');
+  if (state.wave === 2) {
+    upgradeSupport(state, 1);
+    if (!state.choiceMade) state.phase = 'choice';
+  }
 }
 function beginInvaderWave(state) {
   const pace = invaderPace(state.wave);
   state.pressure = pace.pressure; state.waveSpawned = 0; state.waveQuota = pace.quota;
   state.phase = 'wave'; state.spawnIn = 0.75; state.lastBoss = ''; state.bossBonus = 0;
+  if (state.wave >= 3) upgradeSupport(state, state.bossesDefeated ? 2 : 1);
   if (state.wave % 5 === 0) {
     const stage = state.wave / 5;
     const shape = bossGeometry(state);
@@ -316,6 +418,43 @@ function projectileHits(bullet, x, y, halfWidth, halfHeight) {
   const crossingX = bullet.previousX + (bullet.x - bullet.previousX) * progress;
   return Math.abs(x - crossingX) < halfWidth && bullet.y < y + halfHeight && bullet.previousY >= y - halfHeight;
 }
+
+function stepAgencyEnemy(state, enemy, arena, descent, verticalScale, dt) {
+  enemy.previousX = enemy.x; enemy.previousY = enemy.y;
+  enemy.age = (enemy.age || 0) + dt;
+  if (enemy.attackPhase === 'warning') {
+    enemy.attackIn = Math.max(0, enemy.attackIn - dt);
+    if (enemy.attackIn > 0) return;
+    if (enemy.behavior === 'deadline') enemy.attackPhase = 'dive';
+    else {
+      if (state.hostileShots.length < 18 && state.hostileShots.filter(shot => shot.kind === 'paper').length < 3) {
+        const travel = 1.6;
+        state.hostileShots.push({ x: enemy.x, y: enemy.y, previousX: enemy.x, previousY: enemy.y,
+          vx: (enemy.aimX - enemy.x) / travel, vy: Math.max(30, (enemy.aimY - enemy.y) / travel),
+          radius: 10, kind: 'paper', hostile: true, label: enemy.label || 'Scope creep', age: 0, life: 5, id: state.nextId++ });
+      }
+      enemy.attackPhase = 'recover';
+    }
+  }
+  if (enemy.attackPhase === 'dive') {
+    enemy.x = enemy.aimX;
+    enemy.y += Math.min(320, 250 + state.wave * 8) * verticalScale * dt;
+    return;
+  }
+  enemy.y += descent * (enemy.type === 'interceptor' ? state.wave >= 4 ? 1.18 : 1.04 : enemy.type === 'heavy' ? .88 : 1) * dt;
+  if (Number.isFinite(enemy.baseX)) {
+    const edge = enemy.type === 'heavy' ? 78 : 64, weaving = enemy.type === 'weaver';
+    const amplitude = weaving ? Math.min(132, 72 + state.wave * 4) * arena.width / 960 : enemy.type === 'heavy' ? 12 : 22;
+    enemy.x = clamp(enemy.baseX + Math.sin(enemy.age * (weaving ? 2.1 : 1.25) + enemy.phase) * amplitude, edge, arena.width - edge);
+  }
+  const warningY = Math.max(20, Math.min(arena.height * .16, arena.invadersBounds.top - 64));
+  if (enemy.behavior && enemy.attackPhase === 'approach' && enemy.y >= warningY) {
+    enemy.attackPhase = 'warning'; enemy.attackIn = enemy.behavior === 'client' ? 1 : .95;
+    enemy.aimX = enemy.behavior === 'client' ? state.player : enemy.x;
+    enemy.aimY = enemy.behavior === 'client' ? state.playerY : arena.height + 26;
+  }
+}
+
 function stepBoss(state, arena, dt) {
   const boss = state.boss;
   if (!boss) return;
@@ -365,9 +504,12 @@ function stepBoss(state, arena, dt) {
     const projectile = projectiles.splice(index, 1)[0];
     boss.health -= projectile.damage || 1;
     if (projectile.kind === 'missile') effect(state, 'missile-impact', projectile.x, boss.y, .4);
+    relayPulse(state, boss, projectile);
     if (boss.health <= 0) {
       effect(state, 'explosion', boss.x, boss.y, 1);
       state.boss = null; state.hostileShots = []; state.bossesDefeated += 1;
+      upgradeSupport(state, 2);
+      if (!state.inboxTime) state.inboxCharge = Math.min(INVADER_SUPPORT.inboxCharge, state.inboxCharge + 5);
       state.shield = 1; state.shieldTime = 12;
       effect(state, 'shield', state.player, state.playerY, 1);
       finishInvaderWave(state, boss.label);
@@ -397,6 +539,12 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
   if (state.challenge && state.elapsed >= state.challenge.durationSeconds) { state.ended = true; state.endReason = 'time'; return state; }
   state.cooldown = Math.max(0, state.cooldown - dt);
   state.missileCooldown = Math.max(0, state.missileCooldown - dt);
+  state.supportCooldown = Math.max(0, state.supportCooldown - dt);
+  state.relayCooldown = Math.max(0, state.relayCooldown - dt);
+  state.supportUpgradeTime = Math.max(0, state.supportUpgradeTime - dt);
+  // Earned concerted fire is not spent during the between-wave breather or
+  // while the next boss is still entering the arena.
+  if (['wave', 'boss'].includes(state.phase) && state.boss?.phase !== 'entering') state.inboxTime = Math.max(0, state.inboxTime - dt);
   state.damageCooldown = Math.max(0, state.damageCooldown - dt);
   state.lastHazardTime = Math.max(0, state.lastHazardTime - dt);
   state.weaponUpgradeTime = Math.max(0, state.weaponUpgradeTime - dt);
@@ -442,24 +590,18 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
   const verticalScale = clamp(arena.height / 540, 0.65, 4.5);
   state.pressure = invaderPace(state.wave).pressure;
   const descent = invaderPace(state.wave).descent * verticalScale;
+  stepSupport(state, input, arena);
   state.bullets.forEach(bullet => {
     bullet.previousX = bullet.x; bullet.previousY = bullet.y;
     bullet.x += (bullet.vx || 0) * verticalScale * dt;
     bullet.y -= 620 * verticalScale * dt;
   });
   stepMissiles(state, arena, dt, verticalScale);
-  state.enemies.forEach(enemy => {
-    enemy.age = (enemy.age || 0) + dt;
-    enemy.y += descent * (enemy.type === 'interceptor' ? state.wave >= 4 ? 1.18 : 1.04 : enemy.type === 'heavy' ? 0.88 : 1) * dt;
-    if (Number.isFinite(enemy.baseX)) {
-      const edge = enemy.type === 'heavy' ? 78 : 64;
-      const weaving = enemy.type === 'weaver';
-      const amplitude = weaving ? Math.min(132, 72 + state.wave * 4) * arena.width / 960 : enemy.type === 'heavy' ? 12 : 22;
-      enemy.x = clamp(enemy.baseX + Math.sin(enemy.age * (weaving ? 2.1 : 1.25) + enemy.phase) * amplitude, edge, arena.width - edge);
-    }
-  });
-  for (let enemyIndex = state.enemies.length - 1; enemyIndex >= 0; enemyIndex -= 1) {
-    const enemy = state.enemies[enemyIndex];
+  state.enemies.forEach(enemy => stepAgencyEnemy(state, enemy, arena, descent, verticalScale, dt));
+  // Relay can resolve another target during this pass; a stable snapshot avoids
+  // skipping or processing an object twice after those removals.
+  for (const enemy of [...state.enemies].reverse()) {
+    if (!state.enemies.includes(enemy)) continue;
     const scale = enemy.scale || INVADER_THREAT_SCALE;
     const radius = (enemy.type === 'heavy' ? 39 : 32) * scale;
     const halfHeight = 25 * scale;
@@ -469,34 +611,16 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
       const projectile = projectiles.splice(bulletIndex, 1)[0];
       const damage = projectile.damage || 1;
       if (projectile.kind === 'missile') effect(state, 'missile-impact', enemy.x, enemy.y, .4);
-      enemy.health = (enemy.health ?? 1) - damage;
-      if (enemy.health <= 0) {
-        state.enemies.splice(enemyIndex, 1);
-        state.combo += 1;
-        state.bestCombo = Math.max(state.bestCombo, state.combo);
-        state.kills += 1;
-        const unlocked = state.kills >= 7 ? 3 : state.kills >= 3 ? 2 : 1;
-        if (unlocked > state.weaponLevel) {
-          if (state.weaponLevel < 2) state.missilePairs = Math.min(INVADER_MISSILES.maxPairs, state.missilePairs + INVADER_MISSILES.upgradePairs);
-          state.weaponLevel = unlocked;
-          state.weaponUpgradeTime = 2.4;
-          effect(state, 'upgrade', state.player, state.playerY, 0.9);
-        }
-        state.score += 10 + Math.min(3, Math.floor(state.combo / 4)) * 5;
-        effect(state, 'explosion', enemy.x, enemy.y);
-        if (state.kills % 5 === 0) state.pickups.push({ x: enemy.x, y: enemy.y, kind: 'shield', id: state.nextId++ });
-        if (state.wave >= 2 && (state.supplyWave !== state.wave || state.kills % 6 === 0) && state.pickups.filter(item => item.kind === 'missiles').length < 2) {
-          state.supplyWave = state.wave;
-          state.pickups.push({ x: clamp(enemy.x + (state.kills % 5 === 0 ? 65 : 0), 38, arena.width - 38), y: enemy.y, kind: 'missiles', id: state.nextId++ });
-        }
-        continue;
-      }
-      effect(state, 'spark', enemy.x, enemy.y, 0.25);
+      damageInvader(state, enemy, damage);
+      relayPulse(state, enemy, projectile);
+      if (!state.enemies.includes(enemy)) continue;
     }
-    const hitsPlayer = Math.abs(enemy.x - state.player) < radius + 21 && Math.abs(enemy.y - state.playerY) < halfHeight + 17;
+    const inLane = Math.abs(enemy.x - state.player) < radius + 21;
+    const hitsPlayer = inLane && (Math.abs(enemy.y - state.playerY) < halfHeight + 17 ||
+      enemy.attackPhase === 'dive' && enemy.previousY <= state.playerY && enemy.y >= state.playerY);
     if (enemy.y > arena.height + 26 || hitsPlayer) {
-      state.enemies.splice(enemyIndex, 1);
-      damageInvaders(state, state.player, state.playerY, enemy, hitsPlayer ? 'collision' : 'miss');
+      state.enemies.splice(state.enemies.indexOf(enemy), 1);
+      if (hitsPlayer || enemy.attackPhase !== 'dive') damageInvaders(state, state.player, state.playerY, enemy, hitsPlayer ? 'collision' : 'miss');
     }
   }
   stepBoss(state, arena, dt);

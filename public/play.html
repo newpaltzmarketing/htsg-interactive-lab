@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#080e17">
   <!-- HTSG social:start -->
   <title>Play three games | HTSG Gamification Labs</title>
-  <meta name="description" content="Defend against project chaos, double-jump with Halo, or test your digital know-how. Choose from three games in the HTSG Gamification Labs.">
+  <meta name="description" content="Take a playful agency flight, double-jump with Halo, or test your digital know-how. Choose from three free browser games in HTSG Gamification Labs.">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <meta property="og:title" content="Play three games | HTSG Gamification Labs">
-  <meta property="og:description" content="Defend against project chaos, double-jump with Halo, or test your digital know-how. Choose from three games in the HTSG Gamification Labs.">
+  <meta property="og:description" content="Take a playful agency flight, double-jump with Halo, or test your digital know-how. Choose from three free browser games in HTSG Gamification Labs.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Holistic Tech Solutions Group">
   <meta property="og:locale" content="en_US">
@@ -22,7 +22,7 @@
   <meta property="og:image:alt" content="HTSG Gamification Labs featuring Agency Invaders in an orbital office, Halo in Launch Runner, and Trivia Challenge.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Play three games | HTSG Gamification Labs">
-  <meta name="twitter:description" content="Defend against project chaos, double-jump with Halo, or test your digital know-how. Choose from three games in the HTSG Gamification Labs.">
+  <meta name="twitter:description" content="Take a playful agency flight, double-jump with Halo, or test your digital know-how. Choose from three free browser games in HTSG Gamification Labs.">
   <meta name="twitter:image" content="https://holistictechsolutionsgroup.com/demos/interactive-lab/assets/lab-share-20261018.jpg">
   <meta name="twitter:image:alt" content="HTSG Gamification Labs featuring Agency Invaders in an orbital office, Halo in Launch Runner, and Trivia Challenge.">
   <link rel="canonical" href="https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html">
@@ -62,9 +62,10 @@
           <div id="arcade-hud" class="arcade-hud"><strong id="status" class="game-status">Ready to play</strong><span id="mission-detail" class="mission-detail"></span></div>
           <p id="impact-feedback" class="impact-feedback" hidden></p>
           <div id="arena-overlay" class="arena-overlay"><div class="overlay-content">
-            <h2 id="overlay-title">Your inbox fights back.</h2>
-            <p id="instructions">Deadlines are ticking. Budgets are bursting. Clear the agency chaos.</p>
+            <h2 id="overlay-title">Make room for a little fun.</h2>
+            <p id="instructions">Pick your ship, bring your wingmates, and turn a busy agency day into a playful flight.</p>
             <button id="overlay-action" type="button">Start game <span aria-hidden="true">→</span></button>
+            <button id="open-hangar" class="hangar-launch" type="button" hidden>Choose your ship</button>
             <p id="overlay-hint" class="overlay-hint">Drag the arena to steer and fire.</p>
             <div id="pause-actions" class="pause-actions" hidden><button id="free-play" type="button" hidden>Play free</button></div>
             <div id="community-mount" class="community-mount" hidden></div>
@@ -81,7 +82,21 @@
                   </div>
                   <p id="panel-ammo" class="panel-ammo">Missiles launch automatically while you fire.</p>
                 </fieldset>
-                <fieldset class="panel-settings"><legend>Sound &amp; effects</legend>
+                <fieldset id="support-choice" class="panel-weapons"><legend>Support crew</legend>
+                  <p id="panel-support-note">Your support joins in wave 3 and improves after the first big brief.</p>
+                  <div class="loadout-options support-options">
+                    <button id="support-wingmates" type="button" aria-pressed="true"><span><strong>Wingmates</strong><small>Two pods add their own paired shots.</small></span></button>
+                    <button id="support-relay" type="button" aria-pressed="false"><span><strong>Relay Pulse</strong><small>Gun hits pass a signal to nearby targets.</small></span></button>
+                  </div>
+                  <p id="panel-boost-note" class="panel-ammo">Keep clearing the backlog to earn an Inbox Zero burst.</p>
+                </fieldset>
+                <details id="ship-hangar" class="ship-hangar"><summary>Your ship <span id="ship-summary">Studio · Orange</span></summary>
+                  <canvas id="ship-preview" width="520" height="200" role="img" aria-label="Your selected ship"></canvas>
+                  <fieldset><legend>Ship style</legend><div id="ship-styles" class="ship-options"></div><p id="ship-description" class="setting-note"></p></fieldset>
+                  <fieldset><legend>Paint</legend><div id="ship-colors" class="paint-options"></div></fieldset>
+                  <p id="ship-storage-note" class="setting-note">Saved on this device. All ships fly and score equally.</p>
+                </details>
+                <fieldset id="panel-settings" class="panel-settings"><legend>Sound &amp; effects</legend>
                   <div class="panel-setting-row"><span>Sound effects</span><button id="panel-sound-toggle" type="button" aria-pressed="false">Sound off</button></div>
                   <label class="volume-label" for="sound-volume">Volume <output id="sound-volume-value" for="sound-volume">65%</output></label>
                   <input id="sound-volume" type="range" min="0" max="100" step="5" value="65" aria-describedby="sound-volume-note">
@@ -89,7 +104,7 @@
                   <label class="effects-setting"><input id="reduced-effects" type="checkbox"><span>Reduce effects<small>Calmer motion, trails and bursts.</small></span></label>
                   <p id="device-effects-note" class="setting-note" hidden>Enabled by your device’s reduced-motion setting.</p>
                 </fieldset>
-                <div class="panel-tools"><button id="panel-help" type="button">How to play</button><button id="panel-fullscreen" type="button">Full screen</button><button id="panel-restart" type="button">Restart run</button><a id="panel-exit" href="index.html">All games</a><button id="panel-free-play" type="button" hidden>Switch to free play</button></div>
+                <div id="panel-tools" class="panel-tools"><button id="panel-help" type="button">How to play</button><button id="panel-fullscreen" type="button">Full screen</button><button id="panel-restart" type="button">Restart run</button><a id="panel-exit" href="index.html">All games</a><button id="panel-free-play" type="button" hidden>Switch to free play</button></div>
                 <div id="restart-confirm" class="restart-confirm" hidden><p>Restart this run? Your current score and upgrades will reset.</p><div><button id="restart-confirm-no" type="button">Keep playing</button><button id="restart-confirm-yes" type="button">Yes, restart</button></div></div>
               </div>
               <footer class="panel-footer"><button id="panel-resume" type="button">Resume game</button></footer>
@@ -102,7 +117,7 @@
             <p id="game-help">Use the on-screen buttons or your keyboard.</p>
             <p id="game-depth" class="help-depth"></p>
             <section id="hazard-guide" class="hazard-guide" aria-labelledby="hazard-guide-title" hidden>
-              <h3 id="hazard-guide-title">Meet the project chaos</h3>
+              <h3 id="hazard-guide-title">Meet the office characters</h3>
               <ul id="hazard-legend" class="hazard-legend"></ul>
               <p>These shapes identify each hazard. Life-loss messages name what broke through. Boss warning lines show where the next attack will land.</p>
             </section>

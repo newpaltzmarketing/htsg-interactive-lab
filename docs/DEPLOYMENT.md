@@ -2,7 +2,15 @@
 
 The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. The static games use the existing HTSG WordPress host. Free play requires no account, game backend, paid dependency or DNS change. The optional first-party community service is maintained and accepted separately.
 
-## Release 1.5.3 live — October 17, 2026
+## Release 1.6.1 live — October 18, 2026
+
+Game 1.6.1 adds personal ships/paint and the 1.6.0 expansion rules: layered Wingmates/Relay Pulse, earned Inbox Zero and warned office attacks. The final patch corrects selected appearance styling. Community 1.0.6 preserves historical ticket formats and history; its fresh installed access audit passed 14/14 at 2026-10-18T13:14:56Z. All three public game URLs remain unchanged. See [QA.md](QA.md) for actual source, earned gameplay, fixture and public acceptance boundaries.
+
+Installed game ZIP: `release/htsg-interactive-lab-wordpress-1.6.1.zip`, **3,808,755 bytes**, **37 independently matched entries**, SHA-256 `efe59cc6cc7105af59156ba69637a1bc7417ec567e1eb92e2b298e1f5ec16c1c`. Community installer remains private in the sibling project. The publisher verified active versions, refreshed SiteGround cache, matched seven anonymous public assets and refreshed Facebook’s game preview.
+
+Same-rules rollback is preserved 1.6.0 (3,808,742 bytes, SHA-256 `91795e7a80ce9f9e0e40faea7ab5b7a1a25c175722ce0eed2df4c446c3d58a30`); it has only the appearance-border defect. The older game 1.5.3 and Community 1.0.5 coordinated rollback packages remain immutable. Downgrading rules requires coordinated versions and a fresh Community audit; do not relabel or delete stored results or new-rule tickets.
+
+## Historical release 1.5.3 — October 17, 2026
 
 The visual release adds an orbital agency office backdrop with reviewed game-gallery and sharing-cover imagery. Separate WordPress homepage/Community presentations remain unchanged. Source checks, 70 Node tests, six presentation cases, four fallback checks, three gallery checks, 14 sharing checks, PHP lint and 127 adapter checks passed. Rules remain 1.5.0 and Community remains 1.0.5; no service, schema, account or Google change is required.
 
@@ -191,7 +199,7 @@ Re-run checks and deploy the same `demo-preview` branch with the command above. 
 
 ## Current publish status
 
-**Gamification Labs 1.5.3 is installed.** The 36-entry installer, exact archive/hash validation and 127 adapter checks are recorded above. Actual public asset/sharing checks and their scope are in [QA.md](QA.md). Immutable 1.5.2 is the immediate game rollback. Engine rules remain 1.5.0 and Community remains 1.0.5; Google/account/service acceptance remains separate. Older installed states below are historical evidence.
+**Gamification Labs 1.6.1 and Community 1.0.6 are installed**, with rules 1.6.0. The final package, exact hashes, rollback and installed audit are recorded above; source and public acceptance are in [QA.md](QA.md). Older installed states below are historical evidence.
 
 The preceding October 17 **Gamification Labs 1.2.0** installed ZIP has SHA-256 `890f30b2334f6e8ad647237a48208c6723dedc099fcb8efe3e26ad574e10dd19`. Exact packages, native snapshots, publication and actual public evidence are maintained in `output/gamification-labs-2026-10-17/` in the parent workspace. The older state and hashes below are preserved historical evidence. Source validation and game publication are separate operations; the Cloudflare preview workflow remains manual.
 

@@ -252,6 +252,19 @@
   .quiz-results { margin-top: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { .quiz-track > span { transition: none; } }
+.play-body .hangar-launch { display: block; margin: 10px auto 0; min-height: 44px; padding: 10px 18px; color: #e5edf6; background: #13273de6; border: 1px solid #64778b; border-radius: 9px; font-size: 14px; }
+.ship-hangar { margin: 0 0 22px; border-block: 1px solid #41546a; padding-block: 14px; }
+.ship-hangar summary { min-height: 44px; cursor: pointer; font-weight: 700; }
+.ship-hangar summary span { display: block; margin-top: 5px; font-size: 13px; font-weight: 400; color: #b9cada; }
+.play-body #ship-preview { position: static; inset: auto; width: 100%; height: auto; max-height: 180px; aspect-ratio: 2.6; object-fit: contain; touch-action: auto; margin: 8px 0 16px; border-radius: 12px; background: radial-gradient(ellipse at center,#213b53,#0c1b2c 75%); }
+.ship-options, .paint-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.control-panel .ship-options button, .control-panel .paint-options button { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 13px; }
+.control-panel #ship-styles.ship-options button[aria-pressed="true"], .control-panel #ship-colors.paint-options button[aria-pressed="true"] { border: 2px solid #efa55d; background: #3c3028; padding: 9px 13px; color: #fff; }
+.ship-options button[aria-pressed="true"]::after, .paint-options button[aria-pressed="true"]::after { content: '✓'; }
+.paint-swatch { width: 12px; height: 12px; flex: 0 0 12px; border: 1px solid #ffffff8c; border-radius: 50%; }
+.support-options button { min-height: 80px; }
+@media (max-width: 380px) { .paint-options { grid-template-columns: repeat(2,minmax(0,1fr)); } .control-panel .ship-options button { padding-inline: 5px; } }
+@media (orientation: landscape) and (max-height: 540px) { .play-body .hangar-launch { display: inline-block; margin: 0 0 0 10px; } .play-body #ship-preview { max-height: 120px; } }
 @media (orientation: landscape) and (max-height: 540px) and (max-width: 700px) {
   .play-body[data-game="invaders"] .action-control { min-width: 64px; padding-inline: 12px; }
 }
