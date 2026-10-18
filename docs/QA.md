@@ -1,6 +1,6 @@
 # Demonstration QA
 
-## Gamification Labs 1.2.0 candidate — October 17, 2026
+## Gamification Labs 1.2.0 live — October 17, 2026
 
 The public gallery, player context, metadata and reviewed cover use Gamification
 Labs. Existing URLs remain stable. Agency Invaders now earns Twin streams after
@@ -18,12 +18,16 @@ froze the arena, restart reset progression, and thumb steering/rotation fit.
 Its seeded lane jitter makes these runs repeatable without setting scores,
 kills or weapon levels. This check is included in the validation workflow.
 
-The 1.2.0 installer is prepared. Live replacement requires the owner's approval
-after automatic review enforced the original live-site restriction. This local
-record does not claim 1.2.0 is installed; see the workspace publication record
-for the actual final status. Coverage uses Chromium emulation, not physical
-iOS/Android devices or Safari. The dated cover was reviewed at full, phone and
-compact sizes; live image/metadata verification follows publication.
+After explicit owner approval, the exact tested 1.2.0 installer was installed
+in place and its active version confirmed. Actual public checks passed **3/3
+focused progression**, **14/14 sharing**, and **19/19 unique integration**
+checks. The integration result combines the full run with four narrow reruns
+after correcting a test fixture's outdated accounting-demo route; no product
+change was needed. Actual Facebook cards were refreshed for the gallery and
+all three games with the new title and cover. Coverage uses Chromium emulation,
+not physical iOS/Android devices or Safari. Local and live evidence, exact ZIP
+hashes, the approval history and recovery are in the parent workspace's
+`output/gamification-labs-2026-10-17/` publication record.
 
 The lab contains Agency Invaders, Launch Runner, and Trivia Challenge. All game logic and scores stay in the browser. The games have no application backend or paid runtime dependencies.
 

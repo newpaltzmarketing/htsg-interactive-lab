@@ -173,7 +173,7 @@ try {
       const choices = page.locator('#mega-demos .mega-links > a');
       assert.equal(await choices.count(), 8, 'The lab is added alongside the existing seven demos');
       const existingPaths = await choices.evaluateAll(links => links.slice(1).map(link => new URL(link.href).pathname));
-      assert.deepEqual(existingPaths, ['/demos/exhibitor-operations/', '/demos/all-in-advisors/', '/custom-pools-preview/', '/demos/insights/', '/demos/question-to-project-brief/', '/demos/inquiry-to-reviewed-reply/', '/demos/regional-lead-handoff/']);
+      assert.deepEqual(existingPaths, ['/demos/exhibitor-operations/', '/demos/accounting-advisory/', '/custom-pools-preview/', '/demos/insights/', '/demos/question-to-project-brief/', '/demos/inquiry-to-reviewed-reply/', '/demos/regional-lead-handoff/']);
       const lab = choices.first();
       assert.match(await lab.textContent(), /^Gamification Labs/);
       assert.equal(normalized(await lab.evaluate(element => element.href)), normalized(labURL));

@@ -2,13 +2,13 @@
 
 The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. On October 16, 2026, the owner authorized publication and integration with the existing Demos area and navigation. The static games use the existing HTSG WordPress host. No new game backend, external API, database tables, account system, paid dependency, or DNS change is required.
 
-## Release 1.2.0 preparation
+## Release 1.2.0 live — October 17, 2026
 
-Version **1.2.0 is prepared, not yet installed**. It uses the public name Gamification Labs, a newly versioned 1200 × 630 sharing cover, and the existing canonical URL and query routes. Invaders gains short waves and automatic weapon upgrades; all three games remain browser-only. The companion folder, route handler identifiers, and repository name stay stable so replacement remains in place.
+Version **1.2.0 is installed and active**, following the owner's explicit publication approval. WordPress confirmed the in-place replacement and installed version, then SiteGround cache was purged. It uses the public name Gamification Labs, a newly versioned 1200 × 630 sharing cover, and the existing canonical URL and query routes. Invaders gains short waves and automatic weapon upgrades; all three games remain browser-only. The companion folder, route handler identifiers, and repository name stay stable.
 
-Headquarters 2.16.6 is installed, based on the authoritative 2.16.5 inquiry-routing release. Its only changes are the public Gamification Labs links, the compact Demos & Labs group label, and version fields. Existing inquiry routing and permissions are preserved. Native Demos page 226 has its single game-section heading renamed; homepage 8 has no Lab text or route to change. The game companion replacement is separately awaiting owner approval after automatic review enforced the original live-site restriction. Do not infer that the new game is live from the menu rename.
+Headquarters 2.16.6 is installed, based on the authoritative 2.16.5 inquiry-routing release. Its only changes are the public Gamification Labs links, the compact Demos & Labs group label, and version fields. Existing inquiry routing and permissions are preserved. Native Demos page 226 has its single game-section heading renamed; homepage 8 has no Lab text or route to change. The earlier publication pause was resolved by explicit owner approval before game replacement.
 
-The installed 1.1.2 companion remains the immediate rollback. The current QA scope is in [QA.md](QA.md), and the metadata/image release requirements remain in [SHARING.md](SHARING.md). No Cloudflare, custom domain, or DNS change is required.
+The preserved 1.1.2 installer remains the immediate rollback. Anonymous live checks passed 3 focused progression checks, 14 sharing checks and 19 unique integration checks; actual Facebook cards were refreshed for the gallery and three game links. The current QA scope is in [QA.md](QA.md), and the metadata/image release requirements remain in [SHARING.md](SHARING.md). No Cloudflare, custom domain, or DNS change was performed.
 
 ## Existing HTSG WordPress host
 
@@ -127,7 +127,7 @@ Re-run checks and deploy the same `demo-preview` branch with the command above. 
 
 ## Current publish status
 
-The October 17 **Gamification Labs 1.2.0** candidate is prepared for review. The installed game state and hashes below describe the preceding verified release until game publication is confirmed. The new candidate and native-content snapshots are maintained in `output/gamification-labs-2026-10-17/` in the parent workspace. Source validation and game publication are separate operations; the Cloudflare preview workflow remains manual.
+The October 17 **Gamification Labs 1.2.0** installed ZIP has SHA-256 `890f30b2334f6e8ad647237a48208c6723dedc099fcb8efe3e26ad574e10dd19`. Exact packages, native snapshots, publication and actual public evidence are maintained in `output/gamification-labs-2026-10-17/` in the parent workspace. The older state and hashes below are preserved historical evidence. Source validation and game publication are separate operations; the Cloudflare preview workflow remains manual.
 
 The **HTSG Interactive Lab 1.1.2** companion was uploaded through the existing WordPress plugin installer on October 16, 2026, and its active version was verified after replacement. SiteGround cache was then purged from the stable administration page. The gallery and all three game routes are live at [the Interactive Lab](https://holistictechsolutionsgroup.com/demos/interactive-lab/). This release supplies the new shared cover, complete initial-HTML metadata, game-specific canonical/copy in the existing adapter, and mandatory local/CI sharing checks. Actual public sharing verification and platform re-scrape observations are recorded in [QA.md](QA.md).
 
