@@ -1,4 +1,5 @@
 import { brand } from './brand.js';
+import { readPersonalBest, savePersonalBest } from './score-store.js';
 import { questionsForRound } from './questions.js';
 import {
   ARENA, arenaFor, createInputState, setInput, getInput, clearInput,
@@ -11,9 +12,9 @@ const games = {
   invaders: {
     title: 'Agency Invaders', headline: 'Clear the orbit.',
     instructions: 'Scope creep, missed deadlines, budget overruns. Clear the project chaos before it costs you a life.',
-    help: 'Use the pad below the game: drag a little in any direction and hold to fly and fire. Your thumb stays clear of the ship. You can also drag anywhere in the arena; the ship moves with your finger without jumping under it. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
-    depth: 'Clear short waves of project hazards. Defeat 3 for Twin streams and 7 total for Quad spread. Your weapon stays upgraded after a hit. Collect a glowing shield to block an impact; hazards that hit you or pass your defenses cost a life.',
-    hint: 'Thumb on the pad. Eyes on the ship.', action: 'Fire',
+    help: 'Drag anywhere in the game to fly and fire. The ship follows your movement without jumping under your finger. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
+    depth: 'Defeat 3 hazards for Twin streams and 7 for Quad spread. Later waves bring weaving and armored threats; every fifth wave is a boss. Watch the warning marks and move before its shots arrive. Your weapon stays upgraded after a hit. Shields block one impact. Your personal best stays on this device.',
+    hint: 'Drag anywhere to fly and fire.', action: 'Fire',
   },
   runner: {
     title: 'Launch Runner', headline: 'Find your next horizon.',
@@ -46,7 +47,6 @@ const shell = byId('game-shell');
 const overlay = byId('arena-overlay');
 const picker = byId('game-picker');
 const helpPanel = byId('help-panel');
-const steeringPad = byId('steering-pad');
 const impactFeedback = byId('impact-feedback');
 const renderer = createRenderer();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -64,8 +64,8 @@ let lastWeaponLevel = 1;
 let steeringPointer = null;
 let targetX;
 let targetY;
-let stickAxisX = 0;
-let stickAxisY = 0;
+let personalBest = mode === 'invaders' ? readPersonalBest() : 0;
+let newPersonalBest = false;
 let fullscreenBusy = false;
 
 document.body.dataset.game = mode;
@@ -99,7 +99,7 @@ function syncStatus() {
   const message = state ? scoreText() : 'Ready to play';
   setStatus(paused ? `Paused · ${message}` : state?.ended ? `Game over · ${message}` : message);
   const detail = !state ? '' : mode === 'invaders'
-    ? `Wave ${state.wave || 1} · Weapon ${state.weaponLevel || 1}: ${invaderWeapon(state).name}${state.weaponUpgradeTime > 0 ? ' · Upgraded!' : ''}${state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
+    ? `Wave ${state.wave || 1} · Weapon ${state.weaponLevel || 1}: ${invaderWeapon(state).name}${state.weaponUpgradeTime > 0 ? ' · Upgraded!' : ''}${state.boss ? ` · ${state.boss.label}` : state.combo > 1 ? ` · ${state.combo} hit streak` : ''}${state.shield > 0 ? ' · Shield active' : ''}`
     : `${state.boost > 0 ? `Boost · ${state.boost.toFixed(1)}s` : `Energy ${state.energy || 0}/5`}${state.bonus ? ` · +${state.bonus} bonus` : ''}`;
   if (byId('mission-detail').textContent !== detail) byId('mission-detail').textContent = detail;
   const impact = mode === 'invaders' && state?.lastHazardTime > 0;
@@ -128,12 +128,9 @@ function clearControls() {
   clearInput(input);
   targetX = undefined;
   targetY = undefined;
-  stickAxisX = 0;
-  stickAxisY = 0;
-  steeringPad.classList.remove('is-active');
   steeringPointer = null;
   arenaPointers.clear();
-  for (const element of [canvas, steeringPad, ...controls.querySelectorAll('button')]) {
+  for (const element of [canvas, ...controls.querySelectorAll('button')]) {
     // Release capture only for pointers held by this element; releases also clear their source.
     for (const pointerId of activePointers.get(element) || []) {
       if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
@@ -194,9 +191,15 @@ function syncOverlay() {
     ? (mode === 'runner' ? `${Math.floor(state.score)} meters traveled. ${state.collected || 0} energy cells collected. Your next run starts here.` : `${state.lastHazard ? `${state.lastHazard} broke through. ` : ''}${state.score} points. Wave ${state.wave || 1} reached. Ready to clear the project chaos?`)
     : paused ? 'Your run is right where you left it.' : game.instructions;
   byId('overlay-action').textContent = ended ? 'Play again →' : paused ? 'Resume →' : 'Start game →';
-  byId('overlay-hint').textContent = ended ? 'Try a different game with the arrows above.' : game.hint;
+  byId('overlay-hint').textContent = mode === 'invaders'
+    ? `${personalBest > 0 ? `${newPersonalBest && ended ? 'New personal best' : 'Best on this device'}: ${personalBest} points. ` : ''}${game.hint}`
+    : ended ? 'Try a different game with the arrows above.' : game.hint;
 }
 function finish() {
+  if (mode === 'invaders') {
+    newPersonalBest = state.score > personalBest;
+    personalBest = Math.max(personalBest, savePersonalBest(state.score));
+  }
   playing = false;
   clearControls();
   stopFrame();
@@ -208,7 +211,7 @@ function finish() {
   syncStatus();
   syncOverlay();
   canvas.setAttribute('aria-label', `${game.title}. Game over. ${scoreText()}. Select Play again for another run.`);
-  announce(`Game over. ${scoreText()}. Select Play again to restart.`);
+  announce(`Game over. ${scoreText()}.${newPersonalBest && mode === 'invaders' ? ' New personal best.' : ''} Select Play again to restart.`);
   render();
 }
 function frame(now) {
@@ -219,7 +222,7 @@ function frame(now) {
   lastFrame = now;
   const step = 1 / 120;
   while (accumulator >= step && !state.ended) {
-    if (mode === 'invaders') stepInvaders(state, { ...getInput(input), targetX, targetY, axisX: stickAxisX, axisY: stickAxisY }, step);
+    if (mode === 'invaders') stepInvaders(state, { ...getInput(input), targetX, targetY }, step);
     else stepRunner(state, step);
     accumulator -= step;
   }
@@ -234,6 +237,7 @@ function resetGame() {
   state = mode === 'invaders' ? createInvadersState(world) : createRunnerState(world);
   lastLives = 3;
   lastWeaponLevel = 1;
+  newPersonalBest = false;
   playing = true;
   paused = false;
   start.textContent = 'Restart';
@@ -313,24 +317,14 @@ function anchorSteering(pointerId, gesture) {
   gesture.y = gesture.lastY;
   targetX = state.player;
   targetY = state.playerY;
-  stickAxisX = 0;
-  stickAxisY = 0;
-  steeringPad.classList.toggle('is-active', gesture.isPad);
-  if (gesture.isPad) {
-    const rect = steeringPad.getBoundingClientRect();
-    steeringPad.style.setProperty('--stick-origin', `${Math.max(34, Math.min(rect.width - 34, gesture.x - rect.left))}px`);
-    steeringPad.style.setProperty('--stick-x', '0px');
-    steeringPad.style.setProperty('--stick-y', '0px');
-  }
 }
 function bindArena(surface = canvas) {
-  const isPad = surface === steeringPad;
   surface.addEventListener('pointerdown', event => {
     if (event.pointerType === 'mouse' && event.button !== 0 || !playing || paused) return;
     event.preventDefault();
     surface.focus({ preventScroll: true });
     capture(surface, event.pointerId);
-    const gesture = { x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, swiped: false, isPad };
+    const gesture = { x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, swiped: false };
     arenaPointers.set(event.pointerId, gesture);
     if (mode === 'invaders') {
       if (steeringPointer === null) anchorSteering(event.pointerId, gesture);
@@ -349,25 +343,13 @@ function bindArena(surface = canvas) {
     if (mode === 'invaders' && event.pointerId === steeringPointer) {
       const dx = event.clientX - gesture.x;
       const dy = event.clientY - gesture.y;
-      if (isPad) {
-        const distance = Math.hypot(dx, dy);
-        const strength = Math.min(1, Math.max(0, (distance - 5) / 27));
-        stickAxisX = distance ? dx / distance * strength : 0;
-        stickAxisY = distance ? dy / distance * strength : 0;
-        // The pad controls velocity. Hold a small deflection to keep flying.
-        targetX = undefined;
-        targetY = undefined;
-        surface.style.setProperty('--stick-x', `${stickAxisX * 20}px`);
-        surface.style.setProperty('--stick-y', `${stickAxisY * 20}px`);
-      } else {
-        const rect = canvas.getBoundingClientRect();
-        const bounds = arenaFor(state).invadersBounds;
-        targetX = Math.max(bounds.left, Math.min(bounds.right, (targetX ?? state.player) + dx * world.width / rect.width));
-        targetY = Math.max(bounds.top, Math.min(bounds.bottom, (targetY ?? state.playerY) + dy * world.height / rect.height));
-        // Rebase every move so reversing at an edge responds immediately.
-        gesture.x = event.clientX;
-        gesture.y = event.clientY;
-      }
+      const rect = canvas.getBoundingClientRect();
+      const bounds = arenaFor(state).invadersBounds;
+      targetX = Math.max(bounds.left, Math.min(bounds.right, (targetX ?? state.player) + dx * world.width / rect.width));
+      targetY = Math.max(bounds.top, Math.min(bounds.bottom, (targetY ?? state.playerY) + dy * world.height / rect.height));
+      // Rebase every move so reversing at an edge responds immediately.
+      gesture.x = event.clientX;
+      gesture.y = event.clientY;
     }
     if (mode === 'runner' && !gesture.swiped && gesture.y - event.clientY > 32) {
       gesture.swiped = true;
@@ -381,9 +363,6 @@ function bindArena(surface = canvas) {
       steeringPointer = null;
       targetX = undefined;
       targetY = undefined;
-      stickAxisX = 0;
-      stickAxisY = 0;
-      steeringPad.classList.remove('is-active');
       // A second finger can take over without snapping to its contact point.
       const remaining = arenaPointers.entries().next().value;
       if (remaining && playing && !paused) anchorSteering(...remaining);
@@ -451,7 +430,6 @@ function setupArcade() {
   if (mode === 'runner') { byId('left').hidden = true; byId('right').hidden = true; }
   for (const id of ['left', 'right', 'action']) bindButton(id, id);
   bindArena();
-  if (mode === 'invaders') { steeringPad.hidden = false; bindArena(steeringPad); }
   start.addEventListener('click', resetGame);
   byId('overlay-action').addEventListener('click', () => { if (paused && playing) setPaused(false); else resetGame(); });
   pause.addEventListener('click', () => setPaused(!paused));
@@ -476,6 +454,7 @@ function setupArcade() {
   window.visualViewport?.addEventListener('resize', resizeCanvas);
   new ResizeObserver(resizeCanvas).observe(byId('arena-view'));
   reducedMotion.addEventListener('change', render);
+  syncOverlay();
   resizeCanvas();
   renderer.loadImages().then(() => { document.documentElement.dataset.artwork = 'ready'; render(); });
 }

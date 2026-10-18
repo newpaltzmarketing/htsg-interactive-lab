@@ -1,6 +1,24 @@
 # Demonstration QA
 
-## Gamification Labs 1.2.0 live — October 17, 2026
+## Agency Invaders arena and bosses — 1.3.0 live
+
+Final local verification on October 17, 2026, approximately 8:55 p.m. EDT. Version **1.3.0 is installed and active**, confirmed at 00:55:49 UTC on October 18 (8:55:49 p.m. EDT on October 17). The release removes the separate steering pad, enlarges the playable area, retains relative two-axis arena dragging and keyboard controls, and saves one personal best only in the current browser. It adds capped pressure after two approachable waves, weaving and armored hazards, and a signaled boss encounter every fifth wave. Launch Runner and Trivia retain their game rules and the reviewed three-game sharing cover remains relevant.
+
+Completed source checks: source syntax/metadata, **54 Node tests** (**46 gameplay**, **three personal-best storage**, **five sharing-gate**), **19 core browser checks**, **30 upgrade checks**, **14 exact local sharing checks**, PHP lint and **122 WordPress adapter checks**. The storage tests cover a fresh read, keeping a better score, rejecting malformed/unreasonable records, and blocked storage. The companion now rejects a package missing the required score module. The sharing gate is preserved at `artifacts/share-preview-source-1.3.0/results.json`.
+
+The final focused earned-progression/boss check passed **3/3** against the frozen renderer. Its first landscape review found the boss health bar overlapping the existing status HUD at 844 × 390; the final placement helper and regression now use the actual visible HUD reservation rectangles. Browser checks and reviewed screenshots confirmed a clear health bar at 1280, 390, 844 and 568 pixels. The final run earned the first boss defeat at 56.60 simulation seconds with 36 kills, observed its entry/windup/recovery and fired bolt, received the shield reward, and kept active player bullets bounded at 16 in that run. All final local release checks passed; the actual public scope is recorded separately below.
+
+For repeatability, the focused harness fixes lane jitter with `Math.random = 0.5` and uses actual held Fire, keyboard aiming, direct touch gestures, cancellation and rotation. Kills, weapon upgrades, waves and the boss were earned through the unmodified simulation. Only the controller/storage boundary uses an end-of-run fixture: after earning 1,440 points, it sets the actual scene's `ended` flag without changing the score or lives. The real finish/save path shows the new personal best; a reload retains “Best on this device: 1440 points.” Restart returns to the first weapon with zero kills and score. This verifies storage behavior, not an unassisted natural game-over.
+
+Final focused evidence is `artifacts/arena-boss-source/final/results.json`, with `invaders-boss-{1280,390,844,568}.png` and `invaders-quad-{390,844,1280}.png`. A separate overlapping direct-control follow-up passed **7/7** at `artifacts/arena-boss-source/controls/results.json`; the 390-pixel portrait canvas increased from 606 to 678 CSS pixels after removing the pad. These focused counts are reported separately from the core and upgrade suites.
+
+After the exact tested installer was published, actual public integration passed **19/19**, and the sharing gate passed **14/14**. Facebook Sharing Debugger was refreshed for Invaders and showed its current description and the existing reviewed three-game cover. Its reported response was 206; the existing `fb:app_id` identity warning did not prevent the preview. No new Facebook app identity was supplied or invented. The focused public progression/boss run passed **3/3**, completed at 00:57:32 UTC on October 18 (8:57 p.m. EDT on October 17). It earned the boss defeat at 56.783 simulation seconds and 36 kills, with a maximum of 16 player bullets, and verified the health bar against the actual HUD at all four reviewed sizes. The phone canvas is 678 CSS pixels high, with no steering pad. The same disclosed seeded-jitter/actual-input and storage-only end-flag fixture scope applies; the earned 1,440-point best survived reload and restart reset the run. Public evidence is `artifacts/arena-boss-live-1.3.0/results.json` and the corresponding `invaders-boss-{1280,390,844,568}.png` and quad-spread captures. Installed-version evidence and publication records are kept in the parent workspace's `output/agency-invaders-arcade-2026-10-17/`.
+
+Independent ordinary anonymous GETs (no cookies or cache-busting query) also returned the exact tested payload for all **7/7** checked files: the controller, engine, renderer, player stylesheet, score-storage module, sharing configuration, and reviewed JPEG cover. Every response returned 200 with the expected type, length, and SHA-256. The parent publication evidence is `output/agency-invaders-arcade-2026-10-17/evidence/public-payload.json`.
+
+Mobile checks use Chromium touch/viewport emulation, not physical iOS/Android devices or Safari. No shared leaderboard, accounts, community service, score synchronization, or new game backend is implemented; the separate game-direction document is planning only.
+
+## Historical Gamification Labs 1.2.0 — October 17, 2026
 
 The public gallery, player context, metadata and reviewed cover use Gamification
 Labs. Existing URLs remain stable. Agency Invaders now earns Twin streams after
@@ -71,14 +89,17 @@ Browser screenshots and the machine-readable report are saved in `artifacts/qa/`
 
 ## Automated coverage
 
-The 38 gameplay rules tests cover:
+The current 46 gameplay rules tests cover:
 
 - Keyboard and touch sources held at the same time, individual release, repeated keydown, and clearing held controls.
 - Agency Invaders two-axis movement, simultaneous directions, relative drag and thumb-stick input with per-axis keyboard priority, portrait thumb clearance and proportional travel time, delayed-frame caps, firing and collisions at the moved ship position, six named hazards, life loss, shield protection, wave transitions, combo scoring, game over, and clean restart state.
 - Earned single/twin/quad progression, upgrade persistence after damage, symmetric spread and swept collisions, bounded firing/pruning, larger threat bounds, and gentler capped pacing.
+- Later-wave capped pressure, weaving and armored health, earned boss entry, telegraphed fixed-aim shots, swept projectile collisions, shield absorption, boss rewards/breathers, and safe resize/restart state.
 - Launch Runner two-jump limit and landing reset, safe obstacle clearance, collision, energy pickups and boost protection, distance scoring, game over, and clean restart state. Portrait collision and collection areas match the enlarged artwork; camera framing preserves the full astronaut without changing jump physics.
 - Resize preserves arcade progress and relative positions; Runner retains its physical jump height and velocity.
 - Every trivia question, correct and incorrect scoring, invalid answer indices, perfect and zero scores, and three distinct replay rounds containing 15 questions.
+
+Three separate personal-best storage tests cover persistence through a fresh read, retaining a better score, rejecting malformed records, and denied storage. Five sharing-gate tests cover the required source/build metadata and actual declared cover. These make 54 Node tests in total.
 
 The browser suite covers:
 
@@ -102,7 +123,7 @@ Before a public demonstration:
 - Check the projected or shared-screen size and ensure browser zoom is appropriate.
 - Recheck the preview after changing any brand asset, question, control, or game rule.
 
-The lab does not collect lead information or persist scores. Navigating away resets a run. External project links open the HTSG contact page in another tab.
+The lab collects no lead information. Navigating away resets a run. The 1.3.0 release retains only an Invaders personal best in local browser storage, without synchronization or a score service. External project links open the HTSG contact page in another tab.
 
 ## Verification record
 

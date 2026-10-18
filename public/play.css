@@ -41,14 +41,6 @@
 .play-body .action-control { background: linear-gradient(135deg,#ffbf68,#ed8e35); border-color: #f8c080; color: #1a1008; min-width: 96px; }
 .play-body .control-button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #fff8, 0 0 20px #ffbd4740; background: #cb771f; color: #fff; }
 .touch-hint { flex: 1; margin: 0; font-size: 12px; color: #a9b9ca; }
-.steering-pad { position: relative; flex: 1 1 220px; height: 64px; min-width: 140px; max-width: 420px; overflow: hidden; border: 1px solid #61778f; border-radius: 14px; background: radial-gradient(ellipse at center, #263c52, #152437); touch-action: none; user-select: none; cursor: grab; display: grid; place-items: center; }
-.steering-pad-hint { display: flex; align-items: center; justify-content: center; gap: 7px; color: #e4edf8; font-size: 13px; pointer-events: none; }
-.steering-pad-hint > span:first-child { font-size: 25px; line-height: 1; color: #ffc47b; }
-.steering-pad-detail { color: #bdcddd; }
-.steering-pad.is-active { cursor: grabbing; border-color: #ffc47b; background: #1c3045; }
-.steering-pad.is-active .steering-pad-hint { opacity: .2; }
-.steering-stick { display: none; pointer-events: none; position: absolute; left: var(--stick-origin, 50%); top: 50%; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff0d4; background: #f5a64b; box-shadow: 0 0 0 12px #ffc47b13, 0 0 20px #ffc47b40; transform: translate(calc(-50% + var(--stick-x, 0px)), calc(-50% + var(--stick-y, 0px))); }
-.steering-pad.is-active .steering-stick { display: block; }
 .play-body[data-game="invaders"] .touch-hint { display: none; }
 .impact-feedback { position: absolute; z-index: 2; top: 62px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); margin: 0; padding: 10px 16px; border: 1px solid #ffb08c; border-radius: 10px; background: #401e19ed; color: #ffe1d4; font-size: 14px; font-weight: 600; text-align: center; pointer-events: none; }
 .impact-feedback[data-kind="shield"] { background: #103c43ee; border-color: #8adce4; color: #d6fbff; }
@@ -117,8 +109,7 @@
   .overlay-context { font-size: 12px; margin-bottom: 14px; }
   .overlay-hint { max-width: 240px; margin-inline: auto; }
   .game-controls { padding: 10px max(12px, var(--safe-right)) max(10px, var(--safe-bottom)) max(12px, var(--safe-left)); gap: 8px; }
-  .play-body[data-game="invaders"] .game-controls { flex-wrap: wrap; }
-  .steering-pad { order: -1; flex: 1 0 100%; min-width: 0; max-width: none; }
+  .play-body[data-game="invaders"] .game-controls { flex-wrap: nowrap; }
   .impact-feedback { top: 81px; font-size: 13px; padding: 9px 12px; }
   .direction-controls { display: flex; gap: 6px; }
   .touch-hint { display: none; }
@@ -156,9 +147,6 @@
   .mission-detail { font-size: 12px; padding: 6px 0; }
   .game-controls { padding: 6px max(16px, var(--safe-right)) max(6px, var(--safe-bottom)) max(16px, var(--safe-left)); gap: 12px; }
   .play-body[data-game="invaders"] .game-controls { flex-wrap: nowrap; gap: 8px; }
-  .steering-pad { order: 0; flex: 1 1 220px; min-width: 120px; height: 52px; }
-  .steering-pad-hint { font-size: 12px; }
-  .steering-pad-detail { display: none; }
   .impact-feedback { top: 48px; font-size: 13px; padding: 7px 12px; }
   .play-body .control-button, .play-body .session-controls button { min-height: 44px; height: 44px; }
   .touch-hint { display: block; }

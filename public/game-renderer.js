@@ -1,4 +1,4 @@
-import { arenaFor, createInvadersState, createRunnerState, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon } from './game-engine.js';
+import { arenaFor, bossGeometry, createInvadersState, createRunnerState, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon } from './game-engine.js';
 import { brand } from './brand.js';
 
 const TAU = Math.PI * 2;
@@ -160,7 +160,81 @@ function drone(ctx, enemy, height, time, reducedMotion) {
   if (enemy.maxHealth > 1 && enemy.health === 1) {
     ctx.strokeStyle = '#ffb56a'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-8, -14); ctx.lineTo(7, 5); ctx.lineTo(1, 11); ctx.stroke();
   }
+  if (enemy.type === 'weaver') {
+    ctx.strokeStyle = '#ffd89a'; ctx.lineWidth = 2;
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(side * 20, -15); ctx.lineTo(side * 44, -22); ctx.lineTo(side * 37, -4); ctx.stroke(); }
+  }
+  if (enemy.maxHealth > 1) {
+    for (let index = 0; index < enemy.maxHealth; index += 1) {
+      ctx.fillStyle = index < enemy.health ? '#ffe3a5' : '#263c4b';
+      rounded(ctx, (index - (enemy.maxHealth - 1) / 2) * 10 - 3, 31, 6, 4, 1); ctx.fill();
+    }
+  }
   ctx.restore();
+}
+
+export function bossHealthBarLayout(scene, arena = arenaFor(scene), { cssHeight = arena.height, reservedRects = [] } = {}) {
+  if (!scene.boss) return null;
+  const boss = scene.boss, shape = bossGeometry(scene);
+  const unit = arena.height / Math.max(1, cssHeight), margin = 6 * unit;
+  const width = Math.min(shape.halfWidth * 1.8, arena.width - margin * 2), height = 6 * unit;
+  const x = clamp(boss.x - width / 2, margin, arena.width - width - margin);
+  const preferredY = Math.max(8 * unit, boss.y - shape.halfHeight - 12 * unit);
+  const occupied = [...reservedRects, { x: boss.x - shape.halfWidth, y: boss.y - shape.halfHeight, width: shape.halfWidth * 2, height: shape.halfHeight * 2 }];
+  const candidates = [preferredY, boss.y + shape.halfHeight + 8 * unit,
+    ...reservedRects.flatMap(rect => [rect.y + rect.height + margin, rect.y - height - margin])];
+  const y = candidates.filter(top => top >= margin && top + height <= arena.height - margin &&
+    !occupied.some(rect => x < rect.x + rect.width + margin && x + width + margin > rect.x && top < rect.y + rect.height + margin && top + height + margin > rect.y))
+    .sort((a, b) => Math.abs(a - preferredY) - Math.abs(b - preferredY))[0];
+  return y === undefined ? null : { x, y, width, height, unit };
+}
+
+function bossThreat(ctx, scene, arena, options) {
+  const boss = scene.boss;
+  if (!boss) return;
+  const shape = bossGeometry(scene);
+  const unit = arena.height / Math.max(1, options.cssHeight || arena.height);
+  if (boss.phase === 'windup') {
+    ctx.save(); ctx.strokeStyle = '#ffbc78b3'; ctx.fillStyle = '#e6532420'; ctx.lineWidth = 2 * unit;
+    ctx.setLineDash([8 * unit, 8 * unit]);
+    ctx.beginPath(); ctx.moveTo(boss.x, boss.y + shape.halfHeight); ctx.lineTo(boss.aimX, boss.aimY); ctx.stroke();
+    ctx.setLineDash([]); circle(ctx, boss.aimX, boss.aimY, 21 * unit); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffe3bd'; ctx.textAlign = 'center'; ctx.font = `700 ${12 * unit}px system-ui, sans-serif`;
+    ctx.fillText('Incoming', clamp(boss.aimX, 50 * unit, arena.width - 50 * unit), Math.max(18 * unit, boss.aimY - 29 * unit));
+    ctx.restore();
+  }
+  ctx.save(); ctx.translate(boss.x, boss.y); ctx.scale(shape.halfWidth / 160, shape.halfHeight / 54);
+  glow(ctx, 0, 20, 180, droneAccent, 0.16);
+  ctx.fillStyle = gradient(ctx, -140, -45, 140, 50, [[0, '#152532'], [0.3, '#8d9da5'], [0.48, '#3b5263'], [0.7, '#758894'], [1, '#132838']]);
+  ctx.strokeStyle = '#07121d'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-118, -44); ctx.lineTo(-160, -8); ctx.lineTo(-142, 32); ctx.lineTo(-70, 40);
+  ctx.lineTo(-46, 54); ctx.lineTo(46, 54); ctx.lineTo(70, 40); ctx.lineTo(142, 32); ctx.lineTo(160, -8); ctx.lineTo(118, -44); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = '#102332'; rounded(ctx, side * 116 - 20, -14, 40, 45, 8); ctx.fill();
+    ctx.fillStyle = boss.phase === 'windup' ? '#ffe3a8' : droneAccent;
+    ellipse(ctx, side * 116, 25, 11, 8); ctx.fill();
+    ctx.strokeStyle = '#d2b189aa'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(side * 62, -28); ctx.lineTo(side * 124, -25); ctx.stroke();
+  }
+  ctx.fillStyle = '#071522'; rounded(ctx, -91, -22, 182, 44, 10); ctx.fill();
+  ctx.strokeStyle = droneAccent; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff0d2';
+  ctx.font = `700 ${12 * unit}px system-ui, sans-serif`;
+  ctx.fillText(boss.label, boss.x, boss.y, shape.halfWidth * 1.6);
+  const bar = bossHealthBarLayout(scene, arena, options);
+  if (bar) {
+    ctx.fillStyle = '#071522'; rounded(ctx, bar.x, bar.y, bar.width, bar.height, 3 * unit); ctx.fill();
+    ctx.fillStyle = '#ffbc70'; rounded(ctx, bar.x, bar.y, Math.max(0.1, bar.width * clamp(boss.health / boss.maxHealth, 0, 1)), bar.height, 3 * unit); ctx.fill();
+    ctx.strokeStyle = '#ffe0a5a0'; ctx.lineWidth = unit; rounded(ctx, bar.x, bar.y, bar.width, bar.height, 3 * unit); ctx.stroke();
+  }
+  ctx.restore();
+}
+function hostileProjectile(ctx, shot) {
+  ctx.save(); ctx.translate(shot.x, shot.y);
+  const angle = Math.atan2(shot.vy, shot.vx);
+  ctx.strokeStyle = '#ffb15f99'; ctx.lineWidth = shot.radius * 1.2;
+  ctx.beginPath(); ctx.moveTo(-Math.cos(angle) * 24, -Math.sin(angle) * 24); ctx.lineTo(0, 0); ctx.stroke();
+  glow(ctx, 0, 0, shot.radius * 2.3, '#ff7542', 0.6);
+  ctx.fillStyle = '#fff0bd'; circle(ctx, 0, 0, shot.radius * 0.65); ctx.fill(); ctx.restore();
 }
 
 function projectile(ctx, bullet, reducedMotion) {
@@ -512,6 +586,8 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
       glow(ctx, width * 0.5, height * 0.6, width * 0.4, '#ec9b3530');
     } else {
       for (const enemy of scene.enemies || []) drone(ctx, enemy, height, time, reducedMotion);
+      bossThreat(ctx, scene, arena, options);
+      for (const shot of scene.hostileShots || []) hostileProjectile(ctx, shot);
       for (const bullet of scene.bullets || []) projectile(ctx, bullet, reducedMotion);
       for (const item of scene.pickups || []) shieldPickup(ctx, item, time, reducedMotion);
       spacecraft(ctx, scene.player, arena.playerY, scene.bank || 0, time, reducedMotion, scene.shield, scene.damageCooldown, scene.weaponLevel);
@@ -525,6 +601,7 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
     if (scene.phase === 'intermission') {
       ctx.fillStyle = '#f6dbad'; ctx.textAlign = 'center'; ctx.font = '700 24px system-ui, sans-serif';
       ctx.fillText(`WAVE ${scene.wave} CLEAR`, width / 2, height * 0.32);
+      if (scene.lastBoss) { ctx.font = '600 18px system-ui, sans-serif'; ctx.fillText(`${scene.lastBoss} defeated · +${scene.bossBonus}`, width / 2, height * 0.32 + 29); }
     }
     ctx.restore();
   }

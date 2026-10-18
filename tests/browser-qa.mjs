@@ -141,6 +141,10 @@ try {
       for (const mode of ['invaders', 'runner', 'trivia']) {
         await openGame(page, mode);
         await assertNoOverflow(page);
+        assert.equal(await page.locator('#steering-pad').count(), 0, 'Direct game-area controls replace the separate steering pad');
+        if (viewport.width === 390 && mode === 'invaders') {
+          assert.ok((await page.locator('#canvas').boundingBox()).height >= 666, 'The phone arena reclaims the removed steering-row space');
+        }
         if (viewport.width === 844 && viewport.height === 390 && mode !== 'trivia') {
           const fits = await page.locator('#canvas').evaluate(canvas => {
             const arena = canvas.getBoundingClientRect();

@@ -51,7 +51,7 @@ The game player fills the available browser viewport and adapts the logical aren
 
 Keep labels specific to working actions. The gallery should help someone choose a game; the player should show the rules, current state, and next useful action. Preserve explanatory quiz feedback, visible pause/resume state, and a clear exit to all games. Avoid decorative numbering, redundant labels, unavailable features, or extra panels that do not help a player.
 
-Invaders names its business hazards in readable 13 CSS-pixel canvas labels. Labels avoid the actual status, wave, and impact-message rectangles passed by the controller and remain near their targets, with a small leader when shifted. A life-loss message names the cause; shield absorption uses distinct words and color. The separate steering pad keeps a phone user's thumb clear of the ship; relative arena dragging remains available.
+Invaders names its business hazards in readable 13 CSS-pixel canvas labels. Labels avoid the actual status, wave, and impact-message rectangles passed by the controller and remain near their targets, with a small leader when shifted. A life-loss message names the cause; shield absorption uses distinct words and color. Direct arena dragging preserves the finger-to-ship offset and supports both axes without a separate steering panel. The compact button row leaves more room for play. Personal-best copy appears in the existing start/pause/result hint; no extra record panel competes with the arena.
 
 ## Make another branded edition
 
@@ -62,7 +62,7 @@ Invaders names its business hazards in readable 13 CSS-pixel canvas labels. Labe
 5. Replace the three world images with similarly composed, optimized assets. Record their originals, prompts or source provenance, and hashes. Run `npm run artwork:share` to regenerate the editable triptych sharing card and its PNG preview from the selected worlds and wordmark; inspect the result before publishing.
 6. Run the syntax, game logic, browser, and WordPress adapter checks. Review the gallery and every game on desktop, narrow portrait, short landscape, after rotation, and in expanded mode before publishing.
 
-The HTSG contact destination is `https://holistictechsolutionsgroup.com/contact/`. The lab collects no inquiries or scores and adds no forms, analytics, cookies, or persistent visitor records. Standard hosting request logs may still exist.
+The HTSG contact destination is `https://holistictechsolutionsgroup.com/contact/`. The lab sends no inquiries or scores to a service and adds no forms, analytics, or cookies. Invaders stores one personal best only in this browser; standard hosting request logs may still exist.
 
 ## Publication boundary
 

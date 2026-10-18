@@ -23,24 +23,45 @@ if (server) await new Promise(done => server.listen(0, '127.0.0.1', done));
 const base = option('--url', server ? `http://127.0.0.1:${server.address().port}` : '').replace(/\/+$/,'');
 const browser = await chromium.launch({ headless:true, executablePath:process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : undefined });
 const results = [], observations = [], errors = [];
+let activePage;
 async function check(name, action) {
   try { await action(); results.push({name,passed:true}); console.log(`PASS ${name}`); }
-  catch(error) { results.push({name,passed:false,message:error.message}); console.error(`FAIL ${name}: ${error.message}`); }
+  catch(error) {
+    results.push({name,passed:false,message:error.message}); console.error(`FAIL ${name}: ${error.message}`);
+    if(activePage&&!activePage.isClosed()){
+      const detail=await activePage.evaluate(()=>({state:window.__qaState,boss:window.__qaBoss,trace:window.__qaTrace,aimError:window.__qaAimError,focus:document.activeElement?.id,status:document.getElementById('status')?.textContent,inputs:['left','right','action'].map(id=>[id,document.getElementById(id)?.getAttribute('aria-pressed')])})).catch(()=>null);
+      await writeFile(resolve(output,'failure.json'),JSON.stringify(detail,null,2));
+      await activePage.screenshot({path:resolve(output,'failure.png')}).catch(()=>{});
+    }
+  }
 }
 async function fits(page) {
   const geometry = await page.evaluate(() => {
     const rect = node => { const box=node.getBoundingClientRect(); return {x:box.x,y:box.y,right:box.right,bottom:box.bottom,width:box.width,height:box.height}; };
     return { viewport:{width:innerWidth,height:innerHeight}, overflow:document.documentElement.scrollWidth>innerWidth+1,
       canvas:rect(document.getElementById('canvas')), hud:rect(document.getElementById('mission-detail')),
-      controls:[...document.querySelectorAll('#controls button,#steering-pad')].filter(node=>node.getClientRects().length).map(rect) };
+      controls:[...document.querySelectorAll('#controls button')].filter(node=>node.getClientRects().length).map(rect) };
   });
   assert.equal(geometry.overflow,false);
   assert.ok(geometry.hud.x>=0 && geometry.hud.right<=geometry.viewport.width+1 && geometry.hud.bottom<=geometry.canvas.bottom);
   for(const box of [geometry.canvas,...geometry.controls]) assert.ok(box.x>=-1 && box.y>=-1 && box.right<=geometry.viewport.width+1 && box.bottom<=geometry.viewport.height+1,'Canvas and controls fit together');
   return geometry;
 }
+async function bossBarFits(page) {
+  const layout=await page.evaluate(async()=>{
+    const {bossHealthBarLayout}=await import(new URL('game-renderer.js?qa-original=1',location.href));
+    const options=window.__qaRenderOptions;
+    const bar=bossHealthBarLayout(window.__qaState,undefined,options);
+    const overlaps=bar && options.reservedRects.some(rect=>bar.x<rect.x+rect.width && bar.x+bar.width>rect.x && bar.y<rect.y+rect.height && bar.y+bar.height>rect.y);
+    return {viewport:{width:innerWidth,height:innerHeight},bar,overlaps,arena:window.__qaState.world};
+  });
+  assert.ok(layout.bar,'The active boss has a visible health bar');
+  assert.equal(layout.overlaps,false,'Boss health stays clear of the actual status, mission and impact HUD');
+  assert.ok(layout.bar.x>=0 && layout.bar.y>=0 && layout.bar.x+layout.bar.width<=layout.arena.width && layout.bar.y+layout.bar.height<=layout.arena.height,'Boss health fits within the game area');
+  return layout;
+}
 try {
-  for(const viewport of [{width:390,height:844},{width:1280,height:900}]) {
+  for(const viewport of [{width:390,height:844},{width:1280,height:900}].filter(value=>!args.includes('--viewport') || String(value.width)===option('--viewport'))) {
     const context=await browser.newContext({viewport,isMobile:viewport.width<600,hasTouch:viewport.width<600,deviceScaleFactor:1});
     // Repeatable lane jitter; all kills and upgrades are earned by the
     // real running simulation. No score, enemy, weapon or timer state is set.
@@ -51,12 +72,15 @@ try {
       url.searchParams.set('qa-original','1');
       await route.fulfill({contentType:'text/javascript',body:`import * as original from ${JSON.stringify(url.href)}; export * from ${JSON.stringify(url.href)};
 export function createRenderer(...args){const renderer=original.createRenderer(...args);return {loadImages:renderer.loadImages.bind(renderer),get imagesReady(){return renderer.imagesReady;},render(ctx,state,options){
-if(state){window.__qaState=JSON.parse(JSON.stringify(state));window.__qaMaxBullets=Math.max(window.__qaMaxBullets||0,state.bullets?.length||0);const key=state.weaponLevel+':'+state.phase;if(key!==window.__qaLast){(window.__qaTrace||=[]).push({level:state.weaponLevel,phase:state.phase,kills:state.kills,elapsed:state.elapsed});window.__qaLast=key;}}
+if(state){window.__qaState=JSON.parse(JSON.stringify(state));window.__qaScene=state;window.__qaRenderOptions=JSON.parse(JSON.stringify(options));window.__qaMaxBullets=Math.max(window.__qaMaxBullets||0,state.bullets?.length||0);const key=state.weaponLevel+':'+state.wave+':'+state.phase;if(key!==window.__qaLast){(window.__qaTrace||=[]).push({level:state.weaponLevel,wave:state.wave,phase:state.phase,kills:state.kills,elapsed:state.elapsed});window.__qaLast=key;}
+const drone=state.enemies?.find(enemy=>enemy.type==='drone'&&enemy.age>.05);if(drone){const scale=Math.min(4.5,Math.max(.65,state.world.height/540));(window.__qaPace||={})[state.wave]={quota:state.waveQuota,descent:(drone.y+58)/drone.age/scale};}
+if(state.boss){const boss=window.__qaBoss||={maxHealth:state.boss.maxHealth,minimumHealth:state.boss.health,phases:[],maxHostileShots:0};boss.minimumHealth=Math.min(boss.minimumHealth,state.boss.health);if(!boss.phases.includes(state.boss.phase))boss.phases.push(state.boss.phase);boss.maxHostileShots=Math.max(boss.maxHostileShots,state.hostileShots?.length||0);boss.lastSeen=state.elapsed;}else if(window.__qaBoss&&state.phase==='intermission')window.__qaBoss.defeated=true;}
 return renderer.render(ctx,state,options);}};}`});
     });
     const page=await context.newPage();
+    activePage=page;
     page.on('pageerror',error=>errors.push(error.message));
-    await check(`${viewport.width}px earned weapon progression, breather, bounded volleys and restart`,async()=>{
+    await check(`${viewport.width}px earned progression${viewport.width===1280?', compounding waves and boss':''}, bounded volleys and restart`,async()=>{
       await page.goto(`${base}/play.html?game=invaders`);
       await page.waitForFunction(()=>document.documentElement.dataset.artwork==='ready');
       await page.locator('#overlay-action').click();
@@ -66,22 +90,24 @@ return renderer.render(ctx,state,options);}};}`});
       let aiming=true, heldDirection;
       const aimTask=(async()=>{
         while(aiming&&!page.isClosed()){
-          const state=await page.evaluate(()=>window.__qaState);
+          const input=await page.evaluate(()=>({state:window.__qaState,left:document.getElementById('left').getAttribute('aria-pressed')==='true',right:document.getElementById('right').getAttribute('aria-pressed')==='true',action:document.getElementById('action').getAttribute('aria-pressed')==='true'}));
+          const state=input.state;
           if(state?.ended) break;
-          const target=state?.enemies.filter(enemy=>enemy.y>0 && enemy.y<state.playerY-75).sort((a,b)=>b.y-a.y)[0];
+          if(!input.action){await page.keyboard.up('Space');await page.keyboard.down('Space');}
+          const target=state?.boss || state?.enemies.filter(enemy=>enemy.y>0 && enemy.y<state.playerY-75).sort((a,b)=>b.y-a.y)[0];
           const direction=target && Math.abs(target.x-state.player)>18 ? (target.x>state.player?'ArrowRight':'ArrowLeft') : undefined;
-          if(direction!==heldDirection){if(heldDirection)await page.keyboard.up(heldDirection);if(direction)await page.keyboard.down(direction);heldDirection=direction;}
+          const released=direction && !input[direction==='ArrowLeft'?'left':'right'];
+          if(direction!==heldDirection||released){if(heldDirection)await page.keyboard.up(heldDirection);if(direction)await page.keyboard.down(direction);heldDirection=direction;}
           await page.waitForTimeout(80);
         }
         if(heldDirection)await page.keyboard.up(heldDirection);
-      })().catch(()=>{});
+      })().catch(async error=>{await page.evaluate(message=>{window.__qaAimError=message;},error.message).catch(()=>{});errors.push(`Keyboard aiming: ${error.message}`);});
       await page.waitForFunction(()=>window.__qaState?.weaponLevel===2 && window.__qaState.bullets.filter(shot=>shot.weaponLevel===2).length>=2,undefined,{timeout:45000});
       const twin=await page.evaluate(()=>window.__qaState.bullets.filter(shot=>shot.weaponLevel===2).slice(-2));
       assert.equal(twin.length,2); assert.ok(twin[0].x!==twin[1].x && twin.every(shot=>shot.vx===0));
       assert.match(await page.locator('#mission-detail').textContent(),/Weapon 2.*Twin streams/);
       await page.waitForFunction(()=>window.__qaState?.weaponLevel===3 && window.__qaState.bullets.filter(shot=>shot.weaponLevel===3).length>=4,undefined,{timeout:45000});
       await page.waitForTimeout(230);
-      aiming=false;await aimTask;
       const state=await page.evaluate(()=>window.__qaState);
       const quad=state.bullets.filter(shot=>shot.weaponLevel===3).slice(-4);
       assert.equal(quad.length,4);
@@ -96,16 +122,57 @@ return renderer.render(ctx,state,options);}};}`});
       const maximum=await page.evaluate(()=>window.__qaMaxBullets);
       assert.ok(maximum<=64,`Projectile list grew beyond a bounded active volley budget: ${maximum}`);
       const geometry=await fits(page);
+      assert.equal(await page.locator('#steering-pad').count(),0);
+      if(viewport.width===390) assert.ok(geometry.canvas.height>=666,'The phone arena gains at least60px over the former606px stage');
       await page.screenshot({path:resolve(output,`invaders-quad-${viewport.width}.png`)});
+      let bossObservation;
+      if(viewport.width===1280){
+        await page.waitForFunction(()=>window.__qaState?.boss?.phase==='windup',undefined,{timeout:75000});
+        const bossLabel=await page.evaluate(()=>window.__qaState.boss.label);
+        assert.ok((await page.locator('#mission-detail').textContent()).includes(bossLabel),'The HUD identifies the active boss');
+        await fits(page);
+        const barLayouts=[await bossBarFits(page)];
+        await page.screenshot({path:resolve(output,'invaders-boss-1280.png')});
+        for(const rotated of [{width:390,height:844},{width:844,height:390},{width:568,height:320}]){
+          await page.setViewportSize(rotated);
+          await page.waitForTimeout(80);
+          await fits(page);
+          barLayouts.push(await bossBarFits(page));
+          assert.equal((await page.evaluate(()=>window.__qaState)).weaponLevel,3,'Boss rotation retains the upgraded run');
+          await page.screenshot({path:resolve(output,`invaders-boss-${rotated.width}.png`)});
+        }
+        await page.setViewportSize(viewport);
+        if(heldDirection)await page.keyboard.up(heldDirection);
+        heldDirection=undefined;
+        await page.keyboard.up('Space');
+        await page.keyboard.down('Space');
+        await page.waitForFunction(()=>window.__qaBoss?.maxHostileShots>0,undefined,{timeout:10000});
+        await page.waitForFunction(()=>window.__qaBoss?.defeated,undefined,{timeout:30000});
+        const later=await page.evaluate(()=>({state:window.__qaState,pace:window.__qaPace,boss:window.__qaBoss,maximum:window.__qaMaxBullets}));
+        assert.ok(later.pace[3].descent>later.pace[2].descent && later.pace[4].descent>later.pace[3].descent,'Actual post-Quad waves keep increasing hazard descent');
+        assert.ok(later.pace[4].quota>later.pace[3].quota,'Later waves add more hazards');
+        assert.ok(later.boss.phases.includes('windup') && later.boss.phases.includes('recover') && later.boss.minimumHealth<later.boss.maxHealth,'Boss telegraphs, attacks, recovers and takes real projectile damage');
+        assert.ok(later.state.wave===5 && later.state.phase==='intermission' && later.state.weaponLevel===3,'The occasional boss yields a breather while preserving the weapon upgrade');
+        assert.equal(later.state.bossesDefeated,1);
+        assert.equal(later.state.shield,1,'Defeating the boss rewards a protective shield');
+        assert.ok(later.maximum<=64,'Longer play keeps the projectile list bounded');
+        bossObservation={pace:later.pace,boss:later.boss,kills:later.state.kills,elapsed:later.state.elapsed,maximumBullets:later.maximum,barLayouts};
+        await page.screenshot({path:resolve(output,'invaders-boss-defeated-1280.png')});
+      }
+      aiming=false;await aimTask;
       if(viewport.width<600){
-        const pad=await page.locator('#steering-pad').boundingBox();
+        const arena=await page.locator('#canvas').boundingBox();
         const touch=await context.newCDPSession(page);
-        const anchor={id:1,x:pad.x+pad.width/2,y:pad.y+pad.height/2};
+        const anchor={id:1,x:arena.x+arena.width*.35,y:arena.y+arena.height*.65};
+        const beforeTouch=await page.evaluate(()=>window.__qaState);
         await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[anchor]});
-        await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...anchor,x:anchor.x+24,y:anchor.y-24}]});
+        await page.waitForTimeout(80);
+        const contact=await page.evaluate(()=>window.__qaState);
+        assert.ok(Math.abs(contact.player-beforeTouch.player)<1 && Math.abs(contact.playerY-beforeTouch.playerY)<1,'Contact does not teleport the ship');
+        await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...anchor,x:anchor.x+50,y:anchor.y-35}]});
         await page.waitForTimeout(220);
         const moved=await page.evaluate(()=>window.__qaState);
-        assert.ok(moved.player>state.player+15 && moved.playerY<state.playerY-15);
+        assert.ok(moved.player>beforeTouch.player+15 && moved.playerY<beforeTouch.playerY-15);
         assert.equal(moved.weaponLevel,3);
         await touch.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
         await page.setViewportSize({width:844,height:390});
@@ -118,10 +185,22 @@ return renderer.render(ctx,state,options);}};}`});
       const frozen=await page.locator('#canvas').screenshot();
       await page.waitForTimeout(200);
       assert.deepEqual(await page.locator('#canvas').screenshot(),frozen);
+      let personalBest;
+      if(viewport.width===1280){
+        await page.locator('#pause').click();
+        // Only the storage/controller boundary uses an ended-run fixture. The
+        // score, upgrades, later waves and boss above were earned with inputs.
+        personalBest=await page.evaluate(()=>{const scene=window.__qaScene;scene.ended=true;return scene.score;});
+        await page.waitForFunction(()=>document.getElementById('start').textContent==='Again');
+        assert.match(await page.locator('#overlay-hint').textContent(),new RegExp(`New personal best: ${personalBest} points`));
+        await page.reload();
+        await page.waitForFunction(()=>document.documentElement.dataset.artwork==='ready');
+        assert.match(await page.locator('#overlay-hint').textContent(),new RegExp(`Best on this device: ${personalBest} points`),'Completed-run personal best survives a fresh page load');
+      }
       await page.locator('#start').click();
       const restarted=await page.evaluate(()=>window.__qaState);
       assert.equal(restarted.weaponLevel,1);assert.equal(restarted.kills,0);assert.equal(restarted.score,0);
-      observations.push({viewport,trace,maximumBullets:maximum,quadVelocity:quad.map(shot=>shot.vx),earnedKills:state.kills,elapsed:state.elapsed,geometry});
+      observations.push({viewport,trace,maximumBullets:maximum,quadVelocity:quad.map(shot=>shot.vx),earnedKills:state.kills,elapsed:state.elapsed,geometry,...(bossObservation?{bossObservation}:{}),...(personalBest?{personalBest}: {})});
     });
     await context.close();
   }
@@ -130,6 +209,6 @@ return renderer.render(ctx,state,options);}};}`});
   const browserVersion=browser.version();
   await browser.close();
   if(server) await new Promise(done=>server.close(done));
-  await writeFile(resolve(output,'results.json'),JSON.stringify({generatedAt:new Date().toISOString(),baseURL:base,browserVersion,results,observations,errors,scope:'Seeded lane jitter and keyboard aiming for repeatability; no simulation state mutation. Actual held Fire, thumb gestures, earned kills and upgrades. Mobile Chromium emulation; no physical-device/Safari claim.'},null,2));
+  await writeFile(resolve(output,'results.json'),JSON.stringify({generatedAt:new Date().toISOString(),baseURL:base,browserVersion,results,observations,errors,scope:'Seeded lane jitter and keyboard aiming for repeatability. Earned kills, upgrades, later waves and boss use the unmodified simulation with actual held Fire and direct arena gestures. Only the personal-best controller/storage check marks the earned run ended, without changing its score. Mobile Chromium emulation; no physical-device/Safari claim.'},null,2));
 }
 if(results.some(result=>!result.passed))process.exitCode=1;

@@ -22,7 +22,7 @@
     },
     "invaders": {
       "title": "Agency Invaders | HTSG Gamification Labs",
-      "description": "Outfly scope creep, missed deadlines, and budget overruns. Clear short waves with automatically upgrading weapons in Agency Invaders.",
+      "description": "Dodge scope creep, missed deadlines, and budget overruns. Drag to fly, upgrade your weapons, and take on agency bosses in Agency Invaders.",
       "path": "play.html?game=invaders"
     },
     "runner": {

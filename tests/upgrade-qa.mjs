@@ -143,7 +143,7 @@ async function bounds(page) {
     const rect = node => { const { x, y, width, height, bottom, right } = node.getBoundingClientRect(); return { x, y, width, height, bottom, right }; };
     const canvas = rect(document.getElementById('canvas'));
     const shell = rect(document.getElementById('game-shell'));
-    const targets = [...document.querySelectorAll('#controls button, #steering-pad, #fullscreen, #help-toggle, #overlay-action, #previous-game, #next-game, #game-picker > summary')]
+    const targets = [...document.querySelectorAll('#controls button, #fullscreen, #help-toggle, #overlay-action, #previous-game, #next-game, #game-picker > summary')]
       .filter(node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden')
       .map(node => {
         const dimensions = rect(node);
@@ -260,58 +260,59 @@ try {
   });
 
   for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 568, height: 320 }, { width: 844, height: 390 }]) {
-    await check(`${viewport.width}px thumb pad stays below the ship and supports relative two-axis multi-touch`, async () => {
+    await check(`${viewport.width}px direct arena steering reclaims space and supports relative two-axis multi-touch`, async () => {
       await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => {});
       await page.setViewportSize(viewport);
       await open(page, 'invaders');
       await page.locator('#overlay-action').tap();
       const canvas = await page.locator('#canvas').boundingBox();
-      const pad = await page.locator('#steering-pad').boundingBox();
-      assert.ok(pad && pad.y >= canvas.y + canvas.height - 1, 'The thumb surface is outside and below the complete arena');
+      assert.equal(await page.locator('#steering-pad').count(), 0, 'The separate steering pad is removed');
+      if (viewport.width === 390) assert.ok(canvas.height >= 666, `The phone arena reclaims at least 60px from its former 606px height: ${canvas.height}`);
       assertFits(await bounds(page), { portrait: viewport.width < 600 });
-      const center = { id: 1, x: pad.x + pad.width / 2, y: pad.y + pad.height / 2 };
+      const center = { id: 1, x: canvas.x + canvas.width * 0.35, y: canvas.y + canvas.height * 0.65 };
       const before = await snapshot(page);
       await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
-      await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...center, x: center.x + 3, y: center.y - 3 }] });
       await page.waitForTimeout(90);
-      const deadzone = await snapshot(page);
-      assert.ok(Math.abs(deadzone.player - before.player) < 1 && Math.abs(deadzone.playerY - before.playerY) < 1, 'Contact and small thumb jitter stay inside the dead zone');
-      const deflected = { ...center, x: center.x + 30, y: center.y - 24 };
+      const contact = await snapshot(page);
+      assert.ok(Math.abs(contact.player - before.player) < 1 && Math.abs(contact.playerY - before.playerY) < 1, 'Contact anchors relative steering without moving the ship');
+      const deflected = { ...center, x: center.x + 50, y: center.y - 35 };
       await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [deflected] });
       await page.waitForTimeout(250);
       const moved = await snapshot(page);
-      assert.ok(moved.player > before.player + 15 && moved.playerY < before.playerY - 15, 'Held diagonal pad input moves both axes continuously');
+      assert.ok(moved.player > before.player + 15 && moved.playerY < before.playerY - 15, 'Direct diagonal dragging moves the ship on both axes');
+      await page.waitForTimeout(100);
+      const held = await snapshot(page);
+      assert.ok(Math.abs(held.player - moved.player) < 1 && Math.abs(held.playerY - moved.playerY) < 1, 'A stationary finger stops at the relative destination instead of continuing like a joystick');
       const fireBox = await page.locator('#action').boundingBox();
       const fire = { id: 2, x: fireBox.x + fireBox.width / 2, y: fireBox.y + fireBox.height / 2 };
       await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [deflected, fire] });
       await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [deflected] });
       await page.waitForTimeout(50);
-      assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'true', 'Releasing the pad preserves the separately held Fire source');
+      assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'true', 'Releasing the drag preserves the separately held Fire source');
       const stopped = await snapshot(page);
       await page.waitForTimeout(100);
       const later = await snapshot(page);
-      assert.ok(Math.abs(later.player - stopped.player) < 1 && Math.abs(later.playerY - stopped.playerY) < 1, `Pad release clears both movement axes: ${JSON.stringify({ before: [stopped.player, stopped.playerY], after: [later.player, later.playerY], events: await page.evaluate(() => window.__qaPointers.slice(-8)) })}`);
+      assert.ok(Math.abs(later.player - stopped.player) < 1 && Math.abs(later.playerY - stopped.playerY) < 1, `Drag release clears both movement axes: ${JSON.stringify({ before: [stopped.player, stopped.playerY], after: [later.player, later.playerY], events: await page.evaluate(() => window.__qaPointers.slice(-8)) })}`);
       await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
       assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'false', 'Cancelling the remaining finger clears Fire');
-      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...center, x: pad.x + 12 }] });
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...center, x: canvas.x + canvas.width - 12 }] });
       await page.waitForTimeout(90);
       const regrab = await snapshot(page);
-      assert.ok(Math.abs(regrab.player - later.player) < 1 && Math.abs(regrab.playerY - later.playerY) < 1, 'A new thumb contact establishes its own stationary anchor');
+      assert.ok(Math.abs(regrab.player - later.player) < 1 && Math.abs(regrab.playerY - later.playerY) < 1, 'A new arena contact establishes its own stationary anchor');
       await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-      geometry.push({ mode: 'invaders', stage: 'thumb-pad', viewport, canvas, pad });
-      await capture(page, `invaders-thumb-pad-${viewport.width}`);
+      geometry.push({ mode: 'invaders', stage: 'direct-drag', viewport, canvas });
+      await capture(page, `invaders-direct-arena-${viewport.width}`);
     });
   }
   await page.setViewportSize({ width: 390, height: 844 });
 
   await check('a second held steering contact takes over without a jump when the first finger lifts', async () => {
-    for (const primary of ['pad', 'arena']) {
+    for (const primary of ['left', 'right']) {
       await open(page, 'invaders');
       await page.locator('#overlay-action').tap();
-      const boxes = { pad: await page.locator('#steering-pad').boundingBox(), arena: await page.locator('#canvas').boundingBox() };
-      const firstBox = boxes[primary], secondBox = boxes[primary === 'pad' ? 'arena' : 'pad'];
-      const first = { id: 1, x: firstBox.x + firstBox.width / 2, y: firstBox.y + firstBox.height / 2 };
-      const second = { id: 2, x: secondBox.x + secondBox.width / 3, y: secondBox.y + secondBox.height / 2 };
+      const arena = await page.locator('#canvas').boundingBox();
+      const first = { id: 1, x: arena.x + arena.width * (primary === 'left' ? 0.25 : 0.7), y: arena.y + arena.height * 0.65 };
+      const second = { id: 2, x: arena.x + arena.width * (primary === 'left' ? 0.7 : 0.25), y: arena.y + arena.height * 0.6 };
       await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [first] });
       await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [first, second] });
       await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [first] });

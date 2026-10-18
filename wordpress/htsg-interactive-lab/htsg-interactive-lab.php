@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HTSG Gamification Labs
  * Description: Serves the reviewed static browser games at /demos/interactive-lab/.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Holistic Tech Solutions Group
  * Requires PHP: 8.0
  */
@@ -183,7 +183,7 @@ function htsg_lab_ready(?string $directory = null): bool {
     $directory = $directory ?? __DIR__ . '/site';
     $headers = is_file($directory . '/_headers') ? file_get_contents($directory . '/_headers') : '';
     if (!is_string($headers) || !preg_match('/^\s+Content-Security-Policy:\s*.+$/m', $headers)) { return false; }
-    foreach (['index.html', 'play.html', '404.html', 'game.js', 'game-engine.js', 'game-renderer.js', 'questions.js',
+    foreach (['index.html', 'play.html', '404.html', 'game.js', 'game-engine.js', 'game-renderer.js', 'score-store.js', 'questions.js',
         'brand.js', 'style.css', 'brand.css', 'play.css', 'assets/invaders-world.webp', 'assets/runner-world.webp', 'assets/trivia-world.webp',
         'assets/halo-runner-atlas.webp', 'assets/halo-runner-idle.png', 'share.json'] as $name) {
         if (!htsg_lab_asset($name, $directory)) { return false; }

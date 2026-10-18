@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ARENA, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
+  ARENA, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon, invaderPace, bossGeometry, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
   createInvadersState, fireInvaders, steerInvaders, stepInvaders,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer,
 } from '../public/game-engine.js';
 import { questions, questionsForRound } from '../public/questions.js';
-import { runnerCameraOffset } from '../public/game-renderer.js';
+import { runnerCameraOffset, bossHealthBarLayout } from '../public/game-renderer.js';
 
 const idle = { left: false, right: false, up: false, down: false, action: false };
 const fixedRandom = () => 0.5;
@@ -486,13 +486,154 @@ test('Invaders gives readable larger hazards a gentle opening and capped late-wa
   stepInvaders(opening, idle, 0.05, fixedRandom);
   assert.ok(opening.enemies[0].y - y < 4, 'first-wave descent stays forgiving');
   const late = createInvadersState();
-  Object.assign(late, { wave: 99, phase: 'intermission', waveIn: 0 });
+  Object.assign(late, { wave: 98, phase: 'intermission', waveIn: 0 });
   stepInvaders(late, idle, 0.05, fixedRandom);
-  assert.equal(late.waveQuota, 10);
+  assert.equal(late.waveQuota, 18);
   late.spawnIn = 100;
   late.enemies.push({ x: 100, y: 100, type: 'drone' });
   stepInvaders(late, idle, 0.05, fixedRandom);
-  assert.ok(Math.abs(late.enemies[0].y - 100 - 118 * 0.05) < 1e-9);
+  assert.ok(Math.abs(late.enemies[0].y - 100 - 230 * 0.05) < 1e-9);
+});
+
+const enterInvadersWave = (wave, height = 540) => {
+  const state = createInvadersState({ height });
+  Object.assign(state, { wave: wave - 1, phase: 'intermission', waveIn: 0 });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  return state;
+};
+
+test('difficulty preserves the first two welcoming waves and compounds speed, spacing and quota after them', () => {
+  assert.deepEqual([invaderPace(1).descent, invaderPace(2).descent], [74, 78]);
+  assert.deepEqual([invaderPace(1).quota, invaderPace(2).quota], [6, 8]);
+  for (const wave of [3, 4, 6, 8]) {
+    assert.ok(invaderPace(wave).descent > invaderPace(wave - 1).descent);
+    assert.ok(invaderPace(wave).spawnInterval < invaderPace(wave - 1).spawnInterval);
+  }
+  assert.ok(invaderPace(4).quota > invaderPace(3).quota);
+  assert.deepEqual(invaderPace(10000), { pressure: 1, descent: 230, spawnInterval: 0.38, quota: 18 });
+});
+
+test('later waves teach distinct named weaving and armored hazards without shrinking their targets', () => {
+  const state = createInvadersState();
+  state.wave = 8;
+  for (let index = 0; index < 6; index += 1) { state.spawnIn = 0; stepInvaders(state, idle, 1 / 120, fixedRandom); }
+  const armored = state.enemies.find(enemy => enemy.type === 'heavy');
+  const weavers = state.enemies.filter(enemy => enemy.type === 'weaver');
+  assert.equal(armored.label, 'Budget overruns');
+  assert.equal(armored.health, 3);
+  assert.ok(weavers.every(enemy => ['Tech debt', 'Broken handoffs'].includes(enemy.label)));
+  assert.ok(state.enemies.every(enemy => enemy.scale === INVADER_THREAT_SCALE));
+  const weaver = weavers[0], drone = state.enemies.find(enemy => enemy.type === 'drone');
+  for (const enemy of [weaver, drone]) Object.assign(enemy, { baseX: 480, x: 480, phase: 0, age: 0 });
+  stepInvaders(state, idle, 0.05, fixedRandom);
+  assert.ok(Math.abs(weaver.x - 480) > Math.abs(drone.x - 480) * 4);
+});
+
+test('each fifth wave brings a named boss with a safe entry, locked warning and delayed aimed fire', () => {
+  const state = enterInvadersWave(5);
+  assert.equal(state.phase, 'boss');
+  assert.equal(state.boss.label, 'Scope Creep');
+  assert.equal(state.boss.health, 80);
+  assert.equal(state.enemies.length, 0);
+  assert.equal(state.hostileShots.length, 0);
+  for (let count = 0; count < 200 && state.boss.phase === 'entering'; count += 1) stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.boss.phase, 'windup');
+  assert.equal(state.hostileShots.length, 0);
+  const locked = [state.boss.aimX, state.boss.aimY];
+  state.player = 100;
+  frames(100, dt => stepInvaders(state, idle, dt, fixedRandom));
+  assert.deepEqual([state.boss.aimX, state.boss.aimY], locked, 'the warning cannot chase the dodging player');
+  assert.equal(state.hostileShots.length, 0);
+  for (let count = 0; count < 50 && state.boss.phase === 'windup'; count += 1) stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.boss.phase, 'recover');
+  assert.equal(state.hostileShots.length, 1);
+  assert.equal(state.hostileShots[0].label, 'Scope Creep');
+  assert.equal(enterInvadersWave(10).boss.label, 'Change Request');
+});
+
+test('boss bolts use swept collision, consume a shield first, and leave a readable damage reason', () => {
+  const state = createInvadersState();
+  state.spawnIn = 100; state.shield = 1; state.shieldTime = 12;
+  const bolt = () => ({ x: state.player, y: state.playerY - 100, vx: 0, vy: 4000, radius: 12, age: 0, life: 5, hostile: true, label: 'Scope Creep' });
+  state.hostileShots.push(bolt());
+  stepInvaders(state, idle, 0.05, fixedRandom);
+  assert.equal(state.shield, 0);
+  assert.equal(state.lives, 3);
+  assert.equal(state.lastHazardBlocked, true);
+  assert.equal(state.lastHazardReason, 'projectile');
+  assert.equal(state.hostileShots.length, 0);
+  frames(90, dt => stepInvaders(state, idle, dt, fixedRandom));
+  state.hostileShots.push(bolt());
+  stepInvaders(state, idle, 0.05, fixedRandom);
+  assert.equal(state.lives, 2);
+  assert.equal(state.lastHazard, 'Scope Creep');
+});
+
+test('boss defeat awards its bonus once, clears hostile fire and grants a shield with a breather', () => {
+  const state = enterInvadersWave(5);
+  Object.assign(state.boss, { health: 2, phase: 'recover', attackIn: 10, y: bossGeometry(state).targetY });
+  state.hostileShots.push({ x: 10, y: 10, vx: 0, vy: 20, radius: 12, age: 0, life: 5, hostile: true });
+  for (let index = 0; index < 2; index += 1) state.bullets.push({ x: state.boss.x, y: state.boss.y + 10 });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.boss, null);
+  assert.equal(state.phase, 'intermission');
+  assert.equal(state.waveIn, 2.2);
+  assert.equal(state.lastBoss, 'Scope Creep');
+  assert.equal(state.score, 375);
+  assert.equal(state.bossesDefeated, 1);
+  assert.equal(state.shield, 1);
+  assert.equal(state.hostileShots.length, 0);
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.score, 375);
+  assert.equal(createInvadersState().bossesDefeated, 0);
+});
+
+test('boss warning and projectiles resize without advancing combat, and zero time freezes all boss state', () => {
+  const state = enterInvadersWave(5, 1700);
+  Object.assign(state.boss, { phase: 'windup', attackIn: 0.5, x: 620, y: bossGeometry(state).targetY, aimX: 200, aimY: 1400 });
+  state.hostileShots.push({ x: 300, y: 700, previousX: 290, previousY: 690, vx: 60, vy: 500, radius: 12, age: 0.4, life: 5, hostile: true });
+  const snapshot = structuredClone(state);
+  stepInvaders(state, { action: true, axisX: 1 }, 0, fixedRandom);
+  assert.deepEqual(state, snapshot);
+  resizeGame(state, 960, 300);
+  assert.equal(state.boss.health, snapshot.boss.health);
+  assert.equal(state.boss.attackIn, 0.5);
+  assert.equal(state.boss.y, bossGeometry(state).targetY);
+  assert.ok(Math.abs(state.hostileShots[0].vy - 500 * 300 / 1700) < 1e-9);
+  assert.equal(state.hostileShots[0].age, 0.4);
+});
+
+test('bosses stay in frame and hostile fire stays bounded in short, desktop and portrait arenas', () => {
+  for (const height of [240, 540, 1700]) {
+    const state = enterInvadersWave(10, height);
+    state.lives = 99;
+    const shape = bossGeometry(state);
+    assert.ok(shape.halfHeight <= 54);
+    assert.ok(shape.targetY - shape.halfHeight >= 0);
+    assert.ok(shape.targetY + shape.halfHeight < arenaFor(state).invadersBounds.top);
+    frames(2400, dt => stepInvaders(state, idle, dt, fixedRandom));
+    assert.ok(state.boss, 'a boss cannot silently escape below the arena');
+    assert.ok(state.boss.x >= shape.left && state.boss.x <= shape.right);
+    assert.ok(state.boss.y + shape.halfHeight <= height);
+    assert.ok(state.hostileShots.length <= 18);
+  }
+});
+
+test('boss health bar avoids the real landscape HUD conflict and remains visible across phone sizes', () => {
+  for (const [cssWidth, cssHeight] of [[320, 500], [390, 650], [568, 215], [844, 285], [1280, 700]]) {
+    const state = enterInvadersWave(5, 960 * cssHeight / cssWidth);
+    const arena = arenaFor(state), unit = 960 / cssWidth, shape = bossGeometry(state);
+    Object.assign(state.boss, { x: 590, y: shape.targetY, phase: 'recover' });
+    const reservedRects = [{ x: 14 * unit, y: 8 * unit, width: 180 * unit, height: 30 * unit },
+      { x: (cssWidth - 266) * unit, y: 15 * unit, width: 252 * unit, height: 25 * unit }];
+    const snapshot = structuredClone(state);
+    const bar = bossHealthBarLayout(state, arena, { cssHeight, reservedRects });
+    assert.ok(bar, `missing bar at ${cssWidth}`);
+    assert.ok(bar.x >= 0 && bar.x + bar.width <= arena.width && bar.y >= 0 && bar.y + bar.height <= arena.height);
+    for (const rect of reservedRects) assert.ok(!(bar.x < rect.x + rect.width && bar.x + bar.width > rect.x && bar.y < rect.y + rect.height && bar.y + bar.height > rect.y), `HUD overlap at ${cssWidth}`);
+    if (cssWidth === 844) assert.ok(bar.y > state.boss.y + shape.halfHeight, 'the blocked landscape bar moves below the boss');
+    assert.deepEqual(state, snapshot, 'health bar layout must not alter combat or pause state');
+  }
 });
 
 test('heavy enemies require two hits, then combo scoring and shield rewards remain consistent', () => {
