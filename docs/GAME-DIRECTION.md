@@ -4,7 +4,7 @@ Updated October 17, 2026. This document separates implemented gameplay from late
 
 ## Release boundary
 
-**1.5.0 is installed**: one pause panel, Spread/Focused switching at any pause and more plentiful guided missile pairs. Earned weapon level and ammunition survive switching; the first upgrade supplies four pairs, capsules add six and capacity is eight. Supplies begin in wave two, and missiles fire independently with bounded guidance. These mechanics use rules 1.5.0 with separate weekly boards; prior history and unexpired prior attempts are retained by installed Community 1.0.5. See [QA.md](QA.md) for source and actual public acceptance.
+**1.5.1 is installed**, retaining rules 1.5.0 and correcting a fallback-font dashboard wrap that reduced the phone arena height. The retained **1.5.0 mechanics** provide: one pause panel, Spread/Focused switching at any pause and more plentiful guided missile pairs. Earned weapon level and ammunition survive switching; the first upgrade supplies four pairs, capsules add six and capacity is eight. Supplies begin in wave two, and missiles fire independently with bounded guidance. These mechanics use rules 1.5.0 with separate weekly boards; prior history and unexpired prior attempts are retained by installed Community 1.0.5. See [QA.md](QA.md) for source and actual public acceptance.
 
 Retained visual polish from **1.4.1**: agency-themed enemy silhouettes, distinct boss artwork and clearer firing feedback. This pass changes presentation and optional sound only; damage, collision geometry, progression, weapon choices and seeded challenge rules remain at 1.4.0. Source/mobile artwork, local input and actual public checks passed. It adds no new mode, community feature or balance claim.
 

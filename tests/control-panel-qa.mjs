@@ -75,9 +75,15 @@ try{
  await check('paused boss and untimed choice preserve earned state; restart requires explicit confirmation',async()=>{
   const{context,page}=await openContext({width:390,height:844});try{
    await open(page);await start(page);
+   // Exercise the approved fallback font even on Windows, where Segoe UI
+   // otherwise hides Quad spread's extra line in the compact dashboard.
+   await page.locator('#weapon-dashboard').evaluate(node=>{node.style.fontFamily='Arial, sans-serif';});
+   const preUpgradeGeometry=await settleFixtureArena(page);
+   observations.push({stage:'single-shot fallback baseline',...preUpgradeGeometry});
    await page.evaluate(async()=>{const{bossGeometry}=await import(new URL('game-engine.js',location.href));const s=window.__panelLive,g=bossGeometry(s);Object.assign(s,{score:810,kills:12,weaponLevel:3,missilePairs:4,wave:5,phase:'boss',elapsed:44,ticks:5280});s.boss={label:'Scope Creep',x:480,y:g.targetY,health:60,maxHealth:80,phase:'windup',attackIn:.8,age:2,attackCount:1,warningOffsets:[0],pendingShots:[],aimX:s.player,aimY:s.playerY};});
    await pause(page);const baselineGeometry=await settleFixtureArena(page),before=await snapshot(page);
    observations.push({stage:'paused boss baseline',...baselineGeometry});
+   assert.deepEqual(baselineGeometry,preUpgradeGeometry,'Earned upgrades and pause retain the single-shot arena and dock size');
    for(const family of ['focused','spread']){
     await page.locator('#weapon-'+family).click();assert.equal(await page.locator('#weapon-'+family).getAttribute('aria-pressed'),'true');
     await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));

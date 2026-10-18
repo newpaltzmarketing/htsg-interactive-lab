@@ -2,7 +2,13 @@
 
 The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. The static games use the existing HTSG WordPress host. Free play requires no account, game backend, paid dependency or DNS change. The optional first-party community service is maintained and accepted separately.
 
-## Release 1.5.0 live — October 17, 2026
+## Release 1.5.1 live — October 17, 2026
+
+The game-only replacement fixes phone arena resizing caused by an Arial-fallback weapon label wrapping in the dashboard. Its internal small-screen gap changes from four to two pixels; engine rules remain **1.5.0** and Community remains **1.0.5**, with no new audit or data change required. Targeted Arial/boss and phone geometry checks passed, followed by **8/8** actual public controls checks, the exact corrected CSS hash and **14/14** public sharing checks.
+
+Installed archive: `release/htsg-interactive-lab-wordpress-1.5.1.zip`, **3,528,783 bytes**, SHA-256 `a66c7577ca95e3e9fb3dcbe4641deae6faf344204915d6dcd44db805f410673d`. All **34 entries** independently matched; only the release field, CSS and derived manifest differ from 1.5.0. PHP lint and **125/125** adapter checks passed. The publisher confirmed the active version and purged SiteGround cache. Immediate same-rules rollback is immutable **1.5.0**, 3,528,770 bytes, SHA-256 `eeed1afe030847f19fd29f44c1dee08f3fc4f048dc7d2dd88c98dd711b92cdce`; the older 1.4.1 coordinated rollback is retained below. See [QA.md](QA.md) for both initial CI failures, the reproduced cause and final scope.
+
+## Historical release 1.5.0 — October 17, 2026
 
 This release adds a compact pause panel, paused weapon-family switching and more generous guided missiles. Mechanics now use rules **1.5.0**. The publisher installed Community **1.0.5** first and repeated its member-access audit (**14/14** at 2026-10-18T03:11:29Z), then installed the reviewed game and purged SiteGround cache. Both active versions were confirmed; HQ remains unchanged at 2.17.0. New challenge IDs include the rules version (`invaders-YYYY-MM-DD-v1.5.0`); boards cannot mix old/new rules. Existing history and original unexpired 1.4.0 tickets remain finishable. No schema, account, email, Google setup or DNS change is required.
 

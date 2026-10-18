@@ -1,6 +1,10 @@
 # Release changes
 
-## 1.5.0 — live, October 17, 2026
+## 1.5.1 — live, October 17, 2026
+
+Keep the phone arena height fixed when switching weapon families under an Arial font fallback. The small-screen Invaders dashboard uses a smaller internal gap so the wrapped “Quad spread” label fits its existing dock. No engine, weapon, challenge, community or other-game rule changes are included; challenge rules remain 1.5.0. Arial-fallback and phone checks passed, the verified game-only installer was published, and the actual corrected CSS and sharing checks passed.
+
+## 1.5.0 — historical, October 17, 2026
 
 The pause panel allows switching Spread/Focused at any pause without losing weapon level, score or ammunition. Choosing early avoids the later automatic wave-two prompt. Missile capacity rises to eight pairs; the first weapon upgrade supplies four pairs and capsules replenish six. Supplies begin in wave two, and missiles fire more often with gentle guidance toward a living target ahead. Shields retain their distinct blue pickup.
 

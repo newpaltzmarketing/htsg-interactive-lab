@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HTSG Gamification Labs
  * Description: Serves the reviewed static browser games at /demos/interactive-lab/.
- * Version: 1.5.0
+ * Version: 1.5.1
  * Author: Holistic Tech Solutions Group
  * Requires PHP: 8.0
  */
