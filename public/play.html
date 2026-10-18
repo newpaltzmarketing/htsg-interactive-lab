@@ -69,10 +69,31 @@
             <div id="pause-actions" class="pause-actions" hidden><button id="free-play" type="button" hidden>Play free</button></div>
             <div id="community-mount" class="community-mount" hidden></div>
           </div></div>
-          <section id="weapon-choice" class="weapon-choice" aria-labelledby="weapon-choice-title" hidden>
-            <div><h2 id="weapon-choice-title" tabindex="-1">Choose your firepower</h2><p>Your earned upgrades stay with you. Pick a style for the rest of this run.</p>
-            <button id="weapon-spread" type="button">Keep spread<span>Wide coverage for weaving groups.</span></button>
-            <button id="weapon-focused" type="button">Choose focused fire<span>Narrow, stronger beams for armor and bosses.</span></button></div>
+          <section id="control-panel" class="control-panel" role="dialog" aria-modal="true" aria-labelledby="control-panel-title" hidden>
+            <div class="control-panel-card">
+              <header class="panel-heading"><div><h2 id="control-panel-title" tabindex="-1">Game controls</h2><p id="panel-run-status">Your run is paused.</p></div></header>
+              <div class="control-panel-body">
+                <fieldset id="weapon-choice" class="panel-weapons"><legend id="weapon-choice-title">Weapons</legend>
+                  <p id="panel-weapon-note">Switch styles here. Your earned upgrades stay with you.</p>
+                  <div class="loadout-options">
+                    <button id="weapon-spread" type="button" aria-pressed="true"><svg viewBox="0 0 48 38" aria-hidden="true"><path d="M24 34 8 4M24 34 21 4M24 34 27 4M24 34 40 4"/></svg><span><strong>Wide spread</strong><small>Cover groups across the arena.</small><em id="spread-level">Single shot</em></span></button>
+                    <button id="weapon-focused" type="button" aria-pressed="false"><svg viewBox="0 0 48 38" aria-hidden="true"><path d="M20 34V4M28 34V4"/></svg><span><strong>Focused beams</strong><small>Hit armor and bosses harder.</small><em id="focused-level">Focused pulse</em></span></button>
+                  </div>
+                  <p id="panel-ammo" class="panel-ammo">Missiles launch automatically while you fire.</p>
+                </fieldset>
+                <fieldset class="panel-settings"><legend>Sound &amp; effects</legend>
+                  <div class="panel-setting-row"><span>Sound effects</span><button id="panel-sound-toggle" type="button" aria-pressed="false">Sound off</button></div>
+                  <label class="volume-label" for="sound-volume">Volume <output id="sound-volume-value" for="sound-volume">65%</output></label>
+                  <input id="sound-volume" type="range" min="0" max="100" step="5" value="65" aria-describedby="sound-volume-note">
+                  <p id="sound-volume-note" class="setting-note">Sound starts off. Turn it on when you want the full effect.</p>
+                  <label class="effects-setting"><input id="reduced-effects" type="checkbox"><span>Reduce effects<small>Calmer motion, trails and bursts.</small></span></label>
+                  <p id="device-effects-note" class="setting-note" hidden>Enabled by your device’s reduced-motion setting.</p>
+                </fieldset>
+                <div class="panel-tools"><button id="panel-help" type="button">How to play</button><button id="panel-fullscreen" type="button">Full screen</button><button id="panel-restart" type="button">Restart run</button><a id="panel-exit" href="index.html">All games</a><button id="panel-free-play" type="button" hidden>Switch to free play</button></div>
+                <div id="restart-confirm" class="restart-confirm" hidden><p>Restart this run? Your current score and upgrades will reset.</p><div><button id="restart-confirm-no" type="button">Keep playing</button><button id="restart-confirm-yes" type="button">Yes, restart</button></div></div>
+              </div>
+              <footer class="panel-footer"><button id="panel-resume" type="button">Resume game</button></footer>
+            </div>
           </section>
           <div id="quiz" hidden></div>
           <aside id="help-panel" class="help-panel" aria-labelledby="help-title" hidden>
@@ -85,6 +106,7 @@
               <ul id="hazard-legend" class="hazard-legend"></ul>
               <p>These shapes identify each hazard. Life-loss messages name what broke through. Boss warning lines show where the next attack will land.</p>
             </section>
+            <section id="pickup-guide" class="hazard-guide" aria-labelledby="pickup-guide-title" hidden><h3 id="pickup-guide-title">Good things to collect</h3><ul id="pickup-legend" class="hazard-legend"></ul></section>
             <p class="help-navigation">Use the arrows beside the game name to switch games. The expand button fills your screen.</p>
           </aside>
         </div>

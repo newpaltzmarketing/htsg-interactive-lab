@@ -1,9 +1,10 @@
 // Deterministic rules. Browser events, rendering, and clocks stay outside this module.
 export const ARENA = Object.freeze({ width: 960, height: 540, floor: 454 });
 export const INVADER_THREAT_SCALE = 1.35;
-export const INVADER_RULES_VERSION = '1.4.0';
+export const INVADER_RULES_VERSION = '1.5.0';
 export const INVADER_TICK = 1 / 120;
 export const CHALLENGE_ARENA = Object.freeze({ width: 960, height: 1669 });
+export const INVADER_MISSILES = Object.freeze({ maxPairs: 8, upgradePairs: 4, pickupPairs: 6, cadence: .7, maxActive: 8, life: 2.2, homingDelay: .18, maxLateralSpeed: 260 });
 export const INVADER_WEAPONS = Object.freeze([
   { level: 1, kills: 0, name: 'Single shot', pattern: [{ offset: 0, vx: 0 }] },
   { level: 2, kills: 3, name: 'Twin streams', pattern: [{ offset: -16, vx: 0 }, { offset: 16, vx: 0 }] },
@@ -21,6 +22,13 @@ export function invaderWeapon(state) {
 export function chooseInvaderWeapon(state, family) {
   if (state.ended || state.phase !== 'choice' || !['spread', 'focused'].includes(family)) return false;
   state.weaponFamily = family; state.choiceMade = true; state.phase = 'intermission'; state.waveIn = 1.8;
+  return true;
+}
+export function equipInvaderWeapon(state, family) {
+  if (state?.kind !== 'invaders' || state.ended || !(state.lives > 0) || !['spread', 'focused'].includes(family)) return false;
+  if (state.phase === 'choice') return chooseInvaderWeapon(state, family);
+  state.weaponFamily = family;
+  state.choiceMade = true;
   return true;
 }
 export function createInvadersChallenge(config = {}) {
@@ -112,7 +120,11 @@ export function resizeGame(state, width, height) {
         if (Number.isFinite(item.baseX)) item.baseX *= scaleX;
         if (Number.isFinite(item.previousY)) item.previousY *= scaleY;
         if (Number.isFinite(item.previousX)) item.previousX *= scaleX;
-        if (item.hostile) { item.vx *= scaleX; item.vy *= scaleY; }
+        if (item.hostile || item.kind === 'missile') {
+          if (Number.isFinite(item.vx)) item.vx *= scaleX;
+          if (Number.isFinite(item.vy)) item.vy *= scaleY;
+        }
+        for (const point of item.trail || []) { point.x *= scaleX; point.y *= scaleY; }
       }
     }
     if (state.boss) {
@@ -165,8 +177,24 @@ export function createInvadersState(options = {}) {
   };
 }
 
+function launchMissilePair(state) {
+  if (!(state.missilePairs > 0) || state.missileCooldown > 0 || state.missiles.length > INVADER_MISSILES.maxActive - 2) return false;
+  const arena = arenaFor(state), verticalScale = clamp(arena.height / 540, .65, 4.5);
+  for (const side of [-1, 1]) {
+    const x = clamp(state.player + side * 40, 8, arena.width - 8), y = arena.playerY - 17;
+    state.missiles.push({ x, y, previousX: x, previousY: y, vx: side * 160, vy: -510 * verticalScale,
+      age: 0, life: INVADER_MISSILES.life, damage: 2, kind: 'missile', trail: [], id: state.nextId++ });
+  }
+  state.missilePairs -= 1;
+  state.missileCooldown = INVADER_MISSILES.cadence;
+  effect(state, 'missile-launch', state.player, arena.playerY - 17, .28);
+  return true;
+}
+
 export function fireInvaders(state) {
-  if (state.ended || state.phase === 'choice' || state.cooldown > 0) return false;
+  if (state.ended || state.phase === 'choice') return false;
+  const missilesFired = launchMissilePair(state);
+  if (state.cooldown > 0) return missilesFired;
   const { playerY, width } = arenaFor(state);
   const weapon = invaderWeapon(state);
   for (const shot of weapon.pattern) {
@@ -178,14 +206,33 @@ export function fireInvaders(state) {
   // More coverage is the reward; cadence stays bounded at every weapon level.
   state.cooldown = weapon.cadence || 0.24;
   state.volleys += 1;
-  if (state.missilePairs > 0 && state.missileCooldown <= 0 && state.missiles.length <= 6) {
-    for (const side of [-1, 1]) {
-      const x = clamp(state.player + side * 40, 8, width - 8), y = playerY - 17;
-      state.missiles.push({ x, y, previousX: x, previousY: y, vx: side * 95, age: 0, life: 2.2, damage: 2, kind: 'missile', id: state.nextId++ });
-    }
-    state.missilePairs -= 1; state.missileCooldown = 1;
-  }
   return true;
+}
+
+function stepMissiles(state, arena, dt, verticalScale) {
+  for (const missile of state.missiles) {
+    missile.previousX = missile.x; missile.previousY = missile.y;
+    missile.age = (Number.isFinite(missile.age) ? missile.age : 0) + dt;
+    missile.vx = Number.isFinite(missile.vx) ? clamp(missile.vx, -INVADER_MISSILES.maxLateralSpeed, INVADER_MISSILES.maxLateralSpeed) : 0;
+    missile.trail ||= [];
+    missile.trail.unshift({ x: missile.x, y: missile.y });
+    missile.trail.length = Math.min(missile.trail.length, 8);
+    if (missile.age >= INVADER_MISSILES.homingDelay) {
+      let target, nearest = Infinity;
+      for (const candidate of [...state.enemies, ...(state.boss ? [state.boss] : [])]) {
+        if (!Number.isFinite(candidate.x) || !Number.isFinite(candidate.y) || (candidate.health ?? 1) <= 0 ||
+            candidate.x < 0 || candidate.x > arena.width || candidate.y < 0 || candidate.y >= missile.y - 12 || candidate.y > arena.height) continue;
+        const distance = (candidate.x - missile.x) ** 2 + ((candidate.y - missile.y) / verticalScale) ** 2 * .35;
+        if (distance < nearest) { nearest = distance; target = candidate; }
+      }
+      const desired = target ? clamp((target.x - missile.x) * 2.4, -INVADER_MISSILES.maxLateralSpeed, INVADER_MISSILES.maxLateralSpeed) : 0;
+      missile.vx += (desired - missile.vx) * (1 - Math.exp(-4 * dt));
+    }
+    missile.vy = -510 * verticalScale;
+    missile.x = clamp(missile.x + missile.vx * dt, 8, arena.width - 8);
+    missile.y += missile.vy * dt;
+    if (missile.x === 8 && missile.vx < 0 || missile.x === arena.width - 8 && missile.vx > 0) missile.vx = 0;
+  }
 }
 
 // Keep the original X/seconds arguments; optional Y extends direct steering to two axes.
@@ -315,7 +362,9 @@ function stepBoss(state, arena, dt) {
   }
   for (const projectiles of [state.bullets, state.missiles]) for (let index = projectiles.length - 1; index >= 0; index -= 1) {
     if (!state.boss || !projectileHits(projectiles[index], boss.x, boss.y, shape.halfWidth * 0.9, shape.halfHeight)) continue;
-    boss.health -= projectiles.splice(index, 1)[0].damage || 1;
+    const projectile = projectiles.splice(index, 1)[0];
+    boss.health -= projectile.damage || 1;
+    if (projectile.kind === 'missile') effect(state, 'missile-impact', projectile.x, boss.y, .4);
     if (boss.health <= 0) {
       effect(state, 'explosion', boss.x, boss.y, 1);
       state.boss = null; state.hostileShots = []; state.bossesDefeated += 1;
@@ -398,10 +447,7 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
     bullet.x += (bullet.vx || 0) * verticalScale * dt;
     bullet.y -= 620 * verticalScale * dt;
   });
-  state.missiles.forEach(missile => {
-    missile.previousX = missile.x; missile.previousY = missile.y; missile.age += dt;
-    missile.x += (missile.age < 0.3 ? missile.vx : 0) * verticalScale * dt; missile.y -= 510 * verticalScale * dt;
-  });
+  stepMissiles(state, arena, dt, verticalScale);
   state.enemies.forEach(enemy => {
     enemy.age = (enemy.age || 0) + dt;
     enemy.y += descent * (enemy.type === 'interceptor' ? state.wave >= 4 ? 1.18 : 1.04 : enemy.type === 'heavy' ? 0.88 : 1) * dt;
@@ -420,7 +466,9 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
     const projectiles = state.bullets.some(bullet => projectileHits(bullet, enemy.x, enemy.y, radius, halfHeight)) ? state.bullets : state.missiles;
     const bulletIndex = projectiles.findIndex(bullet => projectileHits(bullet, enemy.x, enemy.y, radius, halfHeight));
     if (bulletIndex !== -1) {
-      const damage = projectiles.splice(bulletIndex, 1)[0].damage || 1;
+      const projectile = projectiles.splice(bulletIndex, 1)[0];
+      const damage = projectile.damage || 1;
+      if (projectile.kind === 'missile') effect(state, 'missile-impact', enemy.x, enemy.y, .4);
       enemy.health = (enemy.health ?? 1) - damage;
       if (enemy.health <= 0) {
         state.enemies.splice(enemyIndex, 1);
@@ -429,6 +477,7 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
         state.kills += 1;
         const unlocked = state.kills >= 7 ? 3 : state.kills >= 3 ? 2 : 1;
         if (unlocked > state.weaponLevel) {
+          if (state.weaponLevel < 2) state.missilePairs = Math.min(INVADER_MISSILES.maxPairs, state.missilePairs + INVADER_MISSILES.upgradePairs);
           state.weaponLevel = unlocked;
           state.weaponUpgradeTime = 2.4;
           effect(state, 'upgrade', state.player, state.playerY, 0.9);
@@ -436,7 +485,7 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
         state.score += 10 + Math.min(3, Math.floor(state.combo / 4)) * 5;
         effect(state, 'explosion', enemy.x, enemy.y);
         if (state.kills % 5 === 0) state.pickups.push({ x: enemy.x, y: enemy.y, kind: 'shield', id: state.nextId++ });
-        if (state.wave >= 3 && state.supplyWave !== state.wave) {
+        if (state.wave >= 2 && (state.supplyWave !== state.wave || state.kills % 6 === 0) && state.pickups.filter(item => item.kind === 'missiles').length < 2) {
           state.supplyWave = state.wave;
           state.pickups.push({ x: clamp(enemy.x + (state.kills % 5 === 0 ? 65 : 0), 38, arena.width - 38), y: enemy.y, kind: 'missiles', id: state.nextId++ });
         }
@@ -459,11 +508,11 @@ export function stepInvaders(state, input = {}, seconds, random = Math.random) {
     pickup.y += Math.max(110, descent * 0.75) * dt;
     if (Math.abs(pickup.x - state.player) < 55 && Math.abs(pickup.y - state.playerY) < 48) {
       state.pickups.splice(index, 1);
-      if (pickup.kind === 'missiles') state.missilePairs = Math.min(4, state.missilePairs + 4);
+      if (pickup.kind === 'missiles') state.missilePairs = Math.min(INVADER_MISSILES.maxPairs, state.missilePairs + INVADER_MISSILES.pickupPairs);
       else { state.shield = 1; state.shieldTime = 12; }
       state.pickupSerial += 1; state.lastPickup = pickup.kind;
       state.score += 20;
-      effect(state, 'shield', state.player, state.playerY, 0.9);
+      effect(state, pickup.kind === 'missiles' ? 'missile-load' : 'shield', state.player, state.playerY, 0.9);
     } else if (pickup.y > arena.height + 40) state.pickups.splice(index, 1);
   }
   if (state.phase === 'wave' && state.waveSpawned >= state.waveQuota && state.enemies.length === 0 && !state.ended) {

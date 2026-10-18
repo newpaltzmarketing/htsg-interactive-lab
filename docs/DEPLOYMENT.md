@@ -2,7 +2,13 @@
 
 The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. The static games use the existing HTSG WordPress host. Free play requires no account, game backend, paid dependency or DNS change. The optional first-party community service is maintained and accepted separately.
 
-## Release 1.4.1 live — October 17, 2026
+## Release 1.5.0 live — October 17, 2026
+
+This release adds a compact pause panel, paused weapon-family switching and more generous guided missiles. Mechanics now use rules **1.5.0**. The publisher installed Community **1.0.5** first and repeated its member-access audit (**14/14** at 2026-10-18T03:11:29Z), then installed the reviewed game and purged SiteGround cache. Both active versions were confirmed; HQ remains unchanged at 2.17.0. New challenge IDs include the rules version (`invaders-YYYY-MM-DD-v1.5.0`); boards cannot mix old/new rules. Existing history and original unexpired 1.4.0 tickets remain finishable. No schema, account, email, Google setup or DNS change is required.
+
+Installed game archive: `release/htsg-interactive-lab-wordpress-1.5.0.zip`, **3,528,770 bytes**, SHA-256 `eeed1afe030847f19fd29f44c1dee08f3fc4f048dc7d2dd88c98dd711b92cdce`. All **34 entries** were independently decompressed and matched to the scoped build/entry point; PHP lint and **125/125** adapter checks passed. Actual anonymous sharing passed **14/14** and **28/28** ordinary public asset hashes matched. Community anonymous rules/board/privacy/sharing checks passed **4/4**. Actual public controls passed **8/8** across desktop, portrait and landscape layouts, with explicit fixture boundaries recorded in [QA.md](QA.md). The publisher manually checked the public pause/weapon/fullscreen/help sequence. Facebook Sharing Debugger was refreshed and returned 206 with the exact reviewed cover; its existing nonblocking `fb:app_id` warning remains. No social post was published. The game rollback is immutable **1.4.1**, 3,524,001 bytes, SHA256 `35d930fa97f5e41a7059a004a58a9b3fd03cbf9686598fdaff6808a55d18091d`. Community rollback is immutable **1.0.4**; coordinate both versions rather than mixing fresh-ticket rules. A temporary mismatch rejects a new challenge start while free play stays available. Preserve old records; do not reseed, migrate or clear scores.
+
+## Historical release 1.4.1 — October 17, 2026
 
 The installed release refines Agency Invaders' agency-themed hazard silhouettes, distinct boss artwork and firing feedback. It changes no balance, collision geometry, weapon mechanics or challenge rules (`1.4.0`). The existing three-game sharing cover remains relevant. The separate installed Community 1.0.4 service and its data/settings are outside this update.
 

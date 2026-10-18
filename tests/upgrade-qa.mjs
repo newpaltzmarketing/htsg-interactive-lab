@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { resumeArcade } from './arcade-actions.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -190,7 +191,7 @@ try {
         await capture(page, `${mode}-running-${viewport.width}`);
         await page.locator('#pause').click();
         assert.match(await page.locator('#status').textContent(), /paused/i);
-        assert.equal(await page.locator('#arena-overlay').isVisible(), true);
+        assert.equal(await page.locator(mode === 'invaders' ? '#control-panel' : '#arena-overlay').isVisible(), true);
       }
     });
     await check(`${viewport.width}px trivia text and answers remain readable and keyboard accessible`, async () => {
@@ -367,7 +368,7 @@ try {
     }
     await capture(page, 'invaders-hazard-guide-390');
     await page.locator('#help-close').tap();
-    await page.locator('#pause').tap();
+    await resumeArcade(page);
     await page.waitForFunction(() => window.__qaState?.lastHazardTime > 0 && !window.__qaState.lastHazardBlocked, undefined, { timeout: 15000 });
     assert.equal(await page.locator('#impact-feedback').isVisible(), true);
     assert.match(await page.locator('#impact-feedback').textContent(), /1 life lost/);
@@ -523,7 +524,7 @@ try {
     assert.equal(await page.locator('#action').getAttribute('aria-pressed'), 'false');
     await page.locator('#help-close').tap();
     assert.equal(await page.locator('#help-panel').isVisible(), false);
-    assert.equal(await page.locator('#help-toggle').evaluate(element => element === document.activeElement), true);
+    assert.equal(await page.locator('#panel-help').evaluate(element => element === document.activeElement), true);
     await page.keyboard.press('KeyP');
     await page.locator('#help-toggle').tap();
     assert.equal(await page.locator('#help-panel').isVisible(), true);
@@ -533,7 +534,7 @@ try {
     assert.equal(await page.locator('#canvas').evaluate(element => element === document.activeElement), true);
     await page.locator('#game-picker > summary').tap();
     await page.waitForFunction(() => document.getElementById('pause').textContent === 'Resume');
-    await page.locator('#pause').tap();
+    await resumeArcade(page);
     assert.equal(await page.locator('#game-picker').getAttribute('open'), null, 'Resume dismisses the game picker');
     assert.equal(await page.locator('#canvas').evaluate(element => element === document.activeElement), true);
   });

@@ -276,7 +276,7 @@ try {
         await page.waitForTimeout(100);
         await page.locator('#pause').tap();
         assert.match(await page.locator('#status').textContent(), /paused/i);
-        assert.equal(await page.locator('#arena-overlay').isVisible(), true);
+        assert.equal(await page.locator(mode === 'invaders' ? '#control-panel' : '#arena-overlay').isVisible(), true);
       }
     });
   }

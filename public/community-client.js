@@ -1,4 +1,5 @@
 // Optional first-party community connection. Free play never waits for this module.
+import { INVADER_RULES_VERSION } from './game-engine.js';
 const query = new URLSearchParams(location.search);
 const mode = query.get('game') || 'invaders';
 const requestedChallenge = query.get('challenge') === 'current';
@@ -69,13 +70,14 @@ function render({ message = '', error = false, retry = false, saved = false } = 
 async function beginChallenge() {
   if (busy || !session?.member || !session?.challenge) return;
   busy = true;
+  runActive = false;
   render();
   try {
     // Refresh both identity and the current week before issuing a one-use run.
     session = await request('/community/session/');
     if (!session.enabled || !session.member || !session.nonce || !session.flags?.challenges || !session.challenge) throw new Error('Sign in to enter the current challenge. Free play is available below.');
     const run = await request('/wp-json/htsg-community/v1/runs', { challengeId: session.challenge.id });
-    if (!/^[a-f0-9]{64}$/.test(run.runId || '') || run.rulesVersion !== '1.4.0' || !Number.isInteger(run.seed) || run.seed < 0 || run.seed > 4294967295 || run.world?.width !== 960 || run.world?.height !== 1669 || run.maxSeconds !== 300 || run.tickRate !== 120) {
+    if (!/^[a-f0-9]{64}$/.test(run.runId || '') || run.rulesVersion !== INVADER_RULES_VERSION || !Number.isInteger(run.seed) || run.seed < 0 || run.seed > 4294967295 || run.world?.width !== 960 || run.world?.height !== 1669 || run.maxSeconds !== 300 || run.tickRate !== 120) {
       throw new Error('This challenge uses a different game edition. Refresh the page before joining.');
     }
     pendingRun = { ...run, challengeId: run.id || session.challenge.id };

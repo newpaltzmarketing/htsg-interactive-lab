@@ -1,5 +1,7 @@
 # HTSG Gamification Labs
 
+**1.5.0 is installed** with a compact pause panel, weapon-family switching while paused and more generous, gently guided missiles. It uses new challenge rules and separate versioned weekly scores; existing history and unexpired prior attempts are preserved by the coordinated Community 1.0.5 update. All three games retain their public URLs.
+
 Three browser games for Holistic Tech Solutions Group demonstrations:
 
 | Game | Play |
@@ -8,9 +10,9 @@ Three browser games for Holistic Tech Solutions Group demonstrations:
 | [Launch Runner](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=runner) | Take the actual Halo character past barriers with double jumps and energy boosts. |
 | [Trivia Challenge](https://holistictechsolutionsgroup.com/demos/interactive-lab/play.html?game=trivia) | Explore three sets of five questions, with streaks and explanations. |
 
-Release **1.4.1 is installed** with recognizable agency-object enemies, distinct paper/printer bosses and clearer firing feedback. This is visual and sound polish: balance, collision geometry, weapon rules and challenge rules `1.4.0` remain unchanged. See the [change notes](docs/CHANGELOG.md).
+The recognizable agency-object enemies, paper/printer bosses and reviewed sharing cover are retained. See the [change notes](docs/CHANGELOG.md) for the current pause and missile mechanics.
 
-The installed game provides an untimed spread/focused choice after wave two, limited paired side missiles, distinct boss patterns, a compact weapon dashboard and optional sound that starts muted. The 390 × 844 phone playfield remains 678 CSS pixels high. All three games and their public URLs remain stable. See [deployment status](docs/DEPLOYMENT.md#current-publish-status), [QA evidence](docs/QA.md), and [implemented versus future game direction](docs/GAME-DIRECTION.md).
+The installed game lets you choose Spread/Focused from one pause panel, retain earned upgrades when switching, and collect up to eight guided missile pairs. The first upgrade supplies four pairs; capsules add six. Optional sound starts muted and its volume is saved only on this browser. The 390 × 844 phone playfield remains 678 CSS pixels high. All three games and their public URLs remain stable. See [deployment status](docs/DEPLOYMENT.md#current-publish-status), [QA evidence](docs/QA.md), and [implemented versus future game direction](docs/GAME-DIRECTION.md).
 
 The three games run locally using static HTML, CSS, local artwork and JavaScript. Free play needs no account or backend and remains usable when the optional community connection fails. There is no advertising, analytics, payment service or paid runtime dependency. The game-hosting WordPress companion serves the reviewed files and adds a direct administration link; it creates no game records or API. A separate first-party community plugin supplies the optional challenge service. The owner has enabled its public features and Google configuration; actual existing-member challenge submission, history and the unverified board passed, while fresh Google onboarding has separate acceptance limits in [QA.md](docs/QA.md). Playwright is a free development dependency used only for browser checks.
 
@@ -33,6 +35,7 @@ npm run check
 npm test
 npm run test:browser
 npm run test:polish
+npm run test:controls
 npm run test:upgrade
 npm run test:gamification
 npm run build

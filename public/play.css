@@ -55,12 +55,63 @@
 .play-body[data-game="invaders"] .touch-hint { display: none; }
 .pause-actions { display: flex; justify-content: center; gap: 12px; margin-top: 14px; }
 .pause-actions button, #sound-toggle { min-height: 44px; padding: 10px 18px; color: #f5e6d1; background: #26384a; border: 1px solid #667b91; border-radius: 10px; }
-.weapon-choice { position: absolute; z-index: 7; inset: 0; display: flex; flex-direction: column; align-items: center; padding: 24px; background: #06101bed; overflow-y: auto; }
-.weapon-choice > div { flex: 0 0 auto; max-width: 430px; width: 100%; margin-block: auto; }
-.weapon-choice h2 { font-size: 30px; line-height: 1.1; margin-bottom: 15px; }
-.weapon-choice p { color: #c3d0df; font-size: 15px; line-height: 1.5; margin-bottom: 20px; }
-.weapon-choice button { display: block; width: 100%; min-height: 65px; padding: 14px 16px; margin: 12px 0; border: 1px solid #aa987e; border-radius: 12px; color: #fff0d2; background: #263b50; text-align: left; font-size: 17px; }
-.weapon-choice button span { display: block; margin-top: 6px; font-size: 13px; font-weight: 400; color: #bfd0e2; }
+.control-panel { position: absolute; z-index: 7; inset: 0; display: flex; justify-content: center; align-items: center; padding: 18px; background: #020914d9; }
+.control-panel-card { display: flex; flex-direction: column; width: min(650px,100%); max-height: 100%; min-height: 0; border: 1px solid #526174; border-radius: 18px; background: #101d2b; box-shadow: 0 20px 60px #0008; overflow: hidden; }
+.panel-heading { flex-shrink: 0; padding: 20px 24px 14px; border-bottom: 1px solid #ffffff17; }
+.panel-heading h2 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.025em; color: #fff4e4; }
+.panel-heading p { margin: 0; color: #afc1d4; font-size: 13px; line-height: 1.4; }
+.control-panel-body { padding: 18px 24px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; scrollbar-color: #667d94 #101d2b; }
+.control-panel fieldset { padding: 0; border: 0; margin: 0 0 20px; min-width: 0; }
+.control-panel legend { font-size: 16px; color: #fff0d9; font-weight: 600; padding: 0; margin-bottom: 7px; }
+.control-panel p { line-height: 1.5; }
+.panel-weapons > p { margin: 0 0 12px; color: #b5c5d6; font-size: 12px; }
+.loadout-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.loadout-options button { display: flex; gap: 10px; align-items: center; min-height: 98px; text-align: left; padding: 13px 12px; border: 1px solid #53677d; border-radius: 12px; background: #192b3c; color: #edf4fb; }
+.loadout-options button[aria-pressed="true"] { border: 2px solid #ffbb67; padding: 12px 11px; background: #3b3025; }
+.loadout-options svg { width: 40px; min-width: 40px; height: 38px; fill: none; stroke: #ffc875; stroke-width: 3; stroke-linecap: round; }
+#weapon-focused svg { stroke: #a3ecff; }
+.loadout-options strong, .loadout-options small, .loadout-options em { display: block; line-height: 1.35; }
+.loadout-options strong { font-size: 14px; font-weight: 600; }
+.loadout-options small { font-size: 12px; font-weight: 400; color: #b9cada; margin-top: 5px; }
+.loadout-options em { font-style: normal; font-size: 12px; color: #ffd18b; margin-top: 7px; }
+.panel-weapons .panel-ammo { margin: 11px 0 0; color: #f1c690; }
+.panel-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; margin-bottom: 13px; }
+.control-panel button:not(.loadout-options button):not(#panel-resume), .panel-tools a { min-height: 44px; padding: 10px 14px; border: 1px solid #53677d; border-radius: 9px; color: #e7eef6; background: #213449; font-size: 13px; line-height: 1.3; }
+.volume-label { display: flex; justify-content: space-between; gap: 12px; color: #d8e3ee; font-size: 13px; }
+.volume-label output { color: #ffd092; font-variant-numeric: tabular-nums; }
+#sound-volume { display: block; width: 100%; min-height: 44px; margin: 0; accent-color: #ffb65c; cursor: pointer; }
+.control-panel .setting-note { color: #b0c2d3; font-size: 12px; margin: 0 0 10px; }
+.effects-setting { display: flex; align-items: center; gap: 10px; color: #e2ebf4; min-height: 44px; font-size: 14px; cursor: pointer; }
+.effects-setting input { width: 21px; height: 21px; accent-color: #ffc476; flex-shrink: 0; }
+.effects-setting small { display: block; margin-top: 3px; color: #b0c2d3; font-size: 12px; }
+.panel-tools { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; padding-top: 16px; border-top: 1px solid #ffffff1f; }
+.panel-tools a { display: flex; align-items: center; justify-content: center; text-decoration: none; text-align: center; }
+.panel-footer { flex-shrink: 0; padding: 14px 24px; border-top: 1px solid #ffffff1c; background: #0d1927; }
+#panel-resume { width: 100%; min-height: 48px; padding: 12px 18px; color: #201409; background: linear-gradient(135deg,#ffbf68,#ed8e35); border: 1px solid #f6c286; border-radius: 10px; font-size: 15px; }
+.restart-confirm { margin-top: 14px; padding: 14px; border: 1px solid #c58b53; border-radius: 10px; background: #39281d; }
+.restart-confirm p { margin: 0 0 12px; color: #ffe0ba; font-size: 13px; }
+.restart-confirm > div { display: flex; gap: 10px; flex-wrap: wrap; }
+.play-body input:focus-visible { outline: 2px solid var(--play-focus); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .control-panel { padding: 10px; }
+  .panel-heading { padding: 14px 16px 11px; }
+  .panel-heading h2 { font-size: 23px; }
+  .control-panel-body { padding: 14px 16px; }
+  .loadout-options button { min-height: 105px; padding: 10px; flex-direction: column; align-items: flex-start; gap: 5px; }
+  .loadout-options button[aria-pressed="true"] { padding: 9px; }
+  .loadout-options svg { height: 26px; width: 32px; min-width: 32px; }
+  .loadout-options small { font-size: 11px; }
+  .panel-tools { grid-template-columns: 1fr 1fr; }
+  .panel-footer { padding: 10px 16px; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .control-panel { padding: 6px 18px; }
+  .control-panel-card { width: min(800px,100%); }
+  .panel-heading { padding: 10px 16px 8px; }
+  .panel-heading h2 { font-size: 21px; }
+  .control-panel-body { padding: 12px 16px; }
+  .panel-footer { padding: 8px 16px; }
+}
 .play-body .help-panel { z-index: 9; }
 .community-mount:empty { display: none; }
 .play-body a:focus-visible, .play-body button:focus-visible, .play-body summary:focus-visible, .play-body [tabindex="0"]:focus-visible, .play-body [tabindex="-1"]:focus-visible { outline: 2px solid var(--play-focus); outline-offset: 3px; }
@@ -144,6 +195,7 @@
   .play-body .action-control { min-width: 57px; flex: 1; }
   .session-controls { display: flex; gap: 6px; margin-left: auto; }
   .play-body .session-controls button { min-width: 55px; padding: 10px 8px; font-size: 12px; height: 48px; }
+  .play-body .session-controls #pause { width: 64px; flex: 0 0 64px; }
   .help-panel { inset: 12px; width: auto; max-height: calc(100% - 24px); padding: 18px; }
   .play-body #quiz { padding: 26px 20px 30px; }
   .quiz-track { margin-bottom: 24px; }
@@ -159,6 +211,7 @@
   .direction-controls, .session-controls { gap: 5px; }
   .play-body .session-controls button { min-width: 49px; padding-inline: 6px; }
   .play-body .action-control { min-width: 52px; padding-inline: 9px; }
+  .play-body[data-game="invaders"] .action-control { flex: 0 0 52px; }
   .play-body #quiz { padding: 22px 17px; }
   .play-body .quiz-question { font-size: 25px; }
 }

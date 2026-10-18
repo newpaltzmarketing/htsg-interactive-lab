@@ -1,6 +1,6 @@
 // Original synthesized effects; quiet by default and activated only by a user action.
 export function createGameAudio() {
-  let context, enabled = false, paused = true;
+  let context, master, enabled = false, paused = true, volume = 0.65;
   const voices = new Set();
   const sounds = {
     fire: [['sine', 620, 170, 0.07, 0.025]],
@@ -23,7 +23,10 @@ export function createGameAudio() {
   }
   async function toggle() {
     try {
-      if (!context) { const Audio = globalThis.AudioContext || globalThis.webkitAudioContext; if (!Audio) return false; context = new Audio(); }
+      if (!context) {
+        const Audio = globalThis.AudioContext || globalThis.webkitAudioContext; if (!Audio) return false;
+        context = new Audio(); master = context.createGain(); master.gain.value = volume; master.connect(context.destination);
+      }
       enabled = !enabled;
       if (!enabled) stopVoices();
       await (enabled && !paused ? context.resume() : context.suspend());
@@ -36,20 +39,27 @@ export function createGameAudio() {
     stopVoices();
     void (enabled && !paused ? context.resume() : context.suspend()).catch(() => {});
   }
+  function setVolume(value) {
+    if (!Number.isFinite(value)) return volume;
+    volume = Math.max(0, Math.min(1, value));
+    if (volume === 0) stopVoices();
+    if (master) { master.gain.cancelScheduledValues(context.currentTime); master.gain.setValueAtTime(volume, context.currentTime); }
+    return volume;
+  }
   function play(kind) {
-    if (!enabled || paused || !context || voices.size >= 8) return;
-    for (const [wave, from, to, duration, volume, delay = 0] of sounds[kind] || sounds.pickup) {
+    if (!enabled || paused || !context || volume === 0 || voices.size >= 8) return;
+    for (const [wave, from, to, duration, level, delay = 0] of sounds[kind] || sounds.pickup) {
       if (voices.size >= 8) break;
       try {
         const oscillator = context.createOscillator(), gain = context.createGain(), now = context.currentTime + delay;
         oscillator.type = wave;
         oscillator.frequency.setValueAtTime(from, now); oscillator.frequency.exponentialRampToValueAtTime(to, now + duration);
-        gain.gain.setValueAtTime(0.001, now); gain.gain.linearRampToValueAtTime(volume, now + 0.006); gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-        oscillator.connect(gain); gain.connect(context.destination); voices.add(oscillator);
+        gain.gain.setValueAtTime(0.001, now); gain.gain.linearRampToValueAtTime(level, now + 0.006); gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        oscillator.connect(gain); gain.connect(master); voices.add(oscillator);
         oscillator.onended = () => { voices.delete(oscillator); oscillator.disconnect(); gain.disconnect(); };
         oscillator.start(now); oscillator.stop(now + duration);
       } catch { /* Sound must never interrupt play. */ }
     }
   }
-  return { toggle, setPaused, play, get enabled() { return enabled; } };
+  return { toggle, setPaused, setVolume, play, get enabled() { return enabled; }, get volume() { return volume; } };
 }

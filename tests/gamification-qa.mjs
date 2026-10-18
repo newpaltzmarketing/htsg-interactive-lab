@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { resumeArcade, restartArcade } from './arcade-actions.mjs';
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
@@ -105,7 +106,7 @@ return renderer.render(ctx,state,options);}};}`});
             continue;
           }
           if(!input.action){await page.keyboard.up('Space');await page.keyboard.down('Space');}
-          const supply=!input.ammoSeen && state?.pickups?.find(pickup=>pickup.kind==='missiles' && pickup.y>state.playerY-state.world.height*.35);
+          const supply=state?.missilePairs<=2 && state?.pickups?.find(pickup=>pickup.kind==='missiles' && pickup.y>state.playerY-state.world.height*.35);
           const target=state?.boss || supply || state?.enemies.filter(enemy=>enemy.y>0 && enemy.y<state.playerY-75).sort((a,b)=>b.y-a.y)[0];
           const direction=target && Math.abs(target.x-state.player)>18 ? (target.x>state.player?'ArrowRight':'ArrowLeft') : undefined;
           const released=direction && !input[direction==='ArrowLeft'?'left':'right'];
@@ -139,7 +140,7 @@ return renderer.render(ctx,state,options);}};}`});
       await page.screenshot({path:resolve(output,`invaders-quad-${viewport.width}.png`)});
       await page.waitForFunction(()=>window.__qaState?.phase==='choice',undefined,{timeout:30000});
       await page.locator('#weapon-choice').waitFor({state:'visible'});
-      assert.equal(await page.locator('#weapon-choice-title').evaluate(node=>node===document.activeElement),true,'The untimed choice is announced and receives focus');
+      assert.equal(await page.locator('#control-panel-title').evaluate(node=>node===document.activeElement),true,'The untimed choice panel is announced and receives focus');
       const choiceBefore=await page.evaluate(()=>window.__qaState);
       await page.waitForTimeout(220);
       assert.equal((await page.evaluate(()=>window.__qaState)).elapsed,choiceBefore.elapsed,'Taking time to choose does not advance hazards or the challenge clock');
@@ -155,6 +156,9 @@ return renderer.render(ctx,state,options);}};}`});
       const family=viewport.width<600?'focused':'spread';
       if(viewport.width<600)await page.locator(`#weapon-${family}`).tap();
       else await page.locator(`#weapon-${family}`).click();
+      assert.equal(await page.locator('#control-panel').isVisible(),true,'Choosing a weapon keeps the untimed panel paused');
+      assert.equal(await page.locator(`#weapon-${family}`).getAttribute('aria-pressed'),'true');
+      await resumeArcade(page);
       assert.equal(await page.locator('#weapon-choice').isVisible(),false);
       assert.equal(await page.locator('#canvas').evaluate(node=>node===document.activeElement),true);
       await page.waitForFunction(selected=>window.__qaState?.weaponFamily===selected && window.__qaState.bullets.filter(shot=>selected==='focused'?shot.kind==='lance':shot.weaponLevel===3).length>=2,family);
@@ -166,9 +170,9 @@ return renderer.render(ctx,state,options);}};}`});
       if(args.includes('--choice-only')){aiming=false;await aimTask;observations.push({viewport,family,choiceElapsed:choiceBefore.elapsed,scope:'Earned wave-two choice; background keyboard isolation and selection only.'});return;}
       await page.waitForFunction(()=>window.__qaMissiles?.launched && window.__qaState.missiles.length>=2,undefined,{timeout:30000});
       const missiles=await page.evaluate(()=>({observed:window.__qaMissiles,state:window.__qaState,readout:document.getElementById('missile-readout').textContent}));
-      assert.ok(missiles.observed.maximumPairs>0&&missiles.observed.maximumPairs<=4,'A real collected capsule loads a bounded missile supply');
+      assert.ok(missiles.observed.maximumPairs>0&&missiles.observed.maximumPairs<=8,'Upgrade and capsule supplies stay within the eight-pair inventory');
       assert.ok(missiles.observed.maximumActive>=2&&missiles.observed.maximumActive<=8,'Side missiles launch as bounded pairs alongside primary fire');
-      assert.match(missiles.readout,/^[0-4] missile pairs?$/);
+      assert.match(missiles.readout,/^[0-8] missile pairs?$/);
       await fits(page);
       await page.screenshot({path:resolve(output,`invaders-${family}-missiles-${viewport.width}.png`)});
       await page.waitForFunction(()=>window.__qaMissiles?.depleted&&window.__qaMissiles.launchedPairs>=4,undefined,{timeout:10000});
@@ -235,17 +239,15 @@ return renderer.render(ctx,state,options);}};}`});
       await page.waitForTimeout(200);
       assert.deepEqual(await page.locator('#canvas').screenshot(),frozen);
       if(viewport.width<600){
-        await page.locator('#help-toggle').click();
-        assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'),'false','Original sound effects are off until explicitly enabled');
-        await page.locator('#sound-toggle').click();
-        assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'),'true');
-        await page.locator('#sound-toggle').click();
-        assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'),'false');
-        await page.locator('#help-close').click();
+        assert.equal(await page.locator('#panel-sound-toggle').getAttribute('aria-pressed'),'false','Original sound effects are off until explicitly enabled');
+        await page.locator('#panel-sound-toggle').click();
+        assert.equal(await page.locator('#panel-sound-toggle').getAttribute('aria-pressed'),'true');
+        await page.locator('#panel-sound-toggle').click();
+        assert.equal(await page.locator('#panel-sound-toggle').getAttribute('aria-pressed'),'false');
       }
       let personalBest;
       if(viewport.width===1280){
-        await page.locator('#pause').click();
+        await resumeArcade(page);
         // Only the storage/controller boundary uses an ended-run fixture. The
         // score, upgrades, later waves and boss above were earned with inputs.
         personalBest=await page.evaluate(()=>{const scene=window.__qaScene;scene.ended=true;return scene.score;});
@@ -255,7 +257,7 @@ return renderer.render(ctx,state,options);}};}`});
         await page.waitForFunction(()=>document.documentElement.dataset.artwork==='ready');
         assert.match(await page.locator('#overlay-hint').textContent(),new RegExp(`Best on this device: ${personalBest} points`),'Completed-run personal best survives a fresh page load');
       }
-      await page.locator('#start').click();
+      await restartArcade(page);
       const restarted=await page.evaluate(()=>window.__qaState);
       assert.equal(restarted.weaponLevel,1);assert.equal(restarted.kills,0);assert.equal(restarted.score,0);
       observations.push({viewport,trace,maximumBullets:maximum,quadVelocity:quad.map(shot=>shot.vx),earnedKills:state.kills,elapsed:state.elapsed,geometry,expansion,...(bossObservation?{bossObservation}:{}),...(personalBest?{personalBest}: {})});

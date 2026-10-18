@@ -5,9 +5,9 @@ import {
   ARENA, arenaFor, createInputState, setInput, getInput, clearInput,
   createInvadersState, stepInvaders, fireInvaders, invaderWeapon,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer, resizeGame,
-  chooseInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA, INVADER_RULES_VERSION,
+  equipInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA, INVADER_RULES_VERSION,
 } from './game-engine.js';
-import { createRenderer, HAZARD_VISUALS, drawHazardIcon } from './game-renderer.js';
+import { createRenderer, HAZARD_VISUALS, drawHazardIcon, drawPickupIcon } from './game-renderer.js';
 import { createGameAudio } from './game-audio.js';
 
 const games = {
@@ -15,7 +15,7 @@ const games = {
     title: 'Agency Invaders', headline: 'Your inbox fights back.',
     instructions: 'Deadlines are ticking. Budgets are bursting. Clear the agency chaos, power up, and take on the big brief.',
     help: 'Drag anywhere in the game to fly and fire. The ship follows your movement without jumping under your finger. Lift to stop firing. Keyboard: arrows or W / A / S / D to fly; Space to fire. P or Escape pauses.',
-    depth: 'Earn upgrades at 3 and 7 defeated hazards. After wave 2, keep wide spread or choose stronger focused beams. Collect missile capsules from wave 3: up to four pairs launch automatically while you fire. Shields block one impact. Every fifth wave brings a boss with locked warning marks. Upgrades survive hits. Your personal best stays on this device.',
+    depth: 'Earn upgrades at 3 and 7 defeated hazards. Pause to switch between wide spread and focused beams without losing upgrades. Your first upgrade loads four missile pairs. Rocket pickups add six pairs, up to eight, and missiles seek targets automatically while you fire. Shields block one impact. Every fifth wave brings a boss with locked warning marks. Your personal best stays on this device.',
     hint: 'Drag anywhere to fly and fire.', action: 'Fire',
   },
   runner: {
@@ -49,10 +49,19 @@ const shell = byId('game-shell');
 const overlay = byId('arena-overlay');
 const picker = byId('game-picker');
 const helpPanel = byId('help-panel');
+const controlPanel = byId('control-panel');
 const impactFeedback = byId('impact-feedback');
 const renderer = createRenderer();
 const audio = createGameAudio();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const preferencesKey = 'htsg-invaders-controls-v1';
+let preferences = { volume: 65, reducedEffects: false };
+try {
+  const saved = JSON.parse(localStorage.getItem(preferencesKey) || 'null');
+  if (Number.isFinite(saved?.volume)) preferences.volume = Math.max(0, Math.min(100, saved.volume));
+  if (typeof saved?.reducedEffects === 'boolean') preferences.reducedEffects = saved.reducedEffects;
+} catch { /* Preferences are optional; play works without storage. */ }
+audio.setVolume(preferences.volume / 100);
 const input = createInputState();
 const arenaPointers = new Map();
 let state;
@@ -80,6 +89,7 @@ let lastKills = 0;
 let lastBossesDefeated = 0;
 let lastMissileId = 0;
 let lastWavePhase = '';
+let panelOpen = false;
 
 document.body.dataset.game = mode;
 byId('title').textContent = game.title;
@@ -103,6 +113,44 @@ document.querySelectorAll('.game-option').forEach(link => {
 });
 
 function announce(message) { announcement.textContent = message; }
+function savePreferences() { try { localStorage.setItem(preferencesKey, JSON.stringify(preferences)); } catch { /* Private browsing may block storage. */ } }
+function calmEffects() { return reducedMotion.matches || (mode === 'invaders' && preferences.reducedEffects); }
+function syncSettings() {
+  for (const id of ['sound-toggle', 'panel-sound-toggle']) {
+    byId(id).textContent = audio.enabled ? 'Sound on' : 'Sound off';
+    byId(id).setAttribute('aria-pressed', String(audio.enabled));
+  }
+  byId('sound-volume').value = String(preferences.volume);
+  byId('sound-volume-value').textContent = `${preferences.volume}%`;
+  byId('sound-volume').setAttribute('aria-valuetext', `${preferences.volume} percent`);
+  byId('sound-volume-note').textContent = !audio.enabled ? 'Sound is off. Turn it on to hear effects.' : preferences.volume === 0 ? 'Volume is at zero. Raise it to hear effects.' : 'Volume changes apply when you resume.';
+  byId('reduced-effects').checked = calmEffects();
+  byId('reduced-effects').disabled = reducedMotion.matches;
+  byId('device-effects-note').hidden = !reducedMotion.matches;
+}
+function syncControlPanel() {
+  const visible = mode === 'invaders' && playing && paused && panelOpen && !state?.ended;
+  controlPanel.hidden = !visible;
+  controlPanel.inert = visible && !helpPanel.hidden;
+  if (visible && helpPanel.hidden) controlPanel.setAttribute('aria-modal', 'true'); else controlPanel.removeAttribute('aria-modal');
+  const locked = visible || (mode === 'invaders' && playing && !helpPanel.hidden);
+  document.querySelector('.game-topbar').inert = locked;
+  controls.inert = locked || state?.phase === 'choice';
+  canvas.inert = locked;
+  if (!visible) return;
+  byId('panel-run-status').textContent = `Paused${challengeSettings ? ' · Weekly challenge' : ''} · Wave ${state.wave} · ${state.score} points`;
+  byId('panel-free-play').hidden = !challengeSettings;
+  byId('panel-weapon-note').textContent = state.phase === 'choice' ? 'Wave 2 clear. Choose your style, then resume.' : 'Switch styles here. Your earned upgrades stay with you.';
+  for (const family of ['spread', 'focused']) {
+    byId(`weapon-${family}`).setAttribute('aria-pressed', String(state.weaponFamily === family));
+    byId(`${family}-level`).textContent = invaderWeapon({ ...state, weaponFamily: family }).name;
+  }
+  const pairs = state.missilePairs || 0;
+  byId('panel-ammo').textContent = `${pairs} missile ${pairs === 1 ? 'pair' : 'pairs'} loaded · Fires automatically with your guns.`;
+  byId('panel-resume').disabled = state.phase === 'choice';
+  byId('panel-fullscreen').textContent = document.fullscreenElement || shell.classList.contains('is-expanded') ? 'Exit full screen' : 'Full screen';
+  syncSettings();
+}
 function setStatus(message) { if (status.textContent !== message) status.textContent = message; }
 function scoreText() {
   return mode === 'runner' ? `Distance: ${Math.floor(state.score)} m` : `Score: ${state.score} · Lives: ${state.lives} of 3`;
@@ -155,7 +203,7 @@ function syncStatus() {
   }
   if (state && mode === 'invaders' && state.pickupSerial !== lastPickup) {
     lastPickup = state.pickupSerial; audio.play('pickup');
-    notices.push(state.lastPickup === 'missiles' ? 'Missiles loaded. Up to four pairs fire automatically.' : 'Shield collected. One impact protected.');
+    notices.push(state.lastPickup === 'missiles' ? `Missiles loaded. ${state.missilePairs} pairs ready to seek targets.` : 'Shield collected. One impact protected.');
   }
   if (notices.length) announce(notices.join(' '));
 }
@@ -225,16 +273,15 @@ function render() {
       return { x: (box.left - rect.left - 4) * world.width / rect.width, y: (box.top - rect.top - 4) * world.height / rect.height,
         width: (box.width + 8) * world.width / rect.width, height: (box.height + 8) * world.height / rect.height };
     }) : [];
-  renderer.render(context, state, { ...world, cssWidth: rect.width, cssHeight: rect.height, reservedRects, mode, time: state?.elapsed || 0, reducedMotion: reducedMotion.matches });
+  renderer.render(context, state, { ...world, cssWidth: rect.width, cssHeight: rect.height, reservedRects, mode, time: state?.elapsed || 0, reducedMotion: calmEffects() });
 }
 function syncOverlay() {
   const choice = mode === 'invaders' && state?.phase === 'choice';
-  controls.inert = !!choice;
-  byId('weapon-choice').hidden = !choice;
-  overlay.hidden = choice || !!state && !paused && !state.ended;
+  syncControlPanel();
+  overlay.hidden = !controlPanel.hidden || choice || !!state && !paused && !state.ended;
   if (mode === 'invaders' && state) { start.hidden = !paused; byId('pause-actions').hidden = !paused; }
   byId('free-play').hidden = !challengeSettings;
-  if (challengeSettings) byId('pause-actions').hidden = !paused && !state?.ended;
+  if (challengeSettings) byId('pause-actions').hidden = playing && !paused && !state?.ended;
   if (overlay.hidden) return;
   const ended = state?.ended;
   byId('overlay-title').textContent = ended ? (state.endReason === 'time' ? 'Challenge complete.' : mode === 'runner' ? 'One more launch?' : 'Flight complete.') : paused ? 'Take a breath.' : game.headline;
@@ -282,8 +329,9 @@ function frame(now) {
   }
   syncStatus();
   if (state.phase === 'choice') {
-    clearControls(); stopFrame(); audio.setPaused(true); syncOverlay(); render();
-    if (!choiceVisible) { choiceVisible = true; byId('weapon-choice-title').focus({ preventScroll: true }); announce('Wave 2 clear. Choose spread or focused fire to continue.'); }
+    paused = true; panelOpen = true; pause.textContent = 'Resume'; pause.setAttribute('aria-pressed', 'true');
+    clearControls(); stopFrame(); audio.setPaused(true); syncStatus(); syncOverlay(); render();
+    if (!choiceVisible) { choiceVisible = true; byId('control-panel-title').focus({ preventScroll: true }); announce('Wave 2 clear. Choose spread or focused fire, then resume.'); }
     return;
   }
   if (state.ended) { finish(); return; }
@@ -297,6 +345,14 @@ function emitResult(reason) {
 }
 function resetGame(options = {}) {
   if (challengeSettings && !options.freshChallenge) {
+    // A confirmed restart leaves the old run, including when the next ticket fails.
+    stopFrame(); clearControls(); audio.setPaused(true);
+    playing = false; paused = false; panelOpen = false; state = null;
+    pause.disabled = true; pause.textContent = 'Pause'; pause.setAttribute('aria-pressed', 'false');
+    start.hidden = true; byId('pause-actions').hidden = true;
+    byId('weapon-dashboard').hidden = true;
+    closeHelp(false); syncStatus(); syncOverlay(); render();
+    byId('overlay-action').focus({ preventScroll: true });
     document.dispatchEvent(new CustomEvent('htsg:challenge-retry', { detail: { ...challengeSettings } }));
     return;
   }
@@ -311,6 +367,7 @@ function resetGame(options = {}) {
   newPersonalBest = false;
   playing = true;
   paused = false;
+  panelOpen = false; byId('restart-confirm').hidden = true;
   audio.setPaused(false);
   start.textContent = 'Restart';
   start.setAttribute('aria-label', 'Restart game');
@@ -328,10 +385,16 @@ function resetGame(options = {}) {
   scheduleFrame();
   if (mode === 'invaders') document.dispatchEvent(new CustomEvent('htsg:run-start', { detail: { ...state.challenge, rulesVersion: INVADER_RULES_VERSION, challengeId: state.challenge?.challengeId || null } }));
 }
-function setPaused(nextPaused, automatic = false) {
-  if (state?.phase === 'choice') return;
-  if (!playing || paused === nextPaused) return;
+function setPaused(nextPaused, automatic = false, showPanel = true) {
+  if (!playing) return;
+  if (!nextPaused && state?.phase === 'choice') { announce('Choose a firing style before resuming.'); byId('weapon-spread').focus(); return; }
+  if (paused === nextPaused) {
+    if (nextPaused && showPanel && mode === 'invaders') { panelOpen = true; syncOverlay(); }
+    return;
+  }
   paused = nextPaused;
+  panelOpen = paused && showPanel;
+  if (!paused) byId('restart-confirm').hidden = true;
   audio.setPaused(paused);
   clearControls();
   stopFrame();
@@ -342,6 +405,7 @@ function setPaused(nextPaused, automatic = false) {
   announce(paused ? `${automatic ? 'Game paused because you left the arena. ' : 'Game paused. '}Select Resume to continue.` : 'Game resumed.');
   render();
   if (!paused) { closeHelp(false); picker.open = false; canvas.focus({ preventScroll: true }); scheduleFrame(); }
+  else if (mode === 'invaders' && panelOpen && !automatic) byId('control-panel-title').focus({ preventScroll: true });
 }
 function press(action, source, pressed) {
   if (!playing || paused || state?.phase === 'choice') return;
@@ -449,25 +513,31 @@ function bindArena(surface = canvas) {
 }
 function closeHelp(returnFocus = true) {
   helpPanel.hidden = true;
+  helpPanel.removeAttribute('aria-modal');
   byId('help-toggle').setAttribute('aria-expanded', 'false');
-  if (returnFocus) byId('help-toggle').focus({ preventScroll: true });
+  syncControlPanel();
+  if (returnFocus) byId(controlPanel.hidden ? 'help-toggle' : 'panel-help').focus({ preventScroll: true });
 }
-byId('help-toggle').addEventListener('click', () => {
+function openHelp() {
   if (!helpPanel.hidden) { closeHelp(); return; }
   setPaused(true);
   picker.open = false;
   helpPanel.hidden = false;
+  if (!controlPanel.hidden) { helpPanel.setAttribute('role', 'dialog'); helpPanel.setAttribute('aria-modal', 'true'); }
   byId('help-toggle').setAttribute('aria-expanded', 'true');
+  syncControlPanel();
   byId('help-close').focus({ preventScroll: true });
-});
+}
+byId('help-toggle').addEventListener('click', openHelp);
 byId('help-close').addEventListener('click', () => closeHelp());
-picker.addEventListener('toggle', () => { if (picker.open) { setPaused(true); closeHelp(false); } });
+picker.addEventListener('toggle', () => { if (picker.open) { setPaused(true, false, false); closeHelp(false); } });
 document.addEventListener('pointerdown', event => { if (picker.open && !picker.contains(event.target)) picker.open = false; });
 function syncFullscreen() {
   const expanded = document.fullscreenElement === shell || shell.classList.contains('is-expanded');
   byId('fullscreen').setAttribute('aria-label', expanded ? 'Exit full screen' : 'Enter full screen');
   byId('fullscreen').setAttribute('aria-pressed', String(expanded));
   resizeCanvas();
+  syncControlPanel();
 }
 async function exitFullscreen() {
   if (document.fullscreenElement) await document.exitFullscreen();
@@ -475,7 +545,7 @@ async function exitFullscreen() {
   document.body.classList.remove('is-expanded');
   syncFullscreen();
 }
-byId('fullscreen').addEventListener('click', async () => {
+async function toggleFullscreen() {
   if (fullscreenBusy) return;
   fullscreenBusy = true;
   try {
@@ -487,11 +557,23 @@ byId('fullscreen').addEventListener('click', async () => {
       syncFullscreen();
     }
   } finally { fullscreenBusy = false; }
-});
+}
+byId('fullscreen').addEventListener('click', toggleFullscreen);
 document.addEventListener('fullscreenchange', syncFullscreen);
 document.addEventListener('keydown', event => {
+  const dialog = !helpPanel.hidden ? helpPanel : !controlPanel.hidden ? controlPanel : null;
+  if (event.code === 'Tab' && dialog) {
+    const targets = [...dialog.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]')].filter(node => node.getClientRects().length && !node.closest('[hidden], [inert]'));
+    const index = targets.indexOf(document.activeElement);
+    if (targets.length && (index < 0 || !event.shiftKey && index === targets.length - 1 || event.shiftKey && index === 0)) {
+      event.preventDefault(); targets[event.shiftKey ? targets.length - 1 : 0].focus();
+    }
+    return;
+  }
   if (event.code !== 'Escape') return;
   if (!helpPanel.hidden) { event.preventDefault(); closeHelp(); }
+  else if (!controlPanel.hidden && !byId('restart-confirm').hidden) { event.preventDefault(); byId('restart-confirm').hidden = true; byId('panel-restart').focus(); }
+  else if (!controlPanel.hidden) { event.preventDefault(); setPaused(false); }
   else if (picker.open) { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); }
   else if (shell.classList.contains('is-expanded')) { event.preventDefault(); void exitFullscreen(); }
   else if (mode !== 'trivia' && playing && !event.repeat) { event.preventDefault(); setPaused(!paused); }
@@ -501,6 +583,7 @@ function setupArcade() {
   byId('sound-toggle').hidden = mode !== 'invaders';
   if (mode === 'invaders') {
     byId('hazard-guide').hidden = false;
+    byId('pickup-guide').hidden = false;
     for (const [id, hazard] of Object.entries(HAZARD_VISUALS)) {
       const item = document.createElement('li');
       const icon = document.createElement('canvas'); icon.width = 128; icon.height = 128; icon.setAttribute('aria-hidden', 'true');
@@ -508,6 +591,13 @@ function setupArcade() {
       label.textContent = hazard.label; description.textContent = hazard.description;
       text.append(label, description); item.append(icon, text); byId('hazard-legend').append(item);
       drawHazardIcon(icon.getContext('2d'), id, 128);
+    }
+    for (const [kind, labelText, detail] of [['missiles', 'Rocket ammo', '+6 missile pairs, up to 8'], ['shield', 'Shield', 'Blocks one impact']]) {
+      const item = document.createElement('li'), icon = document.createElement('canvas');
+      icon.width = 128; icon.height = 128; icon.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span'), label = document.createElement('strong'), description = document.createElement('small');
+      label.textContent = labelText; description.textContent = detail; text.append(label, description); item.append(icon, text); byId('pickup-legend').append(item);
+      drawPickupIcon(icon.getContext('2d'), kind, 128);
     }
   }
   quiz.hidden = true;
@@ -521,18 +611,22 @@ function setupArcade() {
   byId('overlay-action').addEventListener('click', () => { if (paused && playing) setPaused(false); else resetGame(); });
   pause.addEventListener('click', () => setPaused(!paused));
   for (const family of ['spread', 'focused']) byId(`weapon-${family}`).addEventListener('click', () => {
-    if (!chooseInvaderWeapon(state, family)) return;
-    choiceVisible = false; clearControls(); stopFrame(); closeHelp(false); paused = false;
-    audio.setPaused(false); syncStatus(); syncOverlay(); render();
-    announce(`${family === 'focused' ? 'Focused fire' : 'Spread array'} selected. Wave 3 begins next.`);
-    canvas.focus({ preventScroll: true }); scheduleFrame();
+    if (!paused || controlPanel.hidden || !equipInvaderWeapon(state, family)) return;
+    choiceVisible = false; clearControls(); syncStatus(); syncControlPanel(); render();
+    announce(`${invaderWeapon(state).name} equipped. Your run is still paused.`);
   });
-  byId('sound-toggle').addEventListener('click', async () => {
-    const enabled = await audio.toggle();
-    byId('sound-toggle').textContent = enabled ? 'Sound on' : 'Sound off';
-    byId('sound-toggle').setAttribute('aria-pressed', String(enabled));
+  for (const id of ['sound-toggle', 'panel-sound-toggle']) byId(id).addEventListener('click', async () => { await audio.toggle(); syncSettings(); });
+  byId('sound-volume').addEventListener('input', event => {
+    preferences.volume = Number(event.target.value); audio.setVolume(preferences.volume / 100); savePreferences(); syncSettings();
   });
-  byId('free-play').addEventListener('click', () => {
+  byId('reduced-effects').addEventListener('change', event => { preferences.reducedEffects = event.target.checked; savePreferences(); syncSettings(); render(); });
+  byId('panel-resume').addEventListener('click', () => setPaused(false));
+  byId('panel-help').addEventListener('click', openHelp);
+  byId('panel-fullscreen').addEventListener('click', toggleFullscreen);
+  byId('panel-restart').addEventListener('click', () => { byId('restart-confirm').hidden = false; byId('restart-confirm-no').focus(); });
+  byId('restart-confirm-no').addEventListener('click', () => { byId('restart-confirm').hidden = true; byId('panel-restart').focus(); });
+  byId('restart-confirm-yes').addEventListener('click', () => { byId('restart-confirm').hidden = true; resetGame(); });
+  for (const id of ['free-play', 'panel-free-play']) byId(id).addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('htsg:challenge-abandon'));
     challengeSettings = null; resizeCanvas(); resetGame({ freshChallenge: true });
   });
@@ -562,7 +656,8 @@ function setupArcade() {
   window.addEventListener('resize', resizeCanvas);
   window.visualViewport?.addEventListener('resize', resizeCanvas);
   new ResizeObserver(resizeCanvas).observe(byId('arena-view'));
-  reducedMotion.addEventListener('change', render);
+  reducedMotion.addEventListener('change', () => { syncSettings(); render(); });
+  syncSettings();
   syncOverlay();
   resizeCanvas();
   renderer.loadImages().then(() => { document.documentElement.dataset.artwork = 'ready'; render(); });

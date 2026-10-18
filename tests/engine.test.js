@@ -4,7 +4,7 @@ import {
   ARENA, INVADER_HAZARDS, INVADER_THREAT_SCALE, invaderWeapon, invaderPace, bossGeometry, arenaFor, resizeGame, createInputState, setInput, getInput, clearInput,
   createInvadersState, fireInvaders, steerInvaders, stepInvaders,
   createRunnerState, jumpRunner, stepRunner, gradeAnswer,
-  chooseInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA,
+  chooseInvaderWeapon, equipInvaderWeapon, createInvadersChallenge, invadersResult, CHALLENGE_ARENA, INVADER_MISSILES,
 } from '../public/game-engine.js';
 import { questions, questionsForRound } from '../public/questions.js';
 import { runnerCameraOffset, bossHealthBarLayout } from '../public/game-renderer.js';
@@ -767,7 +767,7 @@ test('focused beams trade width and cadence for actual armor damage at each stag
   assert.equal(state.kills, 1);
 });
 
-test('one supply per wave loads four limited missile pairs that auto-fire and expire', () => {
+test('a supply loads six finite missile pairs that auto-fire within bounded active counts and expire', () => {
   const state = createInvadersState();
   state.wave = 3; state.spawnIn = 100;
   for (let index = 0; index < 2; index += 1) {
@@ -777,7 +777,7 @@ test('one supply per wave loads four limited missile pairs that auto-fire and ex
   assert.equal(state.pickups.filter(item => item.kind === 'missiles').length, 1);
   Object.assign(state.pickups.find(item => item.kind === 'missiles'), { x: state.player, y: state.playerY });
   stepInvaders(state, idle, 1 / 120, fixedRandom);
-  assert.equal(state.missilePairs, 4);
+  assert.equal(state.missilePairs, 6);
   frames(500, dt => stepInvaders(state, { action: true }, dt, fixedRandom));
   assert.equal(state.missilePairs, 0);
   assert.ok(state.missiles.length <= 8);
@@ -785,6 +785,197 @@ test('one supply per wave loads four limited missile pairs that auto-fire and ex
   frames(300, dt => stepInvaders(state, idle, dt, fixedRandom));
   assert.equal(state.missiles.length, 0);
   assert.equal(createInvadersState().missilePairs, 0);
+});
+
+test('equipping either family preserves earned progress, inventory, projectiles and all combat timers', () => {
+  const state = createInvadersState();
+  Object.assign(state, { weaponLevel: 3, score: 470, kills: 19, wave: 4, missilePairs: 7,
+    cooldown: .19, missileCooldown: .41, shield: 1, shieldTime: 8, elapsed: 34, choiceMade: false });
+  state.missiles.push({ x: 300, y: 240, vx: 23, vy: -510, age: .4, life: 2.2, kind: 'missile', trail: [] });
+  for (const family of ['focused', 'spread']) {
+    const before = structuredClone(state);
+    assert.equal(equipInvaderWeapon(state, family), true);
+    assert.deepEqual(state, { ...before, weaponFamily: family, choiceMade: true });
+    assert.equal(invaderWeapon(state).level, 3);
+  }
+  const unchanged = structuredClone(state);
+  assert.equal(equipInvaderWeapon(state, 'laser'), false);
+  assert.deepEqual(state, unchanged);
+  for (const invalid of [null, createRunnerState(), { ...state, ended: true }, { ...state, lives: 0 }]) {
+    assert.equal(equipInvaderWeapon(invalid, 'focused'), false);
+  }
+});
+
+test('an explicit early loadout replaces the later choice while choosing at the boundary still resumes the break', () => {
+  const early = createInvadersState();
+  assert.equal(equipInvaderWeapon(early, 'focused'), true);
+  Object.assign(early, { wave: 2, waveSpawned: 8, waveQuota: 8 });
+  stepInvaders(early, idle, 1 / 120, fixedRandom);
+  assert.equal(early.phase, 'intermission');
+  assert.equal(early.weaponFamily, 'focused');
+  const waiting = createInvadersState();
+  Object.assign(waiting, { phase: 'choice', weaponLevel: 3, score: 205, missilePairs: 5, waveIn: .3 });
+  const before = structuredClone(waiting);
+  assert.equal(equipInvaderWeapon(waiting, 'focused'), true);
+  assert.deepEqual(waiting, { ...before, weaponFamily: 'focused', choiceMade: true, phase: 'intermission', waveIn: 1.8 });
+  assert.equal(createInvadersState().choiceMade, false, 'restart restores the ordinary wave-two decision');
+});
+
+test('the first three-kill upgrade awards four pairs once; later upgrades and hits preserve the inventory', () => {
+  const state = createInvadersState();
+  Object.assign(state, { spawnIn: 100, kills: 2, missilePairs: 3 });
+  for (let kill = 3; kill <= 7; kill += 1) {
+    state.enemies.push({ x: 300, y: 100 }); state.bullets.push({ x: 300, y: 110 });
+    stepInvaders(state, idle, 1 / 120, fixedRandom);
+    assert.equal(state.missilePairs, 7);
+  }
+  assert.equal(state.weaponLevel, 3);
+  state.enemies.push({ x: state.player, y: state.playerY });
+  stepInvaders(state, idle, 1 / 120, fixedRandom);
+  assert.equal(state.missilePairs, 7);
+  assert.equal(createInvadersState().missilePairs, 0, 'restart clears missile inventory');
+  const capped = createInvadersState();
+  Object.assign(capped, { kills: 2, missilePairs: 7, spawnIn: 100 });
+  capped.enemies.push({ x: 300, y: 100 }); capped.bullets.push({ x: 300, y: 110 });
+  stepInvaders(capped, idle, 1 / 120, fixedRandom);
+  assert.equal(capped.missilePairs, INVADER_MISSILES.maxPairs);
+});
+
+test('missile supplies start at wave two, recur at six kills and never accumulate more than two capsules', () => {
+  const state = createInvadersState(); state.spawnIn = 100;
+  const kill = () => {
+    state.enemies.push({ x: 300, y: 100 }); state.bullets.push({ x: 300, y: 110 });
+    stepInvaders(state, idle, 1 / 120, fixedRandom);
+  };
+  kill(); assert.equal(state.pickups.filter(item => item.kind === 'missiles').length, 0);
+  state.wave = 2; kill();
+  assert.equal(state.pickups.filter(item => item.kind === 'missiles').length, 1);
+  while (state.kills < 6) kill();
+  assert.equal(state.pickups.filter(item => item.kind === 'missiles').length, 2);
+  while (state.kills < 18) kill();
+  assert.equal(state.pickups.filter(item => item.kind === 'missiles').length, 2);
+  state.pickups = []; state.wave = 3; kill();
+  assert.equal(state.pickups.filter(item => item.kind === 'missiles').length, 1, 'a new wave offers another supply');
+});
+
+test('a collected capsule replenishes six pairs up to eight and keeps shield identity separate', () => {
+  for (const [before, expected] of [[0, 6], [1, 7], [3, 8], [8, 8]]) {
+    const state = createInvadersState(); state.missilePairs = before;
+    state.pickups.push({ x: state.player, y: state.playerY, kind: 'missiles' });
+    stepInvaders(state, idle, 1 / 120, fixedRandom);
+    assert.equal(state.missilePairs, expected);
+    assert.equal(state.shield, 0);
+    assert.equal(state.lastPickup, 'missiles');
+    assert.ok(state.effects.some(item => item.kind === 'missile-load'));
+    state.pickups.push({ x: state.player, y: state.playerY, kind: 'shield' });
+    stepInvaders(state, idle, 1 / 120, fixedRandom);
+    assert.equal(state.shield, 1);
+    assert.equal(state.missilePairs, expected);
+  }
+});
+
+test('paired missiles have their own 0.7-second cadence, obey the active cap and cannot launch during a choice', () => {
+  const state = createInvadersState();
+  Object.assign(state, { missilePairs: 8, cooldown: .2, spawnIn: 100 });
+  assert.equal(fireInvaders(state), true);
+  assert.equal(state.missiles.length, 2);
+  assert.equal(state.bullets.length, 0, 'a missile launch does not bypass primary cooldown');
+  assert.equal(state.missileCooldown, .7);
+  assert.equal(state.missilePairs, 7);
+  frames(83, dt => stepInvaders(state, idle, dt, fixedRandom));
+  state.cooldown = .2;
+  assert.equal(fireInvaders(state), false);
+  frames(2, dt => stepInvaders(state, idle, dt, fixedRandom));
+  state.cooldown = .2;
+  assert.equal(fireInvaders(state), true);
+  assert.equal(state.missilePairs, 6);
+  state.missiles = Array.from({ length: 8 }, () => ({ x: 300, y: 300, kind: 'missile' }));
+  state.cooldown = .2; state.missileCooldown = 0;
+  assert.equal(fireInvaders(state), false);
+  assert.equal(state.missilePairs, 6);
+  state.missiles = []; state.phase = 'choice';
+  const frozen = structuredClone(state);
+  assert.equal(fireInvaders(state), false);
+  assert.deepEqual(state, frozen);
+});
+
+test('homing waits for launch clearance and bends gently toward a visible living target ahead', () => {
+  const state = createInvadersState(); state.spawnIn = 100;
+  state.missiles.push({ x: 300, y: 430, vx: 0, age: 0, life: 2.2, kind: 'missile' });
+  state.enemies.push({ x: 600, y: 100, health: 99 });
+  frames(20, dt => stepInvaders(state, idle, dt, fixedRandom));
+  assert.equal(state.missiles[0].x, 300);
+  frames(16, dt => stepInvaders(state, idle, dt, fixedRandom));
+  const missile = state.missiles[0];
+  assert.ok(missile.x > 300 && missile.vx > 0);
+  assert.ok(missile.vx <= INVADER_MISSILES.maxLateralSpeed);
+  assert.ok(missile.trail.length <= 8);
+  assert.ok(missile.trail.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)));
+});
+
+test('dead, off-screen, invalid and behind targets do not bend missiles; no target falls back to straight flight', () => {
+  const baseline = createInvadersState(), ignored = createInvadersState();
+  for (const state of [baseline, ignored]) {
+    state.spawnIn = 100;
+    state.missiles.push({ x: 300, y: 350, vx: NaN, age: .2, life: 2.2, kind: 'missile' });
+  }
+  ignored.enemies.push({ x: 600, y: 100, health: 0 }, { x: -100, y: 100 }, { x: 700, y: -60 },
+    { x: 700, y: 410 }, { x: NaN, y: 200 });
+  frames(10, dt => { stepInvaders(baseline, idle, dt, fixedRandom); stepInvaders(ignored, idle, dt, fixedRandom); });
+  assert.deepEqual(ignored.missiles, baseline.missiles);
+  assert.equal(ignored.missiles[0].vx, 0);
+  assert.ok(Number.isFinite(ignored.missiles[0].x));
+});
+
+test('missile trails and velocity resize coherently; homing stays finite and inside both arena edges', () => {
+  const state = createInvadersState(); state.spawnIn = 100; state.missilePairs = 8;
+  fireInvaders(state);
+  frames(5, dt => stepInvaders(state, idle, dt, fixedRandom));
+  const before = structuredClone(state.missiles[0]);
+  resizeGame(state, 480, 1080);
+  const after = state.missiles[0];
+  assert.equal(after.x, before.x * .5); assert.equal(after.y, before.y * 2);
+  assert.equal(after.vx, before.vx * .5); assert.equal(after.vy, before.vy * 2);
+  assert.deepEqual(after.trail, before.trail.map(point => ({ x: point.x * .5, y: point.y * 2 })));
+  state.enemies.push({ x: 470, y: 100, health: 99 });
+  frames(120, dt => {
+    stepInvaders(state, { action: true }, dt, fixedRandom);
+    assert.ok(state.missiles.length <= 8);
+    for (const missile of state.missiles) {
+      assert.ok(missile.x >= 8 && missile.x <= state.world.width - 8);
+      assert.ok([missile.x, missile.y, missile.vx, missile.vy].every(Number.isFinite));
+    }
+  });
+});
+
+test('missile swept hits damage normal threats and bosses and generate impact feedback', () => {
+  const state = createInvadersState(); state.spawnIn = 100;
+  state.enemies.push({ x: 300, y: 100, health: 2, type: 'heavy' });
+  state.missiles.push({ x: 300, y: 110, vx: 0, age: 0, life: 2.2, kind: 'missile', damage: 2 });
+  stepInvaders(state, idle, .05, fixedRandom);
+  assert.equal(state.kills, 1); assert.equal(state.missiles.length, 0);
+  assert.ok(state.effects.some(item => item.kind === 'missile-impact'));
+  const boss = enterInvadersWave(5);
+  Object.assign(boss.boss, { health: 2, phase: 'recover', attackIn: 10 });
+  const shape = bossGeometry(boss);
+  boss.missiles.push({ x: boss.boss.x, y: shape.targetY + 12, vx: 0, age: 0, life: 2.2, kind: 'missile', damage: 2 });
+  stepInvaders(boss, idle, .05, fixedRandom);
+  assert.equal(boss.boss, null); assert.equal(boss.bossesDefeated, 1);
+  assert.ok(boss.effects.some(item => item.kind === 'missile-impact'));
+});
+
+test('homing is reproducible under seeded challenge ticks and emits no new random draws', () => {
+  const a = createInvadersChallenge({ seed: 'missile-week' }), b = createInvadersChallenge({ seed: 'missile-week' });
+  for (const state of [a, b]) {
+    Object.assign(state, { missilePairs: 8, lives: 99, spawnIn: 100 });
+    state.enemies.push({ x: 600, y: 250, health: 99 });
+  }
+  frames(180, () => {
+    stepInvaders(a, { action: true }, 1 / 60, () => 0);
+    stepInvaders(b, { action: true }, 1 / 120, () => 1);
+  });
+  assert.deepEqual(a, b);
+  assert.equal(a.randomState, createInvadersChallenge({ seed: 'missile-week' }).randomState, 'target selection consumes no random values');
 });
 
 test('Scope Creep expands its warned fan and Change Request staggers a locked pair', () => {
@@ -829,7 +1020,7 @@ test('challenge seed and fixed ticks reproduce state; geometry and timer survive
   assert.equal(timed.ended, true);
   assert.equal(invadersResult(timed).elapsed, 1);
   assert.equal(invadersResult(timed).reason, 'time');
-  assert.equal(invadersResult(timed).rulesVersion, '1.4.0');
+  assert.equal(invadersResult(timed).rulesVersion, '1.5.0');
 });
 
 test('replay cycles through three distinct valid five-question rounds before repeating', () => {

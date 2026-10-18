@@ -368,10 +368,21 @@ function hostileProjectile(ctx, shot) {
 }
 
 function projectile(ctx, bullet, reducedMotion) {
-  ctx.save(); ctx.translate(bullet.x, bullet.y); ctx.rotate(Math.atan2(bullet.vx || 0, 620));
   const lance = bullet.kind === 'lance', missile = bullet.kind === 'missile';
+  if (missile && !reducedMotion) {
+    const trail = (bullet.trail || []).slice(0, 8);
+    ctx.save(); ctx.lineCap = 'round';
+    for (let index = trail.length - 1; index >= 0; index -= 1) {
+      const next = index === 0 ? bullet : trail[index - 1];
+      ctx.strokeStyle = paint;
+      ctx.globalAlpha = (1 - index / 8) * 0.32; ctx.lineWidth = 2 + (1 - index / 8) * 4;
+      ctx.beginPath(); ctx.moveTo(trail[index].x, trail[index].y + 15); ctx.lineTo(next.x, next.y + 15); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.save(); ctx.translate(bullet.x, bullet.y); ctx.rotate(Math.atan2(bullet.vx || 0, missile ? Math.max(1, -(bullet.vy || -510)) : 620));
   if (missile) {
-    glow(ctx,0,15,22,paint,.24);
+    glow(ctx,0,15,25,paint,.28);
     ctx.fillStyle=gradient(ctx,-5,0,5,0,[[0,'#7499ac'],[.45,'#f0fbfa'],[1,'#577c92']]);rounded(ctx,-5,-13,10,27,3);ctx.fill();
     ctx.fillStyle=paint;ctx.beginPath();ctx.moveTo(-5,-12);ctx.lineTo(0,-23);ctx.lineTo(5,-12);ctx.closePath();ctx.fill();
     for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(side*4,0);ctx.lineTo(side*11,12);ctx.lineTo(side*4,10);ctx.closePath();ctx.fill();}
@@ -481,22 +492,37 @@ function hazardImpact(ctx, scene, arena, reducedMotion) {
   ctx.restore();
 }
 
-function shieldPickup(ctx, item, time, reducedMotion) {
-  const bob = reducedMotion ? 0 : Math.sin(time * 3 + item.x) * 3;
-  ctx.save(); ctx.translate(item.x, item.y + bob);
-  if (item.kind === 'missiles') {
-    glow(ctx, 0, 0, 38, '#f78c1a', 0.22);
-    ctx.fillStyle = '#243e50'; ctx.strokeStyle = '#ffcc8a'; ctx.lineWidth = 2;
-    rounded(ctx, -22, -24, 44, 48, 9); ctx.fill(); ctx.stroke();
-    for (const x of [-9, 9]) { ctx.fillStyle = '#e9f6f3'; rounded(ctx, x - 3, -15, 6, 26, 3); ctx.fill(); ctx.fillStyle = paint; ctx.fillRect(x - 5, 8, 10, 5); }
-    ctx.restore(); return;
+function pickupModel(ctx, kind) {
+  if (kind === 'missiles') {
+    glow(ctx, 0, 0, 40, paint, .24);
+    ctx.fillStyle = '#123240'; ctx.strokeStyle = '#ffc98c'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(25, -14); ctx.lineTo(25, 15); ctx.lineTo(0, 30); ctx.lineTo(-25, 15); ctx.lineTo(-25, -14); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // One broad rocket silhouette reads as ammunition at phone scale.
+    ctx.fillStyle = gradient(ctx, -11, -15, 12, 16, [[0, '#ffe6b4'], [.24, paint], [1, '#a93916']]);
+    ctx.strokeStyle = '#ffe1a6'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(0, -25); ctx.bezierCurveTo(10, -16, 12, -6, 10, 10); ctx.lineTo(-10, 10); ctx.bezierCurveTo(-12, -6, -10, -16, 0, -25); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffad4d';
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(side * 9, -2); ctx.lineTo(side * 20, 16); ctx.lineTo(side * 8, 12); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    ctx.fillStyle = '#112e42'; circle(ctx, 0, -5, 5.5); ctx.fill(); ctx.strokeStyle = '#d4ffff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff0b7'; ctx.beginPath(); ctx.moveTo(-6, 12); ctx.lineTo(0, 26); ctx.lineTo(6, 12); ctx.closePath(); ctx.fill();
+    return;
   }
   glow(ctx, 0, 0, 35, '#83defc60');
   ctx.fillStyle = gradient(ctx, -15, -18, 15, 18, [[0, '#aee7e6'], [0.45, '#397891'], [1, '#092a46']]);
   ctx.strokeStyle = '#b9f2f4'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(14, -11); ctx.lineTo(12, 4); ctx.quadraticCurveTo(8, 13, 0, 19); ctx.quadraticCurveTo(-8, 13, -12, 4); ctx.lineTo(-14, -11); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.strokeStyle = '#f7ffea'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-1, 5); ctx.lineTo(7, -7); ctx.stroke();
-  ctx.restore();
+}
+
+export function drawPickupIcon(ctx, kind, size = 64) {
+  ctx.save(); ctx.translate(size / 2, size / 2); ctx.scale(size / 76, size / 76);
+  pickupModel(ctx, kind === 'missiles' ? 'missiles' : 'shield'); ctx.restore();
+}
+
+function shieldPickup(ctx, item, time, reducedMotion) {
+  const bob = reducedMotion ? 0 : Math.sin(time * 3 + item.x) * 3;
+  ctx.save(); ctx.translate(item.x, item.y + bob);
+  pickupModel(ctx, item.kind); ctx.restore();
 }
 
 function effects(ctx, list, reducedMotion) {
@@ -540,12 +566,32 @@ function effects(ctx, list, reducedMotion) {
 function invaderEffects(ctx, list, reducedMotion) {
   // Rendering is bounded independently of the simulation's transient list.
   for(const item of (list||[]).slice(-24)){
+    if (['missile-launch', 'missile-impact', 'missile-load'].includes(item.kind)) {
+      const t = clamp(item.age / item.life, 0, 1), fade = (1 - t) ** 1.5;
+      const launch = item.kind === 'missile-launch', load = item.kind === 'missile-load';
+      const radius = reducedMotion ? 23 : load ? 24 + t * 55 : launch ? 12 + t * 27 : 16 + t * 68;
+      ctx.save(); ctx.globalAlpha *= fade;
+      for (const side of launch ? [-1, 1] : [0]) {
+        const x = item.x + side * 40;
+        glow(ctx, x, item.y + (launch ? 15 : 0), radius, paint, launch ? .3 : .45);
+        ctx.strokeStyle = load ? '#a9f3ed' : '#ffd6a1'; ctx.lineWidth = 2;
+        ellipse(ctx, x, item.y, radius, radius * (launch ? .5 : .8)); ctx.stroke();
+        if (reducedMotion || load) continue;
+        for (let index = 0; index < (launch ? 4 : 10); index += 1) {
+          const angle = noise(index + item.seed * 7) * TAU;
+          const reach = (launch ? 32 : 72) * t, sx = x + Math.cos(angle) * reach, sy = item.y + Math.sin(angle) * reach;
+          ctx.strokeStyle = index % 2 ? '#a6f1fa' : '#ffe4b8'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(angle) * 9, sy + Math.sin(angle) * 9); ctx.stroke();
+        }
+      }
+      ctx.restore(); continue;
+    }
     if(!['explosion','impact','spark'].includes(item.kind)){effects(ctx,[item],reducedMotion);continue;}
     const t=clamp(item.age/item.life,0,1),fade=(1-t)**1.6;
     const boss=item.kind==='explosion'&&item.life>=.9;
     const reach=item.kind==='spark'?22:boss?155:65;
     const radius=reducedMotion?item.kind==='spark'?12:30:12+t*reach;
-    glow(ctx,item.x,item.y,radius,paint,fade*(boss?.32:.45));
+    glow(ctx,item.x,item.y,radius,paint,fade*(boss ? .32 : .45));
     glow(ctx,item.x,item.y,radius*.28,'#fff4d2',fade*.65);
     if(reducedMotion)continue;
     ctx.save();ctx.globalAlpha*=fade;

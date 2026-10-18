@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {resumeArcade} from './arcade-actions.mjs';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
@@ -77,7 +78,7 @@ try{
    });
    assert.ok(reduced.every(r=>r.same),'Reduced motion removes decorative time-based motion for six hazards and both bosses');assert.ok(reduced.every(r=>r.unchanged),'Renderer does not mutate any fixture state');observations.push({viewport,reduced});
    if(viewport.width===390){
-    await page.locator('#pause').click();await fixture(page,'hazards');await page.evaluate(()=>{window.__polishHitboxes=true;});await page.waitForTimeout(60);await page.screenshot({path:resolve(output,'hazards-collision-diagnostic-fixture-390.png')});await page.evaluate(()=>{window.__polishHitboxes=false;});
+    await resumeArcade(page);await fixture(page,'hazards');await page.evaluate(()=>{window.__polishHitboxes=true;});await page.waitForTimeout(60);await page.screenshot({path:resolve(output,'hazards-collision-diagnostic-fixture-390.png')});await page.evaluate(()=>{window.__polishHitboxes=false;});
     await page.locator('#help-toggle').click();const entries=page.locator('#hazard-legend li');assert.equal(await entries.count(),6);const icons=[];for(const canvas of await entries.locator('canvas').all())icons.push(await canvas.evaluate(c=>c.toDataURL()));assert.equal(new Set(icons).size,6,'Help paints six distinct actual object sprites');await page.screenshot({path:resolve(output,'hazard-guide-390.png'),fullPage:true});
    }
   });
@@ -104,12 +105,12 @@ try{
    assert.equal(await page.locator('#action').getAttribute('aria-pressed'),'false','Ending a direct arena gesture releases Fire');
    await page.waitForTimeout(1700);await page.screenshot({path:resolve(output,'actual-touch-gameplay-390.png')});
    await page.keyboard.down('Space');await page.waitForTimeout(300);await page.keyboard.up('Space');assert.equal(await page.evaluate(()=>window.__polishAudio.starts),0,'Sound starts off');
-   await page.locator('#help-toggle').click();const sound=page.locator('#sound-toggle'),box=await sound.boundingBox();assert.ok(box.y>=0&&box.y+box.height<=844,'Sound is accessible above the guide');
-   await sound.click();assert.equal(await sound.getAttribute('aria-pressed'),'true');await page.locator('#help-close').click();await page.locator('#overlay-action').click();
+   await page.locator('#pause').click();const sound=page.locator('#panel-sound-toggle');await sound.scrollIntoViewIfNeeded();const box=await sound.boundingBox();assert.ok(box.y>=0&&box.y+box.height<=844,'Sound is accessible in the pause panel');
+   await sound.click();assert.equal(await sound.getAttribute('aria-pressed'),'true');await resumeArcade(page);
    await page.keyboard.down('Space');await page.waitForTimeout(400);await page.keyboard.up('Space');const played=await page.evaluate(()=>({starts:window.__polishAudio.starts,maximum:window.__polishAudio.maximum}));assert.ok(played.starts>0,'Real firing creates actual Web Audio voices');assert.ok(played.maximum<=8);
    await page.locator('#pause').click();const paused=await page.evaluate(()=>({starts:window.__polishAudio.starts,live:window.__polishAudio.live.size}));assert.equal(paused.live,0);await page.waitForTimeout(250);assert.equal(await page.evaluate(()=>window.__polishAudio.starts),paused.starts,'Pause produces no new voices');
-   await page.locator('#overlay-action').click();await page.keyboard.down('Space');await page.waitForTimeout(300);await page.keyboard.up('Space');assert.ok(await page.evaluate(starts=>window.__polishAudio.starts>starts,paused.starts),'Resume restores enabled sound');
-   await page.locator('#help-toggle').click();await sound.click();assert.equal(await sound.getAttribute('aria-pressed'),'false');await page.locator('#help-close').click();await page.locator('#overlay-action').click();
+   await resumeArcade(page);await page.keyboard.down('Space');await page.waitForTimeout(300);await page.keyboard.up('Space');assert.ok(await page.evaluate(starts=>window.__polishAudio.starts>starts,paused.starts),'Resume restores enabled sound');
+   await page.locator('#pause').click();await sound.click();assert.equal(await sound.getAttribute('aria-pressed'),'false');await resumeArcade(page);
    const muted=await page.evaluate(()=>window.__polishAudio.starts);await page.keyboard.down('Space');await page.waitForTimeout(300);await page.keyboard.up('Space');assert.equal(await page.evaluate(()=>window.__polishAudio.starts),muted,'Muted firing creates no voices');assert.equal(await page.evaluate(()=>window.__polishAudio.live.size),0);
    observations.push({audio:played,directTouch:{before:{x:before.player,y:before.playerY},after:{x:moved.player,y:moved.playerY}},scope:'Actual simulation, direct touch, Web Audio oscillator lifecycle and real Fire/Pause/Help controls; physical sound output not assessed.'});
   }finally{await context.close();}
