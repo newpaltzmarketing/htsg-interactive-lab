@@ -1,0 +1,23 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "intent": "original-generation",
+  "source_generator_filename": "exec-9e1b3c0e-e7fb-4df8-a10d-6e59b76f69ff.png",
+  "prompt": "artwork/orbital-agency-20261018-prompt.txt",
+  "original": "artwork/originals/invaders-orbital-agency-20261018.png",
+  "original_dimensions": [
+    1254,
+    1254
+  ],
+  "original_bytes": 2148137,
+  "original_sha256": "87952d218f31a518b8c3ce50c4788e141eb90201a43614876310ce956e4fe356",
+  "runtime": "public/assets/invaders-orbital-agency-20261018.webp",
+  "runtime_dimensions": [
+    1254,
+    1254
+  ],
+  "runtime_bytes": 255116,
+  "runtime_sha256": "e1be5e1488845daa3d11fe50bf52c5e4691b476a2f582b02d46bfc10c43447bf",
+  "webp_quality": 92,
+  "webp_method": 6,
+  "processing": "Copied original without modification; native-size RGB WebP encoding only. No retouching, compositing or resizing."
+}

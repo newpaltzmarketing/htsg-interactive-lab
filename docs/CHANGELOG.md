@@ -1,6 +1,10 @@
 # Release changes
 
-## 1.5.2 — live, October 17, 2026
+## 1.5.3 — live, October 17, 2026
+
+Give Agency Invaders an orbital agency office backdrop and update the game-gallery preview and three-game sharing cover. Preserve readable moving hazards, HUD and phone crops. Artwork, fallback/crop checks, installer verification and actual public asset/sharing checks passed. The required-world readiness guard names the selected office asset; prior dated covers and the old world remain available. Engine rules remain 1.5.0 and Community remains 1.0.5; no mechanics, backend or account change is included.
+
+## 1.5.2 — historical, October 17, 2026
 
 Replace only the falling Scope Creep hazard artwork with a recognizable finger-wagging client. Existing movement, collision geometry, damage, weapons and seeded rules remain unchanged. Help uses the same rendered model. Other games, Community 1.0.5 and the approved three-game sharing cover remain unchanged. The approved renderer passed focused source checks, installer verification and actual public renderer-byte/sharing checks before the release handoff.
 

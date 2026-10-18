@@ -3,11 +3,11 @@
   "site_name": "Holistic Tech Solutions Group",
   "locale": "en_US",
   "image": {
-    "path": "assets/lab-share-20261017.jpg",
+    "path": "assets/lab-share-20261018.jpg",
     "width": 1200,
     "height": 630,
     "type": "image/jpeg",
-    "alt": "HTSG Gamification Labs featuring Agency Invaders, Halo in Launch Runner, and Trivia Challenge."
+    "alt": "HTSG Gamification Labs featuring Agency Invaders in an orbital office, Halo in Launch Runner, and Trivia Challenge."
   },
   "pages": {
     "gallery": {
@@ -22,7 +22,7 @@
     },
     "invaders": {
       "title": "Agency Invaders | HTSG Gamification Labs",
-      "description": "Turn project chaos into target practice. Choose spread or focused fire, collect side missiles, and outfly agency bosses with touch or keyboard controls.",
+      "description": "Fly through an orbital agency office and turn project chaos into target practice. Power up your weapons and outfly agency bosses with touch or keyboard controls.",
       "path": "play.html?game=invaders"
     },
     "runner": {

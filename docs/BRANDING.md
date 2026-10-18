@@ -29,17 +29,19 @@ The logo and favicon in `public/assets/` are approved HTSG copies from the suppl
 
 | Asset | Use |
 | --- | --- |
-| `public/assets/invaders-world.webp` | Orbital defense environment and Invaders gallery preview. |
+| `public/assets/invaders-orbital-agency-20261018.webp` | Current orbital agency office environment and Invaders preview. |
+| `public/assets/invaders-world.webp` | Preserved earlier orbital defense environment for existing links/rollback. |
 | `public/assets/runner-world.webp` | Launch-complex environment and Runner gallery preview. |
 | `public/assets/trivia-world.webp` | Observatory environment and Trivia gallery preview. |
 | `public/assets/halo-runner-atlas.webp` | Simulation-timed articulated Halo poses derived from the approved chatbot entrance animation. |
 | `public/assets/halo-runner-idle.png` | Approved Halo still used only if the atlas fails to load. |
-| `public/assets/lab-share.svg`, `public/assets/lab-share-20261017.jpg`, `public/assets/lab-share.png` | Editable cover, primary versioned JPEG social preview, and compatibility PNG. |
+| `public/assets/lab-share.svg`, `public/assets/lab-share-20261018.jpg`, `public/assets/lab-share.png` | Editable cover, primary versioned JPEG social preview, and compatibility PNG. |
 | `artwork/originals/` | Selected world originals and approved Halo source animation/still, excluded from runtime builds. |
-| `artwork/prompts.json`, `artwork/provenance.json` | Exact generation prompts, dimensions, encoding, and hashes. |
+| `artwork/prompts.json`, `artwork/provenance.json` | Initial generation prompts and shared artwork dimensions/encoding/hashes. |
+| `artwork/orbital-agency-20261018-prompt.txt`, `artwork/orbital-agency-20261018-provenance.json` | Exact orbital office prompt, native original and runtime encoding/hash records. |
 | `artwork/halo-runner-provenance.json`, `artwork/prepare-halo-atlas.py` | Existing Halo source provenance, exact selected frames, alignment, and extraction recipe. |
 
-The three 1536 × 864 WebP worlds share navy, charcoal, silver, and orange, with detail near the horizon and quiet play regions. Preserve their aspect ratio, keep a dark loading fallback, and check both wide and narrow crops. The image never defines a collision boundary. See [ARTWORK.md](ARTWORK.md) for provenance and optimization. Source archives include the originals and prompts; deployment archives include only the optimized runtime assets.
+The selected WebP worlds share navy, charcoal, silver and orange, with distant detail and quiet play regions. The Invaders office is 1254 × 1254; Runner and Trivia remain 1536 × 864. Preserve their aspect ratio, keep a dark loading fallback, and check both wide and narrow crops. The image never defines a collision boundary. See [ARTWORK.md](ARTWORK.md) for provenance and optimization. Source archives include the originals and prompts; deployment archives include only the optimized runtime assets.
 
 The sharing cover includes all three game subjects, actual Halo, and the game names. `public/share.json` controls complete initial-HTML social metadata; valid WordPress game links receive the matching title and canonical URL. Every public release must pass the metadata/image gates and actual anonymous sharing check in [SHARING.md](SHARING.md). Use a new image filename when changing published cover pixels.
 
@@ -51,7 +53,7 @@ The game player fills the available browser viewport and adapts the logical aren
 
 Keep labels specific to working actions. The gallery should help someone choose a game; the player should show the rules, current state, and next useful action. Preserve explanatory quiz feedback, visible pause/resume state, and a clear exit to all games. Avoid decorative numbering, redundant labels, unavailable features, or extra panels that do not help a player.
 
-Invaders names its business hazards in readable 13 CSS-pixel canvas labels. Labels avoid the actual status, wave, and impact-message rectangles passed by the controller and remain near their targets, with a small leader when shifted. A life-loss message names the cause; shield absorption uses distinct words and color. Direct arena dragging preserves the finger-to-ship offset and supports both axes without a separate steering panel. The compact button row leaves more room for play. Personal-best copy appears in the existing start/pause/result hint; no extra record panel competes with the arena.
+Invaders identifies business hazards through the actual models in Help and named impact feedback. Normal falling objects do not carry text labels. Keep the status/mission/impact reservations clear of relevant boss health and warning artwork. A life-loss message names the cause; shield absorption uses distinct words and color. Direct arena dragging preserves the finger-to-ship offset and supports both axes without a separate steering panel. The compact button row leaves more room for play. Personal-best copy appears in the existing start/pause/result hint; no extra record panel competes with the arena.
 
 ## Make another branded edition
 
@@ -62,7 +64,7 @@ Invaders names its business hazards in readable 13 CSS-pixel canvas labels. Labe
 5. Replace the three world images with similarly composed, optimized assets. Record their originals, prompts or source provenance, and hashes. Run `npm run artwork:share` to regenerate the editable triptych sharing card and its PNG preview from the selected worlds and wordmark; inspect the result before publishing.
 6. Run the syntax, game logic, browser, and WordPress adapter checks. Review the gallery and every game on desktop, narrow portrait, short landscape, after rotation, and in expanded mode before publishing.
 
-The HTSG contact destination is `https://holistictechsolutionsgroup.com/contact/`. The lab sends no inquiries or scores to a service and adds no forms, analytics, or cookies. Invaders stores one personal best only in this browser; standard hosting request logs may still exist.
+The HTSG contact destination is `https://holistictechsolutionsgroup.com/contact/`. Free play runs in the browser and stores a local personal best without an account. The optional same-origin Community service separately owns member identity, explicit profile/updates consent and unverified weekly results; its acceptance and limits are recorded in [QA.md](QA.md). No analytics or advertising is added by the games; standard hosting request logs may still exist.
 
 ## Publication boundary
 

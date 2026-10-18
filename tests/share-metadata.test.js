@@ -62,7 +62,7 @@ test('alternate static hosting rewrites all social URLs together and escapes con
   const html = replaceShareBlock(source, fields);
   assert.ok(validateShareHtml(html, fields));
   assert.equal(fields.url, 'https://preview.example/lab/');
-  assert.equal(fields.image, 'https://preview.example/lab/assets/lab-share-20261017.jpg');
+  assert.equal(fields.image, 'https://preview.example/lab/assets/lab-share-20261018.jpg');
   assert.ok(!html.includes('<script>alert("preview")</script>'));
 });
 

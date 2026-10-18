@@ -2,7 +2,15 @@
 
 The approved public destination is **https://holistictechsolutionsgroup.com/demos/interactive-lab/**. The static games use the existing HTSG WordPress host. Free play requires no account, game backend, paid dependency or DNS change. The optional first-party community service is maintained and accepted separately.
 
-## Release 1.5.2 live — October 17, 2026
+## Release 1.5.3 live — October 17, 2026
+
+The visual release adds an orbital agency office backdrop with reviewed game-gallery and sharing-cover imagery. Separate WordPress homepage/Community presentations remain unchanged. Source checks, 70 Node tests, six presentation cases, four fallback checks, three gallery checks, 14 sharing checks, PHP lint and 127 adapter checks passed. Rules remain 1.5.0 and Community remains 1.0.5; no service, schema, account or Google change is required.
+
+Installed archive: `release/htsg-interactive-lab-wordpress-1.5.3.zip`, **3,801,549 bytes**, SHA-256 `5e5bde1081a85a030e5564f89e68e53e457812cf75ae84f738754314ffd1887b`. All **36 entries** independently matched; the required-world guard now checks the office asset, with the older world retained for published references. The publisher verified active 1.5.3 and purged SiteGround cache. Four bounded ordinary public assets matched exact bytes/hash, and actual public sharing passed **14/14**. Native live play and the newly refreshed Facebook cover were reviewed; the existing nonblocking `fb:app_id` warning remains. See [QA.md](QA.md) for evidence and scope.
+
+Immediate rollback is preserved `release/htsg-interactive-lab-wordpress-1.5.2.zip`, **3,529,515 bytes**, SHA-256 `5a3e36aa03a572e0f1e8a8c23b49a5ca067e03e7bc4dc11e10125624ef1c878c`; its hash was reverified. No older installer is overwritten.
+
+## Historical release 1.5.2 — October 17, 2026
 
 The renderer-only release replaces one falling Scope Creep hazard with a finger-wagging client. Rules remain 1.5.0 and Community remains 1.0.5; no schema, account, Google, subscription or data change is included. Artwork is approved; source checks, 70 Node tests, six presentation cases and three actual-size client probes passed. The existing reviewed three-game cover and initial metadata remain unchanged.
 
@@ -78,7 +86,7 @@ Only GET and HEAD are supported. The gallery without its final slash redirects t
 
 Every served response uses `Cache-Control: public, max-age=0, must-revalidate`. Each static asset receives an ETag derived from its content hash. Browser caches must revalidate the same module and image paths after a replacement; the SiteGround purge clears the host's existing cached responses. Verify the new version's stylesheet, renderer, and all three worlds anonymously after purging, rather than relying on a previously open game tab.
 
-The three runtime world paths are `assets/invaders-world.webp`, `assets/runner-world.webp`, and `assets/trivia-world.webp`, each 1536 × 864. Their selected originals and exact prompts are preserved under `artwork/` and included in the source ZIP, outside the installed plugin. See [ARTWORK.md](ARTWORK.md) for file hashes and optimization, and [BRANDING.md](BRANDING.md) for the shared tokens and reusable asset contract.
+Current Agency Invaders selects `assets/invaders-orbital-agency-20261018.webp` at 1254 × 1254. Runner and Trivia retain `assets/runner-world.webp` and `assets/trivia-world.webp`, each 1536 × 864. The earlier `assets/invaders-world.webp` remains available for existing references and rollback. Their selected originals and exact prompts are preserved under `artwork/` and included in the source ZIP, outside the installed plugin. See [ARTWORK.md](ARTWORK.md) for file hashes and optimization, and [BRANDING.md](BRANDING.md) for the shared tokens and reusable asset contract.
 
 Development verification uses `php -l wordpress/htsg-interactive-lab/htsg-interactive-lab.php` and `php tests/wordpress.test.php` after `npm run package:wordpress`. The workspace has an existing PHP executable in `../custom-pools-showcase/growth-release/tools/php/php.exe`. PHP is only development tooling and part of the existing WordPress host; standalone games do not require it.
 
@@ -183,7 +191,7 @@ Re-run checks and deploy the same `demo-preview` branch with the command above. 
 
 ## Current publish status
 
-**Gamification Labs 1.4.1 is installed.** The 34-entry installer, independent hash validation and 125 adapter checks are recorded above. Current public checks and their scope are in [QA.md](QA.md). The immutable 1.4.0 installer is the immediate game rollback. Google sign-in and community acceptance remain separate from game installation. Older installed states below are historical evidence.
+**Gamification Labs 1.5.3 is installed.** The 36-entry installer, exact archive/hash validation and 127 adapter checks are recorded above. Actual public asset/sharing checks and their scope are in [QA.md](QA.md). Immutable 1.5.2 is the immediate game rollback. Engine rules remain 1.5.0 and Community remains 1.0.5; Google/account/service acceptance remains separate. Older installed states below are historical evidence.
 
 The preceding October 17 **Gamification Labs 1.2.0** installed ZIP has SHA-256 `890f30b2334f6e8ad647237a48208c6723dedc099fcb8efe3e26ad574e10dd19`. Exact packages, native snapshots, publication and actual public evidence are maintained in `output/gamification-labs-2026-10-17/` in the parent workspace. The older state and hashes below are preserved historical evidence. Source validation and game publication are separate operations; the Cloudflare preview workflow remains manual.
 

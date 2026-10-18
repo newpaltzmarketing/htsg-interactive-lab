@@ -3,23 +3,27 @@
   "assets": [
     {
       "asset": "invaders",
-      "original": "artwork/originals/invaders-world.png",
+      "generator": "OpenAI built-in image_gen",
+      "intent": "original-generation",
+      "source_generator_filename": "exec-9e1b3c0e-e7fb-4df8-a10d-6e59b76f69ff.png",
+      "prompt": "artwork/orbital-agency-20261018-prompt.txt",
+      "original": "artwork/originals/invaders-orbital-agency-20261018.png",
       "original_dimensions": [
-        1672,
-        941
+        1254,
+        1254
       ],
-      "original_bytes": 2382898,
-      "original_sha256": "005a709d9158f71b513e77d6744110f49c2043037c4216af1e9931f2028d79e0",
-      "runtime": "public/assets/invaders-world.webp",
+      "original_bytes": 2148137,
+      "original_sha256": "87952d218f31a518b8c3ce50c4788e141eb90201a43614876310ce956e4fe356",
+      "runtime": "public/assets/invaders-orbital-agency-20261018.webp",
       "runtime_dimensions": [
-        1536,
-        864
+        1254,
+        1254
       ],
-      "runtime_bytes": 367044,
-      "runtime_sha256": "7536a417e413e2be15cfa0f2cb916e3b629aae7bd585c69b7433df770727d04b",
-      "webp_quality": 95,
+      "runtime_bytes": 255116,
+      "runtime_sha256": "e1be5e1488845daa3d11fe50bf52c5e4691b476a2f582b02d46bfc10c43447bf",
+      "webp_quality": 92,
       "webp_method": 6,
-      "source_generator_filename": "exec-e5bd85ba-ccff-4f7c-93a3-b740decb94a4.png"
+      "processing": "Copied original without modification; native-size RGB WebP encoding only. No retouching, compositing or resizing."
     },
     {
       "asset": "runner",
@@ -81,9 +85,9 @@
         "sha256": "9caf031965dabd381e2caab10fa619ca8d8a0aa708e128a29abc6dd0953109d9"
       },
       {
-        "path": "public/assets/invaders-world.webp",
-        "bytes": 367044,
-        "sha256": "7536a417e413e2be15cfa0f2cb916e3b629aae7bd585c69b7433df770727d04b"
+        "path": "public/assets/invaders-orbital-agency-20261018.webp",
+        "bytes": 255116,
+        "sha256": "e1be5e1488845daa3d11fe50bf52c5e4691b476a2f582b02d46bfc10c43447bf"
       },
       {
         "path": "public/assets/runner-world.webp",
@@ -99,18 +103,18 @@
     "outputs": [
       {
         "path": "public/assets/lab-share.svg",
-        "bytes": 1641712,
-        "sha256": "5a28b7051078c5d99ea0e07138918071577b510acd924b8914d428797e9b5727"
+        "bytes": 1492476,
+        "sha256": "d87db93eb29fc294265e645cc2f43e922a31b045846ea75404f4d90f3073e4d0"
       },
       {
         "path": "public/assets/lab-share.png",
-        "bytes": 524535,
-        "sha256": "d9e1b97b2e5d3e9fa4b3a2919d6f90bae0a2d732688ebb986bb0fa5d1f0ea4d5"
+        "bytes": 527223,
+        "sha256": "4933fdc3b1d8b5b4873b19612da1d96f5e8e586df72386349b62d752ea0c36d0"
       },
       {
-        "path": "public/assets/lab-share-20261017.jpg",
-        "bytes": 128579,
-        "sha256": "e126476fd8d0d32006583387631cddaef03129892d0726da58f196d6846d5eee"
+        "path": "public/assets/lab-share-20261018.jpg",
+        "bytes": 134985,
+        "sha256": "904c1104f95ae28cec2939b0c8e9a4ee09b51866005a4efda42fb3f3c945c88f"
       }
     ]
   },
@@ -166,6 +170,80 @@
           "sha256": "71dd56707da6f8c8a2fb3b4364ae7db4fb0d321e36bb058bd5e8aa2626da5385"
         }
       ]
+    },
+    {
+      "method": "Editable SVG composition of the approved HTSG logo, three local environments, actual Halo still, a vector spacecraft derived from the game renderer, and a quiz symbol; rendered by Chromium at 1200 x 630.",
+      "generator": "scripts/generate-share-card.mjs",
+      "dimensions": [
+        1200,
+        630
+      ],
+      "inputs": [
+        {
+          "path": "public/assets/htsg-logo.png",
+          "bytes": 51871,
+          "sha256": "e8084a0bdcfd63889c7629d8bc501ef8338bf0e0fc39545995f5a50a5870f69f"
+        },
+        {
+          "path": "public/assets/halo-runner-idle.png",
+          "bytes": 102185,
+          "sha256": "9caf031965dabd381e2caab10fa619ca8d8a0aa708e128a29abc6dd0953109d9"
+        },
+        {
+          "path": "public/assets/invaders-world.webp",
+          "bytes": 367044,
+          "sha256": "7536a417e413e2be15cfa0f2cb916e3b629aae7bd585c69b7433df770727d04b"
+        },
+        {
+          "path": "public/assets/runner-world.webp",
+          "bytes": 379038,
+          "sha256": "5735fe206f092e7c2eca397d8751607dc09e43b30c689eb2ec9ea0c30b8bbcbf"
+        },
+        {
+          "path": "public/assets/trivia-world.webp",
+          "bytes": 327786,
+          "sha256": "2f4c1c71a1d628ed5584e5411034264e0f0b5b3f4d04da0d106f0bfb390759d9"
+        }
+      ],
+      "outputs": [
+        {
+          "path": "public/assets/lab-share.svg",
+          "bytes": 1641712,
+          "sha256": "5a28b7051078c5d99ea0e07138918071577b510acd924b8914d428797e9b5727"
+        },
+        {
+          "path": "public/assets/lab-share.png",
+          "bytes": 524535,
+          "sha256": "d9e1b97b2e5d3e9fa4b3a2919d6f90bae0a2d732688ebb986bb0fa5d1f0ea4d5"
+        },
+        {
+          "path": "public/assets/lab-share-20261017.jpg",
+          "bytes": 128579,
+          "sha256": "e126476fd8d0d32006583387631cddaef03129892d0726da58f196d6846d5eee"
+        }
+      ]
+    }
+  ],
+  "asset_history": [
+    {
+      "asset": "invaders",
+      "original": "artwork/originals/invaders-world.png",
+      "original_dimensions": [
+        1672,
+        941
+      ],
+      "original_bytes": 2382898,
+      "original_sha256": "005a709d9158f71b513e77d6744110f49c2043037c4216af1e9931f2028d79e0",
+      "runtime": "public/assets/invaders-world.webp",
+      "runtime_dimensions": [
+        1536,
+        864
+      ],
+      "runtime_bytes": 367044,
+      "runtime_sha256": "7536a417e413e2be15cfa0f2cb916e3b629aae7bd585c69b7433df770727d04b",
+      "webp_quality": 95,
+      "webp_method": 6,
+      "source_generator_filename": "exec-e5bd85ba-ccff-4f7c-93a3-b740decb94a4.png"
     }
   ]
 }

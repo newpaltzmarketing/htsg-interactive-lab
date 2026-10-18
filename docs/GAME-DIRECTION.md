@@ -4,7 +4,9 @@ Updated October 17, 2026. This document separates implemented gameplay from late
 
 ## Release boundary
 
-**1.5.2 is installed** as a visual-only replacement of one falling hazard with an animated finger-wagging client. It retains the current hitbox, movement, weapons and challenge rules; no Community change is included. Reviewed source fixtures, installer verification and actual public renderer/sharing checks passed.
+**1.5.3 is installed** with an orbital agency office world and matching game-gallery/sharing imagery. Portrait/landscape readability, fallback/crop checks, installer verification and actual public asset/metadata checks passed. Rules 1.5.0, existing mechanics and Community 1.0.5 are preserved; separate homepage/Community imagery is outside this release.
+
+The retained **1.5.2 artwork** is a visual-only replacement of one falling hazard with an animated finger-wagging client. It retains the current hitbox, movement, weapons and challenge rules; no Community change is included. Reviewed source fixtures, installer verification and actual public renderer/sharing checks passed.
 
 The retained **1.5.1 dashboard fix** keeps rules 1.5.0 and corrects a fallback-font dashboard wrap that reduced the phone arena height. The retained **1.5.0 mechanics** provide: one pause panel, Spread/Focused switching at any pause and more plentiful guided missile pairs. Earned weapon level and ammunition survive switching; the first upgrade supplies four pairs, capsules add six and capacity is eight. Supplies begin in wave two, and missiles fire independently with bounded guidance. These mechanics use rules 1.5.0 with separate weekly boards; prior history and unexpired prior attempts are retained by installed Community 1.0.5. See [QA.md](QA.md) for source and actual public acceptance.
 

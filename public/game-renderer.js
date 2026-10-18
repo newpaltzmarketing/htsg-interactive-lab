@@ -5,6 +5,7 @@ const TAU = Math.PI * 2;
 const paint = brand.canvas?.player || '#f78c1a';
 const droneAccent = brand.canvas?.obstacle || '#f43618';
 const beamCore = brand.canvas?.projectile || '#ffffff';
+export const INVADER_WORLD_ASSET = 'invaders-orbital-agency-20261018.webp';
 const hazardDescriptions = { 'scope-creep': 'Finger-wagging client', 'missed-deadlines': 'Ticking clock', 'budget-overruns': 'Cash overflow', 'tech-debt': 'Tangled circuits', bottlenecks: 'Clogged flow', 'broken-handoffs': 'Broken connection' };
 export const HAZARD_VISUALS = Object.freeze(Object.fromEntries(INVADER_HAZARDS.map(({ id, label }) => [id, Object.freeze({ label, description: hazardDescriptions[id] })])));
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -47,12 +48,56 @@ function fallbackSpace(ctx, width, height) {
   ctx.beginPath(); ctx.moveTo(0, height * 0.65); ctx.lineTo(width * 0.19, height * 0.41); ctx.lineTo(width * 0.24, height * 0.43); ctx.lineTo(width * 0.09, height); ctx.lineTo(0, height); ctx.closePath(); ctx.fill();
 }
 
+function fallbackAgencyOffice(ctx, width, height) {
+  fallbackSpace(ctx, width, height);
+  // An orbital studio frames the open flight lane. Props are anchored to the
+  // actual screen edges, so the office still reads without a loaded bitmap.
+  ctx.save();
+  ctx.fillStyle = gradient(ctx, 0, 0, 0, height * .24, [[0, '#334654'], [1, '#101e2b']]);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(width, 0); ctx.lineTo(width, height * .16);
+  ctx.lineTo(width * .83, height * .11); ctx.lineTo(width * .17, height * .11); ctx.lineTo(0, height * .16); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#b1c8c84d'; ctx.lineWidth = width * .003;
+  ctx.beginPath(); ctx.moveTo(0, height * .16); ctx.lineTo(width * .17, height * .11); ctx.lineTo(width * .83, height * .11); ctx.lineTo(width, height * .16); ctx.stroke();
+  const deskY = Math.min(height * .37, height * .15 + width * .17);
+  for (const side of [-1, 1]) {
+    ctx.save();
+    if (side === 1) { ctx.translate(width, 0); ctx.scale(-1, 1); }
+    ctx.fillStyle = gradient(ctx, 0, 0, width * .12, 0, [[0, '#455760'], [.55, '#20333f'], [1, '#0a172400']]);
+    ctx.beginPath(); ctx.moveTo(0, height * .14); ctx.lineTo(width * .09, height * .12); ctx.lineTo(width * .13, deskY + width * .12); ctx.lineTo(0, deskY + width * .17); ctx.closePath(); ctx.fill();
+    // A lit desktop monitor, paper tray and chair distinguish the agency
+    // workspace from a spaceship cockpit without adding readable UI chrome.
+    ctx.save(); ctx.translate(width * .085, deskY - width * .055); ctx.rotate(-.08);
+    ctx.fillStyle = '#13232d'; ctx.strokeStyle = '#78939d'; ctx.lineWidth = width * .002;
+    rounded(ctx, -width * .065, -width * .065, width * .13, width * .085, width * .007); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = gradient(ctx, 0, -width * .06, 0, width * .01, [[0, '#7097a1'], [.45, '#3e6573'], [1, '#173947']]);
+    rounded(ctx, -width * .057, -width * .057, width * .114, width * .064, width * .003); ctx.fill();
+    ctx.fillStyle = '#ffb25b8c'; ctx.fillRect(-width * .048, -width * .045, width * .025, width * .041);
+    ctx.fillStyle = '#d7e3d787';
+    for (let row = 0; row < 3; row += 1) ctx.fillRect(-width * .014, -width * .043 + row * width * .012, width * (.045 - row * .006), width * .004);
+    ctx.fillStyle = '#536a74'; ctx.fillRect(-width * .009, width * .02, width * .018, width * .024);
+    rounded(ctx, -width * .035, width * .041, width * .07, width * .008, width * .003); ctx.fill(); ctx.restore();
+    ctx.fillStyle = gradient(ctx, 0, deskY, 0, deskY + width * .026, [[0, '#a79d83'], [.22, '#6a6f68'], [1, '#182b37']]);
+    ctx.beginPath(); ctx.moveTo(0, deskY); ctx.lineTo(width * .21, deskY - width * .008); ctx.lineTo(width * .24, deskY + width * .028); ctx.lineTo(0, deskY + width * .048); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#e2ba7c69'; ctx.lineWidth = width * .002;
+    ctx.beginPath(); ctx.moveTo(0, deskY); ctx.lineTo(width * .21, deskY - width * .008); ctx.lineTo(width * .24, deskY + width * .028); ctx.stroke();
+    for (let sheet = 0; sheet < 3; sheet += 1) {
+      ctx.fillStyle = sheet === 2 ? '#e3d3ac' : '#9d9c8e';
+      ctx.beginPath(); ctx.moveTo(width * .15 + sheet * width * .003, deskY - width * (.011 + sheet * .004)); ctx.lineTo(width * .19, deskY - width * (.014 + sheet * .004)); ctx.lineTo(width * .205, deskY - sheet * width * .004); ctx.lineTo(width * .16, deskY + width * .003 - sheet * width * .004); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#192d3a'; ctx.strokeStyle = '#6e81855c'; ctx.lineWidth = width * .002;
+    rounded(ctx, width * .025, deskY + width * .045, width * .09, width * .1, width * .025); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function background(ctx, image, arena, time, reducedMotion, mode) {
   const { width, height, floor } = arena;
   if (image?.complete && image.naturalWidth) {
     ctx.fillStyle = '#030a14'; ctx.fillRect(0, 0, width, height);
     cover(ctx, image, width, height);
-  } else fallbackSpace(ctx, width, height);
+  } else if (mode === 'invaders') fallbackAgencyOffice(ctx, width, height);
+  else fallbackSpace(ctx, width, height);
   const wash = gradient(ctx, 0, 0, 0, height, [[0, '#03101c22'], [0.5, '#02091300'], [1, '#020711bc']]);
   ctx.fillStyle = wash; ctx.fillRect(0, 0, width, height);
   if (mode === 'invaders') {
@@ -819,10 +864,11 @@ export function createRenderer({ assetBase = new URL('./assets/', import.meta.ur
       let fallback = false;
       image.onload = () => { images[mode] = mode === 'halo' ? { image, atlas: !fallback } : image; resolve(); };
       image.onerror = () => {
+        if (mode === 'invaders') { resolve(); return; }
         if (!fallback) { fallback = true; image.src = new URL(mode === 'halo' ? 'halo-runner-idle.png' : `${mode}-world.png`, assetBase).href; }
         else resolve();
       };
-      image.src = new URL(mode === 'halo' ? HALO_ATLAS.file : `${mode}-world.webp`, assetBase).href;
+      image.src = new URL(mode === 'halo' ? HALO_ATLAS.file : mode === 'invaders' ? INVADER_WORLD_ASSET : `${mode}-world.webp`, assetBase).href;
     }))).then(() => { ready = true; });
     return loading;
   }

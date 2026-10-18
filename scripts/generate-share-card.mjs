@@ -12,7 +12,7 @@ const embedded = async (name, type) => `data:${type};base64,${(await readFile(as
 const logo = await embedded('htsg-logo.png', 'image/png');
 const halo = await embedded('halo-runner-idle.png', 'image/png');
 const scenes = [
-  { file: 'invaders-world.webp', label: 'Agency Invaders' },
+  { file: 'invaders-orbital-agency-20261018.webp', label: 'Agency Invaders' },
   { file: 'runner-world.webp', label: 'Launch Runner' },
   { file: 'trivia-world.webp', label: 'Trivia Challenge' },
 ];
@@ -80,7 +80,7 @@ try {
     })));
   });
   await page.screenshot({ path: asset('lab-share.png'), type: 'png' });
-  await page.screenshot({ path: asset('lab-share-20261017.jpg'), type: 'jpeg', quality: 88 });
+  await page.screenshot({ path: asset('lab-share-20261018.jpg'), type: 'jpeg', quality: 88 });
 } finally { await browser.close(); }
 const fingerprint = async name => {
   const bytes = await readFile(asset(name));
@@ -88,7 +88,7 @@ const fingerprint = async name => {
 };
 const provenancePath = resolve(root, 'artwork/provenance.json');
 const provenance = JSON.parse(await readFile(provenancePath, 'utf8'));
-if (provenance.share_card && !provenance.share_card.outputs?.some(output => output.path.endsWith('lab-share-20261017.jpg'))) {
+if (provenance.share_card && !provenance.share_card.outputs?.some(output => output.path.endsWith('lab-share-20261018.jpg'))) {
   provenance.share_card_history = [...(provenance.share_card_history || []), provenance.share_card];
 }
 provenance.share_card = {
@@ -96,7 +96,7 @@ provenance.share_card = {
   generator: 'scripts/generate-share-card.mjs',
   dimensions: [1200, 630],
   inputs: await Promise.all(['htsg-logo.png', 'halo-runner-idle.png', ...scenes.map(scene => scene.file)].map(fingerprint)),
-  outputs: await Promise.all(['lab-share.svg', 'lab-share.png', 'lab-share-20261017.jpg'].map(fingerprint)),
+  outputs: await Promise.all(['lab-share.svg', 'lab-share.png', 'lab-share-20261018.jpg'].map(fingerprint)),
 };
 await writeFile(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`);
 console.log('Updated editable social card, 1200 x 630 PNG/JPEG, and derivative provenance.');

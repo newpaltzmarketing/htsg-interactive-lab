@@ -1,6 +1,6 @@
 {
   "name": "htsg-interactive-lab",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "description": "Three free HTSG browser games with optional first-party community challenges.",
   "type": "module",
