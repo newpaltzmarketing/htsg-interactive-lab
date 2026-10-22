@@ -494,7 +494,7 @@ try {
     assertFits(await bounds(page), { portrait: true });
   });
 
-  await check('previous, next and picker links navigate all three games by touch', async () => {
+  await check('previous, next and picker links navigate all four games by touch', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await open(page, 'invaders');
     await page.locator('#next-game').tap();
@@ -503,7 +503,7 @@ try {
     await page.waitForURL(/game=invaders/);
     await page.locator('#game-picker > summary').tap();
     assert.equal(await page.locator('#game-picker').getAttribute('open'), '');
-    assert.equal(await page.locator('.game-option').count(), 3);
+    assert.equal(await page.locator('.game-option').count(), 4);
     await page.locator('.game-option[href*="game=trivia"]').tap();
     await page.waitForURL(/game=trivia/);
     await page.locator('#game-picker > summary').focus();
@@ -512,6 +512,15 @@ try {
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('#game-picker').getAttribute('open'), null);
     assert.equal(await page.locator('#game-picker > summary').evaluate(element => element === document.activeElement), true);
+    await page.locator('#next-game').tap();
+    await page.waitForURL(/crossword\.html$/);
+    await page.locator('#crossword-grid[data-ready="true"]').waitFor();
+    assert.equal(await page.locator('.game-option').count(), 4);
+    assert.equal(await page.locator('.game-option[aria-current="page"]').getAttribute('href'), 'crossword.html');
+    assert.equal(await page.locator('#previous-game').getAttribute('href'), 'play.html?game=trivia');
+    await page.locator('#next-game').tap();
+    await page.waitForURL(/game=invaders/);
+    assert.equal(await page.locator('#previous-game').getAttribute('href'), 'crossword.html');
   });
 
   await check('help and picker pause safely, close on resume and return keyboard focus', async () => {

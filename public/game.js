@@ -107,12 +107,16 @@ byId('overlay-hint').textContent = game.hint;
 byId('touch-hint').textContent = mode === 'runner' ? 'Tap or swipe up · double jump' : 'Arrows / WASD · Space to fire';
 document.title = `${game.title} | ${brand.labName}`;
 status.setAttribute('aria-live', 'off');
-const modes = Object.keys(games);
-const modeIndex = modes.indexOf(mode);
+// Navigation includes standalone games without adding them to this controller.
+const gameNavigation = [
+  ...Object.entries(games).map(([id, entry]) => ({ id, title: entry.title, href: `play.html?game=${id}` })),
+  { id: 'crossword', title: 'Crossword Break', href: 'crossword.html' },
+];
+const modeIndex = gameNavigation.findIndex(entry => entry.id === mode);
 for (const [id, offset, label] of [['previous-game', -1, 'Previous'], ['next-game', 1, 'Next']]) {
-  const nextMode = modes[(modeIndex + offset + modes.length) % modes.length];
-  byId(id).href = `play.html?game=${nextMode}`;
-  byId(id).setAttribute('aria-label', `${label} game: ${games[nextMode].title}`);
+  const entry = gameNavigation[(modeIndex + offset + gameNavigation.length) % gameNavigation.length];
+  byId(id).href = entry.href;
+  byId(id).setAttribute('aria-label', `${label} game: ${entry.title}`);
 }
 document.querySelectorAll('.game-option').forEach(link => {
   if (new URL(link.href).searchParams.get('game') === mode) link.setAttribute('aria-current', 'page');

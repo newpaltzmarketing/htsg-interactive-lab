@@ -3,21 +3,21 @@
   "site_name": "Holistic Tech Solutions Group",
   "locale": "en_US",
   "image": {
-    "path": "assets/lab-share-20261018.jpg",
+    "path": "assets/lab-share-20261022.jpg",
     "width": 1200,
     "height": 630,
     "type": "image/jpeg",
-    "alt": "HTSG Gamification Labs featuring Agency Invaders in an orbital office, Halo in Launch Runner, and Trivia Challenge."
+    "alt": "HTSG Gamification Labs with Agency Invaders, Halo in Launch Runner, Trivia Challenge and the Crossword Break grid."
   },
   "pages": {
     "gallery": {
       "title": "Gamification Labs | Holistic Tech Solutions Group",
-      "description": "Play Agency Invaders, Launch Runner, and Trivia Challenge. Three browser games with cinematic worlds, keyboard and touch controls, and Halo.",
+      "description": "Play Agency Invaders, Launch Runner, Trivia Challenge and Crossword Break. Four free browser games with touch and keyboard controls.",
       "path": ""
     },
     "play": {
-      "title": "Play three games | HTSG Gamification Labs",
-      "description": "Take a playful agency flight, double-jump with Halo, or test your digital know-how. Choose from three free browser games in HTSG Gamification Labs.",
+      "title": "Play arcade games | HTSG Gamification Labs",
+      "description": "Take a playful agency flight, double-jump with Halo or test your digital know-how. Choose a game, or take a Crossword Break from the game menu.",
       "path": "play.html"
     },
     "invaders": {
@@ -34,6 +34,11 @@
       "title": "Trivia Challenge | HTSG Gamification Labs",
       "description": "Explore three five-question rounds about strategy, design, and trust. Choose an answer, learn why it works, and build a streak.",
       "path": "play.html?game=trivia"
+    },
+    "crossword": {
+      "title": "Crossword Break | HTSG Gamification Labs",
+      "description": "Take a Crossword Break with three original mini puzzles, touch and keyboard controls, clue checks and letter hints. Your progress stays on this device.",
+      "path": "crossword.html"
     }
   }
 }

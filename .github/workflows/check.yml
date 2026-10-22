@@ -22,6 +22,7 @@ jobs:
       - run: npm run test:polish
       - run: npm run test:controls
       - run: npm run test:expansion
+      - run: npm run test:crossword
       - run: npm run test:upgrade
       - run: npm run test:gamification
       - run: npm run test:community

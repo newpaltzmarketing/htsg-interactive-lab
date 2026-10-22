@@ -4,14 +4,14 @@ import { readFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadShareConfig, validateShareConfig, shareFields, shareSiteURL, shareImageDetails,
-  replaceShareBlock, validateShareHtml } from '../scripts/share-metadata.mjs';
+  replaceShareBlock, validateShareHtml, SHARE_HTML_PAGES } from '../scripts/share-metadata.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const config = await loadShareConfig(resolve(root, 'public'));
 const source = await readFile(resolve(root, 'public/index.html'), 'utf8');
 
 test('every shareable route has complete fallback metadata and an actual PNG/JPEG cover', async () => {
-  for (const [filename, key] of [['index.html', 'gallery'], ['play.html', 'play']]) {
+  for (const [filename, key] of Object.entries(SHARE_HTML_PAGES)) {
     assert.ok(validateShareHtml(await readFile(resolve(root, 'public', filename), 'utf8'), shareFields(config, key), filename));
   }
   for (const key of ['invaders', 'runner', 'trivia']) {
@@ -42,6 +42,8 @@ test('invalid page configuration, unsafe image paths and private credentials can
   for (const patch of [
     value => { delete value.pages.runner.description; },
     value => { value.pages.trivia.path = 'play.html?game=<script>'; },
+    value => { delete value.pages.crossword; },
+    value => { value.pages.crossword.path = 'play.html?game=crossword'; },
     value => { value.image.path = '../secret.png'; },
     value => { value.image.path = 'https://remote.example/cover.jpg'; },
     value => { value.image.width = 1; },
@@ -62,8 +64,12 @@ test('alternate static hosting rewrites all social URLs together and escapes con
   const html = replaceShareBlock(source, fields);
   assert.ok(validateShareHtml(html, fields));
   assert.equal(fields.url, 'https://preview.example/lab/');
-  assert.equal(fields.image, 'https://preview.example/lab/assets/lab-share-20261018.jpg');
+  assert.equal(fields.image, new URL(config.image.path, 'https://preview.example/lab/').href);
   assert.ok(!html.includes('<script>alert("preview")</script>'));
+  const crossword = shareFields(config, 'crossword', 'https://preview.example/lab/');
+  assert.equal(crossword.url, 'https://preview.example/lab/crossword.html');
+  assert.equal(crossword.image, fields.image);
+  assert.ok(validateShareHtml(replaceShareBlock(source, crossword), crossword));
 });
 
 test('missing covers, MIME mismatches and truncated or unsupported image bytes fail validation', async () => {

@@ -65,6 +65,7 @@ const cases = [
   { path: '', title: 'Gamification Labs', canonical: advertisedBase },
   { path: 'index.html', title: 'Gamification Labs', canonical: advertisedBase },
   ...[['invaders', 'Agency Invaders'], ['runner', 'Launch Runner'], ['trivia', 'Trivia Challenge']].map(([mode, title]) => ({ path: `play.html?game=${mode}`, title, canonical: new URL(`play.html?game=${mode}`, advertisedBase).href })),
+  { path: 'crossword.html', title: 'Crossword Break', canonical: new URL('crossword.html', advertisedBase).href },
 ];
 const agents = {
   anonymous: 'Mozilla/5.0 HTSG-ReadOnly-Sharing-QA',
@@ -180,20 +181,22 @@ function dimensions(bytes) {
 }
 try {
   baseURL = external ? external.replace(/\/+$/, '') + '/' : await (staticMode ? startStaticFixture() : startFixture());
-  await check('source gallery and player always contain complete sharing metadata before JavaScript', async () => {
+  await check('source gallery, player and crossword contain complete sharing metadata before JavaScript', async () => {
     const source = await readFile(resolve(root, 'public/index.html'), 'utf8');
     const fields = parse(source);
     const base = single(fields.links, 'canonical');
     const image = single(fields.metadata, 'og:image');
     validate(source, { title: 'Gamification Labs', canonical: base }, image);
     validate(await readFile(resolve(root, 'public/play.html'), 'utf8'), { title: 'Gamification Labs', canonical: new URL('play.html', base).href }, image);
+    validate(await readFile(resolve(root, 'public/crossword.html'), 'utf8'), { title: 'Crossword Break', canonical: new URL('crossword.html', base).href }, image);
   });
-  await check('built static-host player has a complete generic fallback and a valid gallery canonical', async () => {
+  await check('built static-host pages retain complete metadata and their own canonical routes', async () => {
     validate(await readFile(resolve(directory, 'index.html'), 'utf8'), cases[0]);
     validate(await readFile(resolve(directory, 'play.html'), 'utf8'), { title: 'Gamification Labs', canonical: new URL('play.html', advertisedBase).href });
+    validate(await readFile(resolve(directory, 'crossword.html'), 'utf8'), cases.at(-1));
   });
   for (const agent of Object.keys(agents)) {
-    await check(`${agent}: gallery, index alias and all three game URLs return complete raw sharing cards`, async () => {
+    await check(`${agent}: gallery, index alias and all four game URLs return complete raw sharing cards`, async () => {
       for (const item of cases) {
         const html = await fetchHTML(item.path, agent);
         validate(html, staticMode && item.path.startsWith('play.html') ? { title: 'Gamification Labs', canonical: new URL('play.html', advertisedBase).href } : item);
@@ -203,7 +206,8 @@ try {
     });
   }
   await check('missing and unknown game parameters retain the generic sharing fallback', async () => {
-    for (const path of ['play.html', 'play.html?game=unknown']) validate(await fetchHTML(path, 'facebook'), { title: 'Gamification Labs', canonical: new URL('play.html', advertisedBase).href });
+    for (const path of ['play.html', 'play.html?game=unknown', 'play.html?game=crossword']) validate(await fetchHTML(path, 'facebook'), { title: 'Gamification Labs', canonical: new URL('play.html', advertisedBase).href });
+    validate(await fetchHTML('crossword.html?game=runner&utm_source=preview', 'facebook'), cases.at(-1));
   });
   const imageProbe = external ? cover : new URL(coverURL.pathname.slice(site.pathname.length), baseURL).href;
   for (const agent of ['anonymous', 'facebook']) {
@@ -239,6 +243,10 @@ try {
     const page = await plain.newPage();
     await page.goto(new URL('play.html?game=runner', baseURL).href);
     assert.ok((await page.title()).includes(staticMode ? 'Gamification Labs' : 'Launch Runner'));
+    assert.equal(await page.locator('meta[property="og:image"]').getAttribute('content'), cover);
+    await page.goto(new URL('crossword.html', baseURL).href);
+    assert.ok((await page.title()).includes('Crossword Break'));
+    assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), new URL('crossword.html', advertisedBase).href);
     assert.equal(await page.locator('meta[property="og:image"]').getAttribute('content'), cover);
     await page.goto(imageProbe);
     await page.locator('img').waitFor();
@@ -280,6 +288,15 @@ try {
       }
     });
   }
+  await check('crossword: sharing changes preserve module loading and four-game navigation', async () => {
+    await page.goto(new URL('crossword.html', baseURL).href);
+    await page.locator('#crossword-grid[data-ready="true"]').waitFor();
+    assert.ok(await page.locator('.crossword-cell[data-index]').count() > 0, 'A real playable crossword must load');
+    assert.equal(await page.locator('.game-option').count(), 4);
+    assert.equal(await page.locator('.game-option[aria-current="page"]').getAttribute('href'), 'crossword.html');
+    assert.equal(await page.locator('#previous-game').getAttribute('href'), 'play.html?game=trivia');
+    assert.equal(await page.locator('#next-game').getAttribute('href'), 'play.html?game=invaders');
+  });
   await check('no browser exceptions or resource errors in the sharing and gameplay smoke', async () => assert.deepEqual(errors, []));
   await context.close();
 } finally {

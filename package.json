@@ -1,8 +1,8 @@
 {
   "name": "htsg-interactive-lab",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "private": true,
-  "description": "Three free HTSG browser games with optional first-party community challenges.",
+  "description": "Four free HTSG browser games with optional first-party community challenges.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -19,12 +19,13 @@
     "test:gamification": "node tests/gamification-qa.mjs",
     "test:share": "node tests/share-preview-qa.mjs",
     "test:community": "node tests/community-qa.mjs",
-    "artwork:share": "node scripts/generate-share-card.mjs",
+    "artwork:share": "node scripts/generate-crossword-art.mjs",
     "metadata:sync": "node scripts/sync-share-metadata.mjs",
     "build": "node scripts/build.mjs",
     "package": "npm run build && node scripts/package.mjs",
     "package:wordpress": "node scripts/package-wordpress.mjs",
-    "test:expansion": "node tests/expansion-qa.mjs"
+    "test:expansion": "node tests/expansion-qa.mjs",
+    "test:crossword": "node tests/crossword-qa.mjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"

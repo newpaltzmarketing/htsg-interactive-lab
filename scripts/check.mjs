@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { loadShareConfig, shareFields, validateShareHtml } from './share-metadata.mjs';
+import { loadShareConfig, shareFields, validateShareHtml, SHARE_HTML_PAGES } from './share-metadata.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 let checked = 0;
@@ -19,9 +19,9 @@ async function check(directory) {
 await check(resolve(root, 'public'));
 await check(resolve(root, 'scripts'));
 const shareConfig = await loadShareConfig(resolve(root, 'public'));
-for (const name of ['index.html', 'play.html']) {
+for (const [name, key] of Object.entries(SHARE_HTML_PAGES)) {
   const html = await readFile(resolve(root, 'public', name), 'utf8');
-  validateShareHtml(html, shareFields(shareConfig, name === 'index.html' ? 'gallery' : 'play'), name);
+  validateShareHtml(html, shareFields(shareConfig, key), name);
   if (!/<html[^>]+lang="en"/.test(html) || !/name="viewport"/.test(html)) throw new Error(`${name}: missing language or viewport`);
   for (const match of html.matchAll(/(?:src|href)="([^"#?]+)(?:[?#][^"]*)?"/g)) {
     const value = match[1];
@@ -30,4 +30,4 @@ for (const name of ['index.html', 'play.html']) {
     await readFile(path);
   }
 }
-console.log(`Checked ${checked} JavaScript files, both HTML entry points, complete social metadata, and the 1200 x 630 cover.`);
+console.log(`Checked ${checked} JavaScript files, all ${Object.keys(SHARE_HTML_PAGES).length} HTML entry points, complete social metadata, and the 1200 x 630 cover.`);

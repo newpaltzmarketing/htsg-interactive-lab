@@ -41,6 +41,7 @@ foreach (['/', '/demos/', '/menu/', '/wp-admin/', '/wp-json/', '/demos/interacti
 check(htsg_lab_request('/demos/interactive-lab', $base) === ['redirect' => true], 'Missing slash must redirect canonically');
 check(htsg_lab_request($base, $base) === ['file' => 'index.html', 'status' => 200], 'Gallery route');
 check(htsg_lab_request($base . 'play.html?game=runner', $base) === ['file' => 'play.html', 'status' => 200], 'Query must not affect static path');
+check(htsg_lab_request($base . 'crossword.html?game=runner&utm_source=preview', $base) === ['file' => 'crossword.html', 'status' => 200], 'Standalone crossword route must ignore game/tracking query');
 foreach (['../wp-config.php', '%2e%2e/wp-config.php', 'assets%2f../index.html', 'assets//x.js', 'assets/./x.js', 'assets/../index.html', '.env', '_headers', "assets\\x.js", 'index.html%00.php'] as $path) {
     check(htsg_lab_request($base . $path, $base)['status'] === 404, 'Unsafe route accepted: ' . $path);
 }
@@ -54,7 +55,8 @@ $state['can'] = true; $state['page'] = (object) ['ID' => 123];
 check(stopped('htsg_lab_activate', 409), 'Existing page must not be shadowed');
 $state['page'] = null;
 check(htsg_lab_ready(), 'The actual packaged dist files must verify');
-foreach (['game-renderer.js', 'ship-customization.js', 'score-store.js', 'play.css', 'assets/invaders-orbital-agency-20261018.webp', 'assets/runner-world.webp', 'assets/trivia-world.webp',
+foreach (['crossword.html', 'crossword.js', 'crossword.css', 'crossword-engine.js', 'crossword-puzzles.js',
+    'game-renderer.js', 'ship-customization.js', 'score-store.js', 'play.css', 'assets/invaders-orbital-agency-20261018.webp', 'assets/runner-world.webp', 'assets/trivia-world.webp',
     'assets/halo-runner-atlas.webp', 'assets/halo-runner-idle.png'] as $name) {
     $path = $fixture . '/site/' . $name;
     rename($path, $path . '.unavailable');
@@ -77,7 +79,13 @@ foreach (['invaders', 'runner', 'trivia'] as $game) {
     $hashes[$game] = $response['sha256'];
 }
 check(count(array_unique($hashes)) === 3, 'Each game requires a distinct response ETag');
-foreach (['', '?game=unknown', '?game[]=runner', '?game=%22%3E%3Cscript%3E', '?game=RUNNER'] as $query) {
+$crosswordFields = htsg_lab_share_fields($base . 'crossword.html?game=runner&utm_source=preview', 'crossword.html', $config);
+$crosswordResponse = htsg_lab_response(htsg_lab_asset('crossword.html'), $base . 'crossword.html?game=runner', 'crossword.html');
+check($crosswordFields['url'] === htsg_lab_url() . 'crossword.html' && $crosswordFields['title'] === $config['pages']['crossword']['title'], 'Crossword canonical/title must use its own route and ignore query game');
+check(htsg_lab_share_valid($crosswordResponse['body'], $crosswordFields), 'Crossword metadata must exist before JavaScript');
+check($crosswordResponse['bytes'] === strlen($crosswordResponse['body']) && $crosswordResponse['sha256'] === hash('sha256', $crosswordResponse['body']), 'Crossword response length and ETag must describe rendered bytes');
+check(!in_array($crosswordResponse['sha256'], $hashes, true), 'Standalone crossword metadata must not inherit a player ETag');
+foreach (['', '?game=unknown', '?game=crossword', '?game[]=runner', '?game=%22%3E%3Cscript%3E', '?game=RUNNER'] as $query) {
     $fields = htsg_lab_share_fields($base . 'play.html' . $query, 'play.html', $config);
     check($fields['url'] === htsg_lab_url() . 'play.html' && $fields['title'] === $config['pages']['play']['title'], 'Unsafe/missing query must use static all-game fallback');
 }
@@ -99,13 +107,15 @@ $manifestPath = $fixture . '/site/build-manifest.json';
 $originalManifest = file_get_contents($manifestPath);
 $configPath = $fixture . '/site/share.json';
 $originalConfig = file_get_contents($configPath);
-foreach (['width', 'path', 'type', 'site_url', 'page'] as $broken) {
+foreach (['width', 'path', 'type', 'site_url', 'page', 'crossword', 'crossword_path'] as $broken) {
     $bad = $config;
     if ($broken === 'width') { $bad['image']['width'] = 1; }
     if ($broken === 'path') { $bad['image']['path'] = '../private.png'; }
     if ($broken === 'type') { $bad['image']['type'] = 'image/png'; }
     if ($broken === 'site_url') { $bad['site_url'] = 'https://user@example.com/'; }
     if ($broken === 'page') { unset($bad['pages']['runner']['description']); }
+    if ($broken === 'crossword') { unset($bad['pages']['crossword']); }
+    if ($broken === 'crossword_path') { $bad['pages']['crossword']['path'] = 'play.html?game=crossword'; }
     $json = json_encode($bad); file_put_contents($configPath, $json);
     $manifest = json_decode($originalManifest, true);
     $manifest['share.json'] = ['bytes' => strlen($json), 'sha256' => hash('sha256', $json)];

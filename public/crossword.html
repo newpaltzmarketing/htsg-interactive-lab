@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1520">
+  <!-- HTSG social:start -->
+  <title>Crossword Break | HTSG Gamification Labs</title>
+  <meta name="description" content="Take a Crossword Break with three original mini puzzles, touch and keyboard controls, clue checks and letter hints. Your progress stays on this device.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta property="og:title" content="Crossword Break | HTSG Gamification Labs">
+  <meta property="og:description" content="Take a Crossword Break with three original mini puzzles, touch and keyboard controls, clue checks and letter hints. Your progress stays on this device.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Holistic Tech Solutions Group">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:url" content="https://holistictechsolutionsgroup.com/demos/interactive-lab/crossword.html">
+  <meta property="og:image" content="https://holistictechsolutionsgroup.com/demos/interactive-lab/assets/lab-share-20261022.jpg">
+  <meta property="og:image:secure_url" content="https://holistictechsolutionsgroup.com/demos/interactive-lab/assets/lab-share-20261022.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="HTSG Gamification Labs with Agency Invaders, Halo in Launch Runner, Trivia Challenge and the Crossword Break grid.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Crossword Break | HTSG Gamification Labs">
+  <meta name="twitter:description" content="Take a Crossword Break with three original mini puzzles, touch and keyboard controls, clue checks and letter hints. Your progress stays on this device.">
+  <meta name="twitter:image" content="https://holistictechsolutionsgroup.com/demos/interactive-lab/assets/lab-share-20261022.jpg">
+  <meta name="twitter:image:alt" content="HTSG Gamification Labs with Agency Invaders, Halo in Launch Runner, Trivia Challenge and the Crossword Break grid.">
+  <link rel="canonical" href="https://holistictechsolutionsgroup.com/demos/interactive-lab/crossword.html">
+  <link rel="image_src" href="https://holistictechsolutionsgroup.com/demos/interactive-lab/assets/lab-share-20261022.jpg">
+  <!-- HTSG social:end -->
+  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="crossword.css">
+</head>
+<body>
+  <a class="skip-link" href="#crossword-grid">Skip to crossword</a>
+  <header class="crossword-topbar">
+    <a class="gallery-return" href="index.html"><span aria-hidden="true">←</span> All games</a>
+    <nav class="game-switcher" aria-label="Switch games">
+      <a id="previous-game" class="icon-control" href="play.html?game=trivia" aria-label="Previous game: Trivia Challenge">‹</a>
+      <details id="game-picker">
+        <summary><h1>Crossword Break</h1><span aria-hidden="true">⌄</span></summary>
+        <div class="game-options">
+          <a class="game-option" href="play.html?game=invaders">Agency Invaders</a>
+          <a class="game-option" href="play.html?game=runner">Launch Runner</a>
+          <a class="game-option" href="play.html?game=trivia">Trivia Challenge</a>
+          <a class="game-option" href="crossword.html" aria-current="page">Crossword Break</a>
+        </div>
+      </details>
+      <a id="next-game" class="icon-control" href="play.html?game=invaders" aria-label="Next game: Agency Invaders">›</a>
+    </nav>
+    <a class="help-link" href="#how-to-play">How to play</a>
+  </header>
+  <main id="crossword-app" class="crossword-app">
+    <div class="puzzle-heading">
+      <div class="puzzle-select"><label for="puzzle-picker">Your mini</label><select id="puzzle-picker" aria-label="Choose a crossword puzzle"></select></div>
+      <p id="save-status" class="save-status" role="status">Loading your crossword…</p>
+    </div>
+    <p id="puzzle-description" class="puzzle-description"></p>
+    <div class="puzzle-workspace">
+      <section class="board-column" aria-label="Crossword and letter keys">
+        <div id="active-clue" class="active-clue"><strong id="active-clue-label">Across</strong><p id="active-clue-text">Loading clues…</p></div>
+        <div id="crossword-grid" class="crossword-grid" role="grid" tabindex="-1" aria-label="Mini crossword" aria-describedby="keyboard-help" data-ready="false"></div>
+        <div class="entry-navigation" aria-label="Move between clues"><button id="previous-clue" type="button">← Previous clue</button><span id="letter-progress"></span><button id="next-clue" type="button">Next clue →</button></div>
+        <details id="letter-keys" class="letter-keys" open><summary>Letter keys</summary><div id="touch-keyboard" class="touch-keyboard" aria-label="On-screen letter keys"></div></details>
+        <div class="puzzle-tools"><button id="check-word" type="button">Check word</button><button id="reveal-letter" type="button">Reveal letter</button><button id="clear-puzzle" class="quiet-button" type="button">Clear puzzle</button></div>
+        <div id="clear-confirm" class="clear-confirm" role="group" aria-label="Confirm clearing this puzzle" hidden><p>Clear every letter in this puzzle?</p><button id="confirm-clear" type="button">Yes, clear puzzle</button><button id="cancel-clear" type="button">Keep working</button></div>
+        <p id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true">Choose a clue or a square to begin.</p>
+        <section id="completion" class="completion" aria-labelledby="completion-title" hidden><h2 id="completion-title">Puzzle complete.</h2><p>Every letter is correct. Nice work.</p><button id="next-puzzle" type="button">Try the next mini →</button></section>
+      </section>
+      <aside id="clue-lists" class="clue-lists" aria-label="Crossword clues"><section><h2>Across</h2><ol id="across-clues"></ol></section><section><h2>Down</h2><ol id="down-clues"></ol></section></aside>
+    </div>
+    <details id="how-to-play" class="how-to-play"><summary>How to play</summary><p>Tap a square or choose a clue. Tap the same square again to switch between Across and Down. Use the letter keys here or type on your keyboard.</p><p id="keyboard-help">Arrow keys move around the grid. Space switches direction. Backspace erases a letter; Enter moves to the next clue. Tab moves to the other controls.</p><p>Check word points out letters to revisit. Reveal letter fills only the selected square. Progress saves in this browser when storage is available. No account or score is needed.</p></details>
+    <footer><a href="index.html">Browse all games</a><span>Made for a little breathing room.</span></footer>
+  </main>
+  <noscript><p class="no-script">Crossword Break needs JavaScript for its letter keys and saved progress. You can still <a href="index.html">browse Gamification Labs</a>.</p></noscript>
+  <script type="module" src="crossword.js"></script>
+</body>
+</html>

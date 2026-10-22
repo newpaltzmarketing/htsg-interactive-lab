@@ -140,9 +140,16 @@ try {
       for (const mode of ['invaders', 'runner', 'trivia']) {
         assert.equal(await page.locator(`a[href*="game=${mode}"]`).count(), 1, `${mode} gallery route`);
       }
+      assert.equal(await page.locator('a[href="crossword.html"]').count(), 1, 'Standalone crossword gallery route');
       await page.screenshot({ path: resolve(output, `gallery-${viewport.width}.png`), fullPage: true });
       for (const mode of ['invaders', 'runner', 'trivia']) {
         await openGame(page, mode);
+        const routes = ['play.html?game=invaders', 'play.html?game=runner', 'play.html?game=trivia', 'crossword.html'];
+        const routeIndex = ['invaders', 'runner', 'trivia'].indexOf(mode);
+        assert.equal(await page.locator('.game-option').count(), routes.length, 'Picker includes all four games');
+        assert.equal(await page.locator('#previous-game').getAttribute('href'), routes[(routeIndex + routes.length - 1) % routes.length]);
+        assert.equal(await page.locator('#next-game').getAttribute('href'), routes[(routeIndex + 1) % routes.length]);
+        assert.equal(await page.locator('.game-option[aria-current="page"]').getAttribute('href'), routes[routeIndex]);
         await assertNoOverflow(page);
         assert.equal(await page.locator('#steering-pad').count(), 0, 'Direct game-area controls replace the separate steering pad');
         if (viewport.width === 390 && mode === 'invaders') {
@@ -317,6 +324,7 @@ try {
     await page.getByRole('link', { name: /Back to the games/ }).click();
     assert.equal(new URL(page.url()).pathname, new URL('index.html', `${baseURL}/`).pathname);
     assert.equal(await page.locator('a[href*="game="]').count(), 3);
+    assert.equal(await page.locator('a[href="crossword.html"]').count(), 1);
   });
   await context.close();
 

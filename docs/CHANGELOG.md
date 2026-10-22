@@ -1,6 +1,12 @@
 # Release changes
 
-## 1.6.1 — live, October 18, 2026
+## 1.7.0 — live, October 22, 2026
+
+Add Crossword Break with three original mini puzzles, keyboard and touch letter entry, Across/Down clues, word checks, selected-letter reveals, completion feedback and progress saved on the device. Clear puzzle asks for confirmation. The four-game gallery and circular game navigation lead directly to the crossword, and a new dated cover represents all four games. Crossword metadata is present in initial HTML through the same shared configuration, static build and scoped WordPress adapter.
+
+No backend, paid dependency, account change or challenge-rule change is introduced. Existing three game routes, rules 1.6.0 and Community 1.0.6 are retained.
+
+## 1.6.1 — historical, October 18, 2026
 
 The live review caught a CSS specificity override in ship/paint selection borders. Raise only those selectors and assert the actual rendered border in the browser acceptance suite. The final 37-file package differs from 1.6.0 only in CSS, release version and derived manifest. Rules remain 1.6.0; Community remains 1.0.6.
 

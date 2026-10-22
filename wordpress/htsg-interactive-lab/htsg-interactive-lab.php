@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HTSG Gamification Labs
  * Description: Serves the reviewed static browser games at /demos/interactive-lab/.
- * Version: 1.6.1
+ * Version: 1.7.0
  * Author: Holistic Tech Solutions Group
  * Requires PHP: 8.0
  */
@@ -56,7 +56,7 @@ function htsg_lab_share_config(?string $directory = null): ?array {
     if (!$site || ($site['scheme'] ?? '') !== 'https' || empty($site['host']) || isset($site['user']) || isset($site['pass']) ||
         isset($site['query']) || isset($site['fragment']) || substr($config['site_url'], -1) !== '/') { return null; }
     $paths = ['gallery' => '', 'play' => 'play.html', 'invaders' => 'play.html?game=invaders',
-        'runner' => 'play.html?game=runner', 'trivia' => 'play.html?game=trivia'];
+        'runner' => 'play.html?game=runner', 'trivia' => 'play.html?game=trivia', 'crossword' => 'crossword.html'];
     foreach ($paths as $key => $path) {
         $page = $config['pages'][$key] ?? null;
         if (!is_array($page) || ($page['path'] ?? null) !== $path || !is_string($page['title'] ?? null) || trim($page['title']) === '' ||
@@ -88,7 +88,7 @@ function htsg_lab_share_game(string $uri): ?string {
 }
 
 function htsg_lab_share_fields(string $uri, string $file, array $config, ?string $siteURL = null): array {
-    $key = $file === 'index.html' ? 'gallery' : (htsg_lab_share_game($uri) ?? 'play');
+    $key = $file === 'index.html' ? 'gallery' : ($file === 'crossword.html' ? 'crossword' : (htsg_lab_share_game($uri) ?? 'play'));
     $page = $config['pages'][$key];
     $base = $siteURL ?? htsg_lab_url();
     return ['title' => $page['title'], 'description' => $page['description'], 'url' => $base . $page['path'],
@@ -154,7 +154,7 @@ function htsg_lab_share_valid(string $html, array $fields): bool {
 
 /** Response hashes and lengths describe rendered HTML, including game metadata. */
 function htsg_lab_response(array $asset, string $uri, string $file): ?array {
-    if (!in_array($file, ['index.html', 'play.html'], true)) { return $asset + ['body' => null]; }
+    if (!in_array($file, ['index.html', 'play.html', 'crossword.html'], true)) { return $asset + ['body' => null]; }
     $config = htsg_lab_share_config();
     if (!$config) { return null; }
     $body = htsg_lab_share_html((string) file_get_contents($asset['path']), htsg_lab_share_fields($uri, $file, $config));
@@ -183,14 +183,15 @@ function htsg_lab_ready(?string $directory = null): bool {
     $directory = $directory ?? __DIR__ . '/site';
     $headers = is_file($directory . '/_headers') ? file_get_contents($directory . '/_headers') : '';
     if (!is_string($headers) || !preg_match('/^\s+Content-Security-Policy:\s*.+$/m', $headers)) { return false; }
-    foreach (['index.html', 'play.html', '404.html', 'game.js', 'game-engine.js', 'game-renderer.js', 'ship-customization.js', 'score-store.js', 'questions.js',
+    foreach (['index.html', 'play.html', 'crossword.html', 'crossword.js', 'crossword.css', 'crossword-engine.js', 'crossword-puzzles.js',
+        '404.html', 'game.js', 'game-engine.js', 'game-renderer.js', 'ship-customization.js', 'score-store.js', 'questions.js',
         'brand.js', 'style.css', 'brand.css', 'play.css', 'assets/invaders-orbital-agency-20261018.webp', 'assets/runner-world.webp', 'assets/trivia-world.webp',
         'assets/halo-runner-atlas.webp', 'assets/halo-runner-idle.png', 'share.json'] as $name) {
         if (!htsg_lab_asset($name, $directory)) { return false; }
     }
     $config = htsg_lab_share_config($directory);
     if (!$config) { return false; }
-    foreach (['index.html', 'play.html'] as $name) {
+    foreach (['index.html', 'play.html', 'crossword.html'] as $name) {
         $page = htsg_lab_asset($name, $directory);
         $html = (string) file_get_contents($page['path']);
         $fields = htsg_lab_share_fields('', $name, $config, $config['site_url']);

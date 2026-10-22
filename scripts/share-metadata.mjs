@@ -3,7 +3,8 @@ import { resolve, sep } from 'node:path';
 
 export const SHARE_START = '<!-- HTSG social:start -->';
 export const SHARE_END = '<!-- HTSG social:end -->';
-const paths = Object.freeze({ gallery: '', play: 'play.html', invaders: 'play.html?game=invaders', runner: 'play.html?game=runner', trivia: 'play.html?game=trivia' });
+const paths = Object.freeze({ gallery: '', play: 'play.html', invaders: 'play.html?game=invaders', runner: 'play.html?game=runner', trivia: 'play.html?game=trivia', crossword: 'crossword.html' });
+export const SHARE_HTML_PAGES = Object.freeze({ 'index.html': 'gallery', 'play.html': 'play', 'crossword.html': 'crossword' });
 const text = value => typeof value === 'string' && value.trim().length > 0;
 const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const decode = value => value.replace(/&(?:amp|quot|lt|gt|#39);/g, entity => ({ '&amp;': '&', '&quot;': '"', '&lt;': '<', '&gt;': '>', '&#39;': "'" })[entity]);

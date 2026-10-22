@@ -67,8 +67,8 @@
     }
   ],
   "share_card": {
-    "method": "Editable SVG composition of the approved HTSG logo, three local environments, actual Halo still, a vector spacecraft derived from the game renderer, and a quiz symbol; rendered by Chromium at 1200 x 630.",
-    "generator": "scripts/generate-share-card.mjs",
+    "method": "Original editable SVG desk crossword illustration and four-game composition from approved local assets, rendered by Chromium. The crossword illustration is representative art, not a solved game screenshot.",
+    "generator": "scripts/generate-crossword-art.mjs",
     "dimensions": [
       1200,
       630
@@ -102,19 +102,24 @@
     ],
     "outputs": [
       {
-        "path": "public/assets/lab-share.svg",
-        "bytes": 1492476,
-        "sha256": "d87db93eb29fc294265e645cc2f43e922a31b045846ea75404f4d90f3073e4d0"
+        "path": "public/assets/crossword-break-20261022.svg",
+        "bytes": 5046,
+        "sha256": "4da72dc4cb91f350ff9b6a097ea57a7fe78a72a92d960fb4a85bc10f66efd2f8"
       },
       {
-        "path": "public/assets/lab-share.png",
-        "bytes": 527223,
-        "sha256": "4933fdc3b1d8b5b4873b19612da1d96f5e8e586df72386349b62d752ea0c36d0"
+        "path": "public/assets/crossword-break-20261022.png",
+        "bytes": 175811,
+        "sha256": "411570647e0ebf10bbf0d04aaafb9b3a9157d95a1416f7089081bc338a160e51"
       },
       {
-        "path": "public/assets/lab-share-20261018.jpg",
-        "bytes": 134985,
-        "sha256": "904c1104f95ae28cec2939b0c8e9a4ee09b51866005a4efda42fb3f3c945c88f"
+        "path": "public/assets/lab-share-20261022.svg",
+        "bytes": 1725580,
+        "sha256": "48e4a7e5ab05441858dcc569f64d8c65bbca38306034501415aef2c6ae49d983"
+      },
+      {
+        "path": "public/assets/lab-share-20261022.jpg",
+        "bytes": 133395,
+        "sha256": "0ee2ffe6873546ccf4a86c7009ecc155875d57d473475a0d57f8fd0314bee662"
       }
     ]
   },
@@ -220,6 +225,58 @@
           "path": "public/assets/lab-share-20261017.jpg",
           "bytes": 128579,
           "sha256": "e126476fd8d0d32006583387631cddaef03129892d0726da58f196d6846d5eee"
+        }
+      ]
+    },
+    {
+      "method": "Editable SVG composition of the approved HTSG logo, three local environments, actual Halo still, a vector spacecraft derived from the game renderer, and a quiz symbol; rendered by Chromium at 1200 x 630.",
+      "generator": "scripts/generate-share-card.mjs",
+      "dimensions": [
+        1200,
+        630
+      ],
+      "inputs": [
+        {
+          "path": "public/assets/htsg-logo.png",
+          "bytes": 51871,
+          "sha256": "e8084a0bdcfd63889c7629d8bc501ef8338bf0e0fc39545995f5a50a5870f69f"
+        },
+        {
+          "path": "public/assets/halo-runner-idle.png",
+          "bytes": 102185,
+          "sha256": "9caf031965dabd381e2caab10fa619ca8d8a0aa708e128a29abc6dd0953109d9"
+        },
+        {
+          "path": "public/assets/invaders-orbital-agency-20261018.webp",
+          "bytes": 255116,
+          "sha256": "e1be5e1488845daa3d11fe50bf52c5e4691b476a2f582b02d46bfc10c43447bf"
+        },
+        {
+          "path": "public/assets/runner-world.webp",
+          "bytes": 379038,
+          "sha256": "5735fe206f092e7c2eca397d8751607dc09e43b30c689eb2ec9ea0c30b8bbcbf"
+        },
+        {
+          "path": "public/assets/trivia-world.webp",
+          "bytes": 327786,
+          "sha256": "2f4c1c71a1d628ed5584e5411034264e0f0b5b3f4d04da0d106f0bfb390759d9"
+        }
+      ],
+      "outputs": [
+        {
+          "path": "public/assets/lab-share.svg",
+          "bytes": 1492476,
+          "sha256": "d87db93eb29fc294265e645cc2f43e922a31b045846ea75404f4d90f3073e4d0"
+        },
+        {
+          "path": "public/assets/lab-share.png",
+          "bytes": 527223,
+          "sha256": "4933fdc3b1d8b5b4873b19612da1d96f5e8e586df72386349b62d752ea0c36d0"
+        },
+        {
+          "path": "public/assets/lab-share-20261018.jpg",
+          "bytes": 134985,
+          "sha256": "904c1104f95ae28cec2939b0c8e9a4ee09b51866005a4efda42fb3f3c945c88f"
         }
       ]
     }
